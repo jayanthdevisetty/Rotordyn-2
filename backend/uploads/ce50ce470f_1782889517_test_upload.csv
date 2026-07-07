@@ -1,0 +1,5 @@
+# Unit_vib_1_direct: um
+# Unit_speed_1: rpm
+_date,vib_1_direct,speed_1
+2026-07-01 12:00:00,12.5,1500
+2026-07-01 12:00:01,13.0,1505

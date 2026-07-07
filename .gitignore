@@ -1,0 +1,25 @@
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Production builds
+dist/
+**/dist/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local upload cache
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables
+.env
+local.env
+
+# Logs and system files
+*.log
+.DS_Store
+.vscode/
+.idea/

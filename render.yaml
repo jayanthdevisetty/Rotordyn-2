@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: rotordyn-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: PYTHONPATH=. uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://djay8im_db_user:07A88459zdyVmujh@cluster0.hsmnkyb.mongodb.net/?appName=Cluster0
+      - key: DB_NAME
+        value: rotordyn
+      - key: GMAIL_USERNAME
+        value: shaikbashah20@gmail.com
+      - key: GMAIL_APP_PASSWORD
+        value: vgrtyjnrmxupecsa
+      - key: ADMIN_UPLOAD_EMAIL
+        value: djay8im@gmail.com
+      - key: JWT_SECRET_KEY
+        value: supersecretkeychangeinproduction
+      - key: ADMIN_EMAIL
+        value: admin@rotordyn.ai
+      - key: ADMIN_PASSWORD
+        value: AdminPassword123
+      - key: FRONTEND_URL
+        value: https://cosmic-dodol-084d0a.netlify.app
+      - key: BACKEND_URL
+        value: https://rotordyn-ai-v2.onrender.com
