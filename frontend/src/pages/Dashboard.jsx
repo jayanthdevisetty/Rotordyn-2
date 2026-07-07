@@ -6972,6 +6972,105 @@ export const Dashboard = () => {
         }
         window.changeOrbitCycles = changeOrbitCycles;
 
+        window.scadaInterval = null;
+        window.startScadaSimulation = () => {
+            const simBtn = document.getElementById('btn-scada-sim');
+            
+            if (window.scadaInterval) {
+                clearInterval(window.scadaInterval);
+                window.scadaInterval = null;
+                if (simBtn) {
+                    simBtn.innerText = 'Simulate Live SCADA Feed';
+                    simBtn.style.borderColor = 'var(--accent-color)';
+                    simBtn.style.color = 'var(--accent-color)';
+                }
+                return;
+            }
+            
+            if (simBtn) {
+                simBtn.innerText = 'Stop Live Feed';
+                simBtn.style.borderColor = '#ef4444';
+                simBtn.style.color = '#ef4444';
+            }
+            
+            const initialDf = [];
+            const baseTime = Date.now() - 60000;
+            
+            for (let i = 0; i < 50; i++) {
+                const rpm = 500 + i * 35;
+                const ampFactor = Math.exp(-Math.pow(rpm - 1800, 2) / 120000);
+                const amp1x = 0.4 + 2.8 * ampFactor;
+                const phase1x = 35 + 110 * (1 / (1 + Math.exp(-(rpm - 1800)/80)));
+                
+                initialDf.push({
+                    '_index': i,
+                    '_time_ms': i * 1000,
+                    '_date': new Date(baseTime + i * 1000).toLocaleTimeString(),
+                    'Speed': rpm,
+                    'BRG1X_direct': amp1x + 0.3 * Math.random(),
+                    'BRG1X_amp_1x': amp1x,
+                    'BRG1X_phase_1x': phase1x,
+                    'BRG1Y_direct': amp1x + 0.4 * Math.random(),
+                    'BRG1Y_amp_1x': Math.max(0.2, amp1x - 0.3),
+                    'BRG1Y_phase_1x': phase1x + 90
+                });
+            }
+            
+            df = initialDf;
+            allDatasetColumns = Object.keys(df[0]);
+            bearingPairs = ['BRG1X/BRG1Y'];
+            singlePrefixes = ['BRG1X', 'BRG1Y'];
+            speedCol = 'Speed';
+            window.detectedSpeedCols = ['Speed'];
+            
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('main-container').style.display = 'flex';
+            
+            const timelineBar = document.getElementById('global-timeline-bar');
+            if (timelineBar) timelineBar.style.display = 'flex';
+            
+            plotSlots[0] = { bearingOrChannel: 'BRG1X', category: 'trend', isDual: false, layoutLimits: { min: null, max: null, autoScale: true } };
+            plotSlots[1] = { bearingOrChannel: 'BRG1X/BRG1Y', category: 'orbit', isDual: true, layoutLimits: { min: null, max: null, autoScale: true } };
+            
+            updateSpeedSensorDropdown();
+            populateSidebarTree();
+            
+            activeCursorIndex = df.length - 1;
+            renderGrid();
+            
+            let count = 50;
+            window.scadaInterval = setInterval(() => {
+                const rpm = 2250 + (count - 50) * 20;
+                const ampFactor = Math.exp(-Math.pow(rpm - 1800, 2) / 120000);
+                const amp1x = 0.4 + 2.8 * ampFactor;
+                const phase1x = 35 + 110 * (1 / (1 + Math.exp(-(rpm - 1800)/80)));
+                
+                const newRow = {
+                    '_index': count,
+                    '_time_ms': count * 1000,
+                    '_date': new Date(Date.now()).toLocaleTimeString(),
+                    'Speed': rpm,
+                    'BRG1X_direct': amp1x + 0.3 * Math.random(),
+                    'BRG1X_amp_1x': amp1x,
+                    'BRG1X_phase_1x': phase1x,
+                    'BRG1Y_direct': amp1x + 0.4 * Math.random(),
+                    'BRG1Y_amp_1x': Math.max(0.2, amp1x - 0.3),
+                    'BRG1Y_phase_1x': phase1x + 90
+                };
+                
+                df.push(newRow);
+                
+                if (df.length > 120) {
+                    df.shift();
+                    df.forEach((r, idx) => { r._index = idx; });
+                }
+                
+                activeCursorIndex = df.length - 1;
+                renderGrid();
+                count++;
+            }, 1000);
+        };
+
         window.setLayout = setLayout;
         window.toggleTimeSync = toggleTimeSync;
         window.prevGridPage = prevGridPage;
@@ -7244,6 +7343,12 @@ export const Dashboard = () => {
         delete window.toggleOrbitTrace2;
         delete window.changeOrbitCycles;
         delete window.populatePlotFromToolbar;
+        
+        if (window.scadaInterval) {
+            clearInterval(window.scadaInterval);
+            window.scadaInterval = null;
+        }
+        delete window.startScadaSimulation;
         delete window.toggleSlowRoll;
         delete window.saveSlowRollSample;
         delete window.updateSavedSlowRollList;
@@ -7593,6 +7698,7 @@ export const Dashboard = () => {
             
             <input type="file" id="file-input" accept=".csv,.xlsx,.xls" multiple onChange={(e) => window.handleFileSelect && window.handleFileSelect(e)} />
             <button className="btn-upload" type="button" onClick={() => document.getElementById('file-input').click()}>Select CSV or Excel Files</button>
+            <button className="btn-upload" id="btn-scada-sim" type="button" onClick={() => window.startScadaSimulation && window.startScadaSimulation()} style={{backgroundColor: "transparent", border: "1px dashed var(--accent-color)", color: "var(--accent-color)", marginTop: "10px"}}>Simulate Live SCADA Feed</button>
             <button className="btn-upload" id="btn-load-cached" type="button" onClick={() => window.loadCachedDataset && window.loadCachedDataset()} style={{backgroundColor: "transparent", border: "1px solid var(--accent-color)", color: "var(--accent-color)", marginTop: "10px", display: "none"}}>Load Last Selected Dataset</button>
             
             {/* Saved Datasets section */}
