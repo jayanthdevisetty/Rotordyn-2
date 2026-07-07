@@ -317,12 +317,12 @@ def build_html():
                     <p>Tested DB schema integrity for administrator workflows. Approving requests from the dashboard updates access states globally across metadata storage.</p>
                 </div>
                 <div class="detail-item">
-                    <h4>3. Real-Time Telemetry Streaming</h4>
-                    <p>Verified math calculations for dynamic overall and 1X amplitude variables. Toggling ISO 10816 safety guidelines overlays appropriate severity bands on active plots.</p>
+                    <h4>3. WebSockets Live Ingestion</h4>
+                    <p>Established a bidirectional WebSockets streaming connection to the backend (/scada/stream) to handle real-time high-frequency data ingestion securely and smoothly, using a sliding window capped at 150 points.</p>
                 </div>
                 <div class="detail-item">
-                    <h4>4. Custom Layout Customization</h4>
-                    <p>Grid card slots scale and position dynamically when toggling 1X Orbit timebases, Trace 2 curves, or the gearbox speed multipliers.</p>
+                    <h4>4. Multi-Spool & Gearbox Support</h4>
+                    <p>Enabled dynamic gearbox ratio setting and multi-spool speed calculations, automatically scaling dynamic speeds and tracking resonance levels correctly across Polar, Bode, and Shaft Centerline plots.</p>
                 </div>
             </div>
         </div>
