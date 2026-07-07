@@ -5,9 +5,9 @@ import logoImg from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 
 export const Landing = () => {
-    const [showIntro, setShowIntro] = useState(true);
-    const { token, user } = useAuth();
+    const { token, user, loading } = useAuth();
     const navigate = useNavigate();
+    const [showIntro, setShowIntro] = useState(!localStorage.getItem('token'));
 
     useEffect(() => {
         if (token && user) {
@@ -20,6 +20,38 @@ export const Landing = () => {
             }
         }
     }, [token, user, navigate]);
+
+    if (loading && localStorage.getItem('token')) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: '#090d16',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 99999
+            }}>
+                <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid rgba(255, 255, 255, 0.1)',
+                    borderTop: '3px solid #3b82f6',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }} />
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
 
     if (showIntro) {
         return (
