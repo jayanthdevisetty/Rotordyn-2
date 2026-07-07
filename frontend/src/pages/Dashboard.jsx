@@ -5552,12 +5552,13 @@ export const Dashboard = () => {
             const windowed = applyHanningWindow(timeSignal);
             const magnitudes = computeFFT(windowed);
             
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
             const orders = [];
             const spectrum_mags = [];
             
             for (let i = 0; i < magnitudes.length; i++) {
-                const orderVal = i / 4.0;
-                if (orderVal > 4.5) break;
+                const orderVal = (i / 4.0) / ratio;
+                if (orderVal > 4.5 / ratio) break;
                 orders.push(orderVal);
                 spectrum_mags.push(magnitudes[i]);
             }
@@ -5667,11 +5668,12 @@ export const Dashboard = () => {
                 const windowed = applyHanningWindow(timeSignal);
                 const magnitudes = computeFFT(windowed);
                 
+                const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
                 const orders = [];
                 const spectrum_mags = [];
                 for (let i = 0; i < magnitudes.length; i++) {
-                    const orderVal = i / 4.0;
-                    if (orderVal > 4.5) break;
+                    const orderVal = (i / 4.0) / ratio;
+                    if (orderVal > 4.5 / ratio) break;
                     orders.push(orderVal);
                     spectrum_mags.push(magnitudes[i]);
                 }
@@ -5687,9 +5689,9 @@ export const Dashboard = () => {
                     type: 'scatter3d',
                     mode: 'lines',
                     x: orders,
-                    y: Array(orders.length).fill(avgRpm),
+                    y: Array(orders.length).fill(avgRpm * ratio),
                     z: spectrum_mags,
-                    name: `${Math.round(avgRpm)} RPM`,
+                    name: `${Math.round(avgRpm * ratio)} RPM`,
                     line: {
                         width: 4,
                         color: `hsl(${hue}, 85%, 50%)`
@@ -8034,6 +8036,12 @@ export const Dashboard = () => {
                                 <select id="speed-sensor-select" onChange={(e) => window.handleSpeedSensorChange && window.handleSpeedSensorChange(e.target.value)} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
                                     <option value="">(No Dataset Loaded)</option>
                                 </select>
+                            </div>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <label htmlFor="gear-ratio-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>
+                                    Gearbox / Speed Multiplier Ratio
+                                </label>
+                                <input type="number" id="gear-ratio-input" step="0.01" min="0.01" max="100.0" defaultValue="1.00" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
                             </div>
                         </div>
 
