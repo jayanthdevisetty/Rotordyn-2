@@ -239,6 +239,66 @@ async def login(user_in: UserLogin):
             detail=f"Authentication failed: {str(e)}"
         )
 
+@router.post("/{provider}/callback", response_model=Token)
+async def oauth_callback(provider: str, body: dict):
+    """Exchanges Supabase OAuth authorization code for a session token."""
+    code = body.get("code")
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing authorization code from provider."
+        )
+    
+    try:
+        # Exchange PKCE auth code for a session
+        res = supabase.auth.exchange_code_for_session({
+            "auth_code": code
+        })
+        
+        session = res.session
+        user = res.user
+        if not session or not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OAuth code exchange did not return a valid session."
+            )
+            
+        # Ensure user profile exists in database
+        existing = supabase.table("profiles").select("*").eq("id", user.id).execute()
+        if not existing.data or len(existing.data) == 0:
+            metadata = user.user_metadata or {}
+            name = metadata.get("full_name") or metadata.get("name") or user.email.split("@")[0]
+            
+            profile_data = {
+                "id": user.id,
+                "name": name,
+                "email": user.email,
+                "company": "OAuth Registered",
+                "plant": "Default Plant",
+                "purpose": "Vibration Analysis",
+                "role": "user",
+                "status": "pending"
+            }
+            
+            db_res = supabase.table("profiles").insert(profile_data).execute()
+            if not db_res.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create user profile after OAuth registration."
+                )
+                
+        return {
+            "access_token": session.access_token,
+            "token_type": "bearer"
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth exchange failed: {str(e)}"
+        )
+
 @router.get("/me", response_model=UserResponse)
 async def read_current_user(current_user: dict = Depends(get_current_user)):
     """Returns the current user profile."""
