@@ -1,9 +1,68 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiTrendingUp, FiSliders, FiFolder, FiArrowRight } from 'react-icons/fi';
 import logoImg from '../assets/logo.png';
 
 export const Landing = () => {
+    const [showIntro, setShowIntro] = useState(true);
+
+    if (showIntro) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: '#090d16',
+                zIndex: 99999,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                overflow: 'hidden'
+            }}>
+                <video
+                    src="/intro.mp4"
+                    autoPlay
+                    muted
+                    playsInline
+                    onEnded={() => setShowIntro(false)}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                    }}
+                />
+                <button
+                    onClick={() => setShowIntro(false)}
+                    style={{
+                        position: 'absolute',
+                        top: '24px',
+                        right: '24px',
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#f8fafc',
+                        padding: '10px 20px',
+                        borderRadius: '30px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        zIndex: 100000,
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                    }}
+                >
+                    Skip Intro <FiArrowRight />
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div style={{
             backgroundColor: '#f1f5f9',

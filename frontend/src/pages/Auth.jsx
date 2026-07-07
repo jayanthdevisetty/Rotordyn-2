@@ -107,11 +107,11 @@ export const Auth = () => {
         try {
             const fullName = `${regFirstName.trim()} ${regLastName.trim()}`;
             await register(fullName, regEmail, regPassword, regCompany, regPlant, regPurpose);
-            triggerToast('Registration successful! Redirecting to pending state...', 'success');
+            triggerToast('Registration successful! Supabase has sent a confirmation email to verify your address. Please click the link to confirm, then wait for admin approval.', 'success');
             
             setTimeout(() => {
                 navigate('/pending?status=pending');
-            }, 400);
+            }, 6000);
 
         } catch (err) {
             triggerToast(err.message);
