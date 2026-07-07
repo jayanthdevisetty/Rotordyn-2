@@ -5288,6 +5288,49 @@ export const Dashboard = () => {
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 35, l: 50, r: 50 };
             
+            const showIsoLimits = document.getElementById('show-iso-limits') ? document.getElementById('show-iso-limits').checked : false;
+            
+            if (showIsoLimits && hasValueTraces) {
+                layout.shapes = [
+                    {
+                        type: 'rect',
+                        xref: 'x2',
+                        yref: 'y2',
+                        x0: x_vals[0],
+                        x1: x_vals[x_vals.length - 1],
+                        y0: 0,
+                        y1: 1.1,
+                        fillcolor: 'rgba(16, 185, 129, 0.07)',
+                        line: { width: 0 },
+                        layer: 'below'
+                    },
+                    {
+                        type: 'rect',
+                        xref: 'x2',
+                        yref: 'y2',
+                        x0: x_vals[0],
+                        x1: x_vals[x_vals.length - 1],
+                        y0: 1.1,
+                        y1: 2.8,
+                        fillcolor: 'rgba(245, 158, 11, 0.07)',
+                        line: { width: 0 },
+                        layer: 'below'
+                    },
+                    {
+                        type: 'rect',
+                        xref: 'x2',
+                        yref: 'y2',
+                        x0: x_vals[0],
+                        x1: x_vals[x_vals.length - 1],
+                        y0: 2.8,
+                        y1: 10.0,
+                        fillcolor: 'rgba(239, 68, 68, 0.07)',
+                        line: { width: 0 },
+                        layer: 'below'
+                    }
+                ];
+            }
+            
             layout.xaxis = {
                 anchor: 'y',
                 domain: [0, 0.93],
@@ -7851,6 +7894,10 @@ export const Dashboard = () => {
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
                                     <input type="checkbox" id="show-trend-temp" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
                                     Temperature
+                                </label>
+                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="show-iso-limits" onChange={() => window.renderGrid && window.renderGrid()} />
+                                    Show ISO 10816 Limits
                                 </label>
                             </div>
                         </div>
