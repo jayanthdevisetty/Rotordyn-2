@@ -6848,6 +6848,42 @@ export const Dashboard = () => {
         window.moveSlotRight = moveSlotRight;
         window.saveWorkspaceConfig = saveWorkspaceConfig;
         
+        function parseMarkdownToHTML(md) {
+            if (!md) return "";
+            let html = md;
+            
+            // Escape HTML tags to prevent XSS
+            html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            // Headings
+            html = html.replace(/^### (.*$)/gim, '<h4 style="font-family: \'Outfit\'; font-weight: 700; font-size: 1.05rem; margin-top: 15px; margin-bottom: 8px; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">$1</h4>');
+            html = html.replace(/^## (.*$)/gim, '<h3 style="font-family: \'Outfit\'; font-weight: 800; font-size: 1.25rem; margin-top: 22px; margin-bottom: 10px; color: var(--accent-color);">$1</h3>');
+            html = html.replace(/^# (.*$)/gim, '<h2 style="font-family: \'Outfit\'; font-weight: 900; font-size: 1.5rem; margin-top: 25px; margin-bottom: 12px; color: var(--text-color);">$1</h2>');
+            
+            // Bold & Italic
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Bullet points
+            html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 20px; margin-bottom: 5px; list-style-type: disc; color: var(--text-color);">$1</li>');
+            html = html.replace(/^\s*\*\s+(.*$)/gim, '<li style="margin-left: 20px; margin-bottom: 5px; list-style-type: disc; color: var(--text-color);">$1</li>');
+            
+            // Blockquotes
+            html = html.replace(/^\s*>\s+(.*$)/gim, '<blockquote style="border-left: 4px solid var(--accent-color); padding-left: 15px; margin: 10px 0; color: var(--text-muted); font-style: italic;">$1</blockquote>');
+            
+            // Paragraphs (split by double newlines)
+            const lines = html.split(/\n\n+/);
+            const wrapped = lines.map(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('<h') || trimmed.startsWith('<li') || trimmed.startsWith('<blockquote')) {
+                    return line;
+                }
+                return `<p style="margin-bottom: 12px; line-height: 1.6; color: var(--text-color);">${line.replace(/\n/g, '<br/>')}</p>`;
+            });
+            
+            return wrapped.join('');
+        }
+
         window.handleGenerateReport = async () => {
             const data = window.activeDiagnosticsData;
             if (!data) {
@@ -6878,33 +6914,77 @@ export const Dashboard = () => {
                 telemetry_summary: telemetry_summary
             };
             
+            // Reset modal body content and display it immediately for streaming
+            const modal = document.getElementById("report-modal");
+            const body = document.getElementById("report-modal-body");
+            if (modal && body) {
+                body.innerHTML = '<div style="color: var(--text-muted); font-style: italic; font-weight: 500;" id="stream-loading-msg">Connecting to Gemini AI server and generating analysis...</div>';
+                modal.style.display = "flex";
+            }
+            
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
             try {
                 const response = await fetch(`${apiBase}/reports/generate`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer \${token}`
+                        "Authorization": `Bearer ${token}`
                     },
                     body: JSON.stringify(payload)
                 });
                 
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(`Report generation failed: \${errText}`);
+                    throw new Error(`Report generation failed: ${errText}`);
                 }
                 
-                const result = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let reportText = "";
+                let buffer = "";
                 
-                const modal = document.getElementById("report-modal");
-                const body = document.getElementById("report-modal-body");
-                if (modal && body) {
-                    body.innerHTML = parseMarkdownToHTML(result.report);
-                    modal.style.display = "flex";
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunkText = decoder.decode(value, { stream: true });
+                    buffer += chunkText;
+                    
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop(); // Keep incomplete line
+                    
+                    for (const line of lines) {
+                        const cleanLine = line.trim();
+                        if (cleanLine.startsWith("data: ")) {
+                            try {
+                                const jsonStr = cleanLine.substring(6);
+                                const parsed = JSON.parse(jsonStr);
+                                if (parsed.error) {
+                                    throw new Error(parsed.error);
+                                }
+                                if (parsed.text) {
+                                    // Remove initial loader placeholder
+                                    const loaderMsg = document.getElementById("stream-loading-msg");
+                                    if (loaderMsg) loaderMsg.style.display = "none";
+                                    
+                                    reportText += parsed.text;
+                                    if (body) {
+                                        body.innerHTML = parseMarkdownToHTML(reportText);
+                                        // Auto-scroll body to bottom during streaming
+                                        body.scrollTop = body.scrollHeight;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Error parsing stream chunk:", e);
+                            }
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("Error generating report:", error);
-                alert("Failed to generate AI report: " + error.message);
+                if (body) {
+                    body.innerHTML = `<div style="color: #ef4444; font-weight: 700; padding: 15px; border: 1px solid #fee2e2; background-color: #fef2f2; border-radius: 8px;">Failed to generate AI report: ${error.message}</div>`;
+                }
             } finally {
                 if (btn) btn.disabled = false;
                 if (spinner) spinner.style.display = "none";
