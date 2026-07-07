@@ -59,7 +59,7 @@ async def generate_report(
     Format the report entirely in clean, readable Markdown. Do not include raw HTML code. Be thorough, technical, and professional in your writing.
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key={settings.GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:streamGenerateContent?key={settings.GEMINI_API_KEY}"
     
     headers = {
         "Content-Type": "application/json"
