@@ -4217,6 +4217,36 @@ export const Dashboard = () => {
                     selectSlot(i);
                 };
                 
+                // Drag & Drop Capabilities
+                slotCard.draggable = true;
+                slotCard.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', i);
+                    slotCard.style.opacity = '0.4';
+                };
+                slotCard.ondragover = (e) => {
+                    e.preventDefault();
+                    slotCard.style.border = '2px dashed var(--accent-color)';
+                };
+                slotCard.ondragleave = () => {
+                    slotCard.style.border = '';
+                };
+                slotCard.ondragend = () => {
+                    slotCard.style.opacity = '1';
+                    slotCard.style.border = '';
+                };
+                slotCard.ondrop = (e) => {
+                    e.preventDefault();
+                    slotCard.style.border = '';
+                    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    if (!isNaN(sourceIdx) && sourceIdx !== i) {
+                        const temp = plotSlots[sourceIdx];
+                        plotSlots[sourceIdx] = plotSlots[i];
+                        plotSlots[i] = temp;
+                        saveWorkspaceConfig();
+                        renderGrid();
+                    }
+                };
+                
                 const config = plotSlots[i];
                 if (config) {
                     const isOrbit = config.category === 'orbit';
@@ -4226,7 +4256,7 @@ export const Dashboard = () => {
                         if (config.cycles === undefined) config.cycles = 8;
                     }
                     slotCard.innerHTML = `
-                        <div class="grid-card-header">
+                        <div class="grid-card-header" style="cursor: grab;">
                             <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}</span>
                             <div class="grid-card-actions">
                                 ${isOrbit ? `
