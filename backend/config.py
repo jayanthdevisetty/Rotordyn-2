@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-    DB_NAME: str = os.getenv("DB_NAME", "rotordyn")
-    
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
