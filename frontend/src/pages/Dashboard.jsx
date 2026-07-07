@@ -5772,7 +5772,8 @@ export const Dashboard = () => {
             
             const amps = clean_df.map(r => r[cols.amp_1x]);
             const phases = unwrapPhase(clean_df.map(r => r[cols.phase_1x]));
-            const speeds = clean_df.map(r => r[speedCol]);
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+            const speeds = clean_df.map(r => r[speedCol] * ratio);
             
             const style = getComputedStyle(document.documentElement);
             const plotBg = style.getPropertyValue('--plot-bg-color').trim();
@@ -5858,7 +5859,8 @@ export const Dashboard = () => {
             const clean_df = filteredDf.filter(r => isNumber(r[cols.amp_1x]) && isNumber(r[cols.phase_1x]) && isNumber(r[speedCol])).sort((a,b) => a._time_ms - b._time_ms);
             if (checkEmptyData(container, clean_df)) return;
             
-            const speeds = clean_df.map(r => r[speedCol]);
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+            const speeds = clean_df.map(r => r[speedCol] * ratio);
             const style = getComputedStyle(document.documentElement);
             const gridColor = style.getPropertyValue('--contrast-grid-color').trim();
             const borderCol = style.getPropertyValue('--border-color').trim();
@@ -5999,7 +6001,8 @@ export const Dashboard = () => {
             const clean_df = filteredDf.filter(r => isNumber(r[cols.amp_1x]) && isNumber(r[cols.phase_1x]) && isNumber(r[speedCol]));
             if (checkEmptyData(container, clean_df)) return;
             
-            const speeds = clean_df.map(r => r[speedCol]);
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+            const speeds = clean_df.map(r => r[speedCol] * ratio);
             const amps = clean_df.map(r => r[cols.amp_1x]);
             const phases = unwrapPhase(clean_df.map(r => r[cols.phase_1x]));
             
@@ -6090,7 +6093,8 @@ export const Dashboard = () => {
             const C = window.bearingClearance || 12.0; 
             const x_gap_raw = clean_df.map(r => r[cols.x.gap]);
             const y_gap_raw = clean_df.map(r => r[cols.y.gap]);
-            const speeds = clean_df.map(r => r[speedCol]);
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+            const speeds = clean_df.map(r => r[speedCol] * ratio);
             
             const x_gap_rest = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : x_gap_raw[0];
             const y_gap_rest = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : y_gap_raw[0];
@@ -6191,7 +6195,8 @@ export const Dashboard = () => {
             const C = window.bearingClearance || 12.0;
             const x_gap_raw = clean_df.map(r => r[cols.x.gap]);
             const y_gap_raw = clean_df.map(r => r[cols.y.gap]);
-            const speeds = clean_df.map(r => r[speedCol]);
+            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+            const speeds = clean_df.map(r => r[speedCol] * ratio);
             
             const x_gap_rest = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : x_gap_raw[0];
             const y_gap_rest = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : y_gap_raw[0];
@@ -7093,13 +7098,13 @@ export const Dashboard = () => {
         }
         window.changeOrbitCycles = changeOrbitCycles;
 
-        window.scadaInterval = null;
+        window.scadaWebSocket = null;
         window.startScadaSimulation = () => {
             const simBtn = document.getElementById('btn-scada-sim');
             
-            if (window.scadaInterval) {
-                clearInterval(window.scadaInterval);
-                window.scadaInterval = null;
+            if (window.scadaWebSocket) {
+                window.scadaWebSocket.close();
+                window.scadaWebSocket = null;
                 if (simBtn) {
                     simBtn.innerText = 'Simulate Live SCADA Feed';
                     simBtn.style.borderColor = 'var(--accent-color)';
@@ -7114,83 +7119,86 @@ export const Dashboard = () => {
                 simBtn.style.color = '#ef4444';
             }
             
-            const initialDf = [];
-            const baseTime = Date.now() - 60000;
-            
-            for (let i = 0; i < 50; i++) {
-                const rpm = 500 + i * 35;
-                const ampFactor = Math.exp(-Math.pow(rpm - 1800, 2) / 120000);
-                const amp1x = 0.4 + 2.8 * ampFactor;
-                const phase1x = 35 + 110 * (1 / (1 + Math.exp(-(rpm - 1800)/80)));
-                
-                initialDf.push({
-                    '_index': i,
-                    '_time_ms': i * 1000,
-                    '_date': new Date(baseTime + i * 1000).toLocaleTimeString(),
-                    'Speed': rpm,
-                    'BRG1X_direct': amp1x + 0.3 * Math.random(),
-                    'BRG1X_amp_1x': amp1x,
-                    'BRG1X_phase_1x': phase1x,
-                    'BRG1Y_direct': amp1x + 0.4 * Math.random(),
-                    'BRG1Y_amp_1x': Math.max(0.2, amp1x - 0.3),
-                    'BRG1Y_phase_1x': phase1x + 90
-                });
+            const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : (window.API_BASE_URL || '');
+            let wsUrl;
+            if (apiBase) {
+                wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream';
+            } else {
+                wsUrl = 'ws://localhost:8000/scada/stream';
             }
             
-            df = initialDf;
-            allDatasetColumns = Object.keys(df[0]);
-            bearingPairs = ['BRG1X/BRG1Y'];
-            singlePrefixes = ['BRG1X', 'BRG1Y'];
-            speedCol = 'Speed';
-            window.detectedSpeedCols = ['Speed'];
+            console.log("Connecting to SCADA WebSocket: " + wsUrl);
+            const ws = new WebSocket(wsUrl);
+            window.scadaWebSocket = ws;
             
-            document.getElementById('welcome-screen').style.display = 'none';
-            document.getElementById('main-container').style.display = 'flex';
+            df = []; // Clear dataframe to start fresh
             
-            const timelineBar = document.getElementById('global-timeline-bar');
-            if (timelineBar) timelineBar.style.display = 'flex';
-            
-            plotSlots[0] = { bearingOrChannel: 'BRG1X', category: 'trend', isDual: false, layoutLimits: { min: null, max: null, autoScale: true } };
-            plotSlots[1] = { bearingOrChannel: 'BRG1X/BRG1Y', category: 'orbit', isDual: true, layoutLimits: { min: null, max: null, autoScale: true } };
-            
-            updateSpeedSensorDropdown();
-            calculateBaselineThresholds();
-            populateSidebarTree();
-            
-            activeCursorIndex = df.length - 1;
-            renderGrid();
-            
-            let count = 50;
-            window.scadaInterval = setInterval(() => {
-                const rpm = 2250 + (count - 50) * 20;
-                const ampFactor = Math.exp(-Math.pow(rpm - 1800, 2) / 120000);
-                const amp1x = 0.4 + 2.8 * ampFactor;
-                const phase1x = 35 + 110 * (1 / (1 + Math.exp(-(rpm - 1800)/80)));
-                
-                const newRow = {
-                    '_index': count,
-                    '_time_ms': count * 1000,
-                    '_date': new Date(Date.now()).toLocaleTimeString(),
-                    'Speed': rpm,
-                    'BRG1X_direct': amp1x + 0.3 * Math.random(),
-                    'BRG1X_amp_1x': amp1x,
-                    'BRG1X_phase_1x': phase1x,
-                    'BRG1Y_direct': amp1x + 0.4 * Math.random(),
-                    'BRG1Y_amp_1x': Math.max(0.2, amp1x - 0.3),
-                    'BRG1Y_phase_1x': phase1x + 90
-                };
-                
-                df.push(newRow);
-                
-                if (df.length > 120) {
-                    df.shift();
-                    df.forEach((r, idx) => { r._index = idx; });
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    df.push(data);
+                    
+                    // Maintain a sliding window of the last 150 points
+                    if (df.length > 150) {
+                        df.shift();
+                    }
+                    
+                    // Re-index rows
+                    df.forEach((r, idx) => {
+                        r._index = idx;
+                    });
+                    
+                    const isFirstPacket = (df.length === 1);
+                    if (isFirstPacket) {
+                        allDatasetColumns = Object.keys(df[0]);
+                        bearingPairs = ['BRG1X/BRG1Y'];
+                        singlePrefixes = ['BRG1X', 'BRG1Y'];
+                        speedCol = 'Speed';
+                        window.detectedSpeedCols = ['Speed'];
+                        
+                        updateSpeedSensorDropdown();
+                        calculateBaselineThresholds();
+                        populateSidebarTree();
+                    }
+                    
+                    const welcome = document.getElementById('welcome-screen');
+                    if (welcome) welcome.style.display = 'none';
+                    
+                    const mainContainer = document.getElementById('main-container');
+                    if (mainContainer) mainContainer.style.display = 'flex';
+                    
+                    const timelineBar = document.getElementById('global-timeline-bar');
+                    if (timelineBar) timelineBar.style.display = 'flex';
+                    
+                    if (!plotSlots[0]) {
+                        plotSlots[0] = { bearingOrChannel: 'BRG1X', category: 'trend', isDual: false, layoutLimits: { min: null, max: null, autoScale: true } };
+                    }
+                    if (!plotSlots[1]) {
+                        plotSlots[1] = { bearingOrChannel: 'BRG1X/BRG1Y', category: 'orbit', isDual: true, layoutLimits: { min: null, max: null, autoScale: true } };
+                    }
+                    
+                    activeCursorIndex = df.length - 1;
+                    renderGrid();
+                } catch (err) {
+                    console.error("Error parsing SCADA websocket message:", err);
                 }
-                
-                activeCursorIndex = df.length - 1;
-                renderGrid();
-                count++;
-            }, 1000);
+            };
+            
+            ws.onclose = () => {
+                console.log("SCADA WebSocket disconnected.");
+                window.scadaWebSocket = null;
+                if (simBtn) {
+                    simBtn.innerText = 'Simulate Live SCADA Feed';
+                    simBtn.style.borderColor = 'var(--accent-color)';
+                    simBtn.style.color = 'var(--accent-color)';
+                }
+            };
+            
+            ws.onerror = (err) => {
+                console.error("SCADA WebSocket error:", err);
+                ws.close();
+            };
         };
 
         window.setLayout = setLayout;

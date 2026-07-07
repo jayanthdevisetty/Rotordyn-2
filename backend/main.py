@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from config import settings
 from database import ping_database
-from routes import auth, admin, uploads, reports
+from routes import auth, admin, uploads, reports, scada
 
 app = FastAPI(
     title="Rotordyn.ai SaaS API",
@@ -43,6 +43,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(uploads.router)
 app.include_router(reports.router)
+app.include_router(scada.router)
 
 @app.get("/health")
 async def health_check():
