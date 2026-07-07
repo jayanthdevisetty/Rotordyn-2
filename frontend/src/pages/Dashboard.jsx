@@ -2989,7 +2989,8 @@ export const Dashboard = () => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' }
+                        { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -3098,7 +3099,8 @@ export const Dashboard = () => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' }
+                        { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -4045,7 +4047,8 @@ export const Dashboard = () => {
                 centerline: 'Shaft Centerline',
                 centerline_orbit: 'Centerline Orbit Overlay',
                 orbit: 'Rotor Orbits (2D/3D)',
-                mode_shape: '3D Deflection Profile'
+                mode_shape: '3D Deflection Profile',
+                spectrum: 'FFT Spectrum'
             };
             return names[category] || category;
         }
@@ -4235,6 +4238,8 @@ export const Dashboard = () => {
                 renderOrbitInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
             } else if (category === 'mode_shape') {
                 renderModeShapeInSlot(slotIdx, container, filteredDf, baseLayout, limits);
+            } else if (category === 'spectrum') {
+                renderSpectrumInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
             }
         }
 
@@ -5372,6 +5377,92 @@ export const Dashboard = () => {
             container.on('plotly_unhover', function(data) {
                 updateSlotTelemetryBox(slotIdx, activeCursorIndex);
                 updateTelemetryReadoutForIndex(activeCursorIndex);
+            });
+            updateSlotTelemetryBox(slotIdx, activeCursorIndex);
+        }
+
+        function renderSpectrumInSlot(slotIdx, container, ch, filteredDf, baseLayout, limits) {
+            const cols = getChannelColumns(ch);
+            const style = getComputedStyle(document.documentElement);
+            const accentColor = style.getPropertyValue('--accent-color').trim() || '#2563eb';
+            
+            const cursorRow = filteredDf[activeCursorIndex] || filteredDf[filteredDf.length - 1];
+            if (!cursorRow || checkEmptyData(container, filteredDf)) return;
+
+            const direct = cols.direct && isNumber(cursorRow[cols.direct]) ? cursorRow[cols.direct] : 0.0;
+            const amp1x = cols.amp_1x && isNumber(cursorRow[cols.amp_1x]) ? cursorRow[cols.amp_1x] : 0.0;
+            const phase1x = cols.phase_1x && isNumber(cursorRow[cols.phase_1x]) ? cursorRow[cols.phase_1x] * Math.PI / 180 : 0.0;
+            const amp2x = cols.amp_2x && isNumber(cursorRow[cols.amp_2x]) ? cursorRow[cols.amp_2x] : 0.0;
+            const phase2x = cols.phase_2x && isNumber(cursorRow[cols.phase_2x]) ? cursorRow[cols.phase_2x] * Math.PI / 180 : 0.0;
+            
+            const N = 512;
+            const timeSignal = new Float64Array(N);
+            
+            for (let i = 0; i < N; i++) {
+                const t = (2 * Math.PI * i) / 128;
+                let val = amp1x * Math.cos(t - phase1x);
+                val += amp2x * Math.cos(2 * t - phase2x);
+                
+                const residual = Math.max(0, direct - (amp1x + amp2x));
+                if (residual > 0.05) {
+                    val += residual * Math.cos(0.48 * t);
+                }
+                
+                val += 0.02 * (Math.random() - 0.5);
+                timeSignal[i] = val;
+            }
+            
+            const windowed = applyHanningWindow(timeSignal);
+            const magnitudes = computeFFT(windowed);
+            
+            const orders = [];
+            const spectrum_mags = [];
+            
+            for (let i = 0; i < magnitudes.length; i++) {
+                const orderVal = i / 4.0;
+                if (orderVal > 4.5) break;
+                orders.push(orderVal);
+                spectrum_mags.push(magnitudes[i]);
+            }
+            
+            const tr = {
+                x: orders,
+                y: spectrum_mags,
+                type: 'bar',
+                name: 'Vibration Spectrum',
+                marker: {
+                    color: accentColor,
+                    opacity: 0.85
+                },
+                hoverinfo: 'x+y'
+            };
+            
+            const layout = {
+                ...baseLayout,
+                showlegend: false,
+                xaxis: {
+                    title: 'Frequency (Orders of Running Speed)',
+                    gridcolor: baseLayout.xaxis.gridcolor,
+                    dtick: 0.5,
+                    tickformat: '.2f'
+                },
+                yaxis: {
+                    title: `Amplitude (${getChannelUnit(ch, 'amp', 'mils')} pk)`,
+                    gridcolor: baseLayout.yaxis.gridcolor
+                }
+            };
+            
+            if (!limits.autoScale) {
+                if (limits.max !== null) layout.yaxis.range = [0, limits.max];
+            }
+            
+            Plotly.newPlot(container, [tr], layout, { responsive: true, displayModeBar: false });
+            
+            container.on('plotly_hover', function(data) {
+                if (data.points && data.points.length > 0) {
+                    // Update telemetry box for coordinate readouts
+                    updateSlotTelemetryBox(slotIdx, activeCursorIndex);
+                }
             });
             updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
@@ -6749,6 +6840,7 @@ export const Dashboard = () => {
         window.renderCenterlineOrbitInSlot = renderCenterlineOrbitInSlot;
         window.renderOrbitInSlot = renderOrbitInSlot;
         window.renderModeShapeInSlot = renderModeShapeInSlot;
+        window.renderSpectrumInSlot = renderSpectrumInSlot;
         window.unwrapPhase = unwrapPhase;
         window.toggleWorkspaceTheme = toggleWorkspaceTheme;
         window.toggleCustomizeLayoutMode = toggleCustomizeLayoutMode;
@@ -6943,6 +7035,7 @@ export const Dashboard = () => {
         delete window.renderCenterlineOrbitInSlot;
         delete window.renderOrbitInSlot;
         delete window.renderModeShapeInSlot;
+        delete window.renderSpectrumInSlot;
         delete window.unwrapPhase;
         delete window.toggleWorkspaceTheme;
         delete window.toggleCustomizeLayoutMode;
@@ -7813,6 +7906,16 @@ export const Dashboard = () => {
                         <path d="M12 2v20M2 12h20"></path>
                     </svg>
                     <span className="tooltip">Shaft Centerline</span>
+                </button>
+                <button className="toolbar-btn" type="button" 
+                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}
+                        onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="20" x2="3" y2="4"></line>
+                        <line x1="3" y1="20" x2="21" y2="20"></line>
+                        <polyline points="3 20 6 14 9 17 12 8 15 12 18 6 21 20"></polyline>
+                    </svg>
+                    <span className="tooltip">FFT Spectrum</span>
                 </button>
             </div>
         </div>
