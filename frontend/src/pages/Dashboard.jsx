@@ -278,6 +278,42 @@ export const Dashboard = () => {
         let bearingPairs = []; // Array of proximity pairs (e.g. BRG1)
         let bearingPairsMapping = {}; // Maps bearing base name to X/Y channel prefixes
         let allDatasetColumns = []; // All columns present in the dataset
+        let baselineThresholds = {};
+        
+        function calculateBaselineThresholds() {
+            baselineThresholds = {};
+            if (!df || df.length === 0) return;
+            
+            const cols = Object.keys(df[0]);
+            const directCols = cols.filter(c => c.toLowerCase().endsWith('_direct'));
+            if (directCols.length === 0) return;
+            
+            const baselinePoints = df.slice(0, Math.min(20, df.length));
+            
+            directCols.forEach(col => {
+                let sum = 0;
+                let count = 0;
+                baselinePoints.forEach(r => {
+                    if (isNumber(r[col])) {
+                        sum += r[col];
+                        count++;
+                    }
+                });
+                
+                if (count === 0) return;
+                const mean = sum / count;
+                
+                let sumSqDiff = 0;
+                baselinePoints.forEach(r => {
+                    if (isNumber(r[col])) {
+                        sumSqDiff += Math.pow(r[col] - mean, 2);
+                    }
+                });
+                const stdDev = Math.sqrt(sumSqDiff / count);
+                baselineThresholds[col] = Math.max(0.8, mean + 3 * stdDev);
+            });
+        }
+
         let speedCol = 'Speed(P)';
         let tsCol = 'Timestamp';
         
@@ -2132,9 +2168,9 @@ export const Dashboard = () => {
                         allDatasetColumns = Array.from(keys);
                     }
                     
-                    // Standardize columns structure
                     detectMachineColumns();
                     updateSpeedSensorDropdown();
+                    calculateBaselineThresholds();
                     
                     // Parse all timestamps to Date objects and milliseconds for fast operations
                     df.forEach(row => {
@@ -3743,11 +3779,37 @@ export const Dashboard = () => {
             const ts = row[tsCol];
             const rpm = row[speedCol];
             
+            let anomalyDetected = false;
+            let offendingChannel = '';
+            
+            const cols = Object.keys(row);
+            const directCols = cols.filter(c => c.toLowerCase().endsWith('_direct'));
+            
+            directCols.forEach(col => {
+                const limit = baselineThresholds[col];
+                if (limit && isNumber(row[col]) && row[col] > limit) {
+                    anomalyDetected = true;
+                    offendingChannel = col.split('_')[0];
+                }
+            });
+            
             const items = [
                 { label: 'Time', val: ts },
                 { label: 'Machine Speed', val: `${rpm.toFixed(0)} RPM` },
                 { label: 'State', val: row['state'].toUpperCase() }
             ];
+            
+            if (anomalyDetected) {
+                items.push({ 
+                    label: '⚠️ ML Baseline Anomaly Alert', 
+                    val: `<span style="color: #ef4444; font-weight: 700; background-color: rgba(239, 68, 68, 0.1); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.25);">DEVIATION DETECTED (${offendingChannel})</span>` 
+                });
+            } else {
+                items.push({ 
+                    label: '✅ ML Baseline Status', 
+                    val: '<span style="color: #10b981; font-weight: 600;">NORMAL LIMITS</span>' 
+                });
+            }
             
             updateTelemetryReadout(items);
         }
@@ -7033,6 +7095,7 @@ export const Dashboard = () => {
             plotSlots[1] = { bearingOrChannel: 'BRG1X/BRG1Y', category: 'orbit', isDual: true, layoutLimits: { min: null, max: null, autoScale: true } };
             
             updateSpeedSensorDropdown();
+            calculateBaselineThresholds();
             populateSidebarTree();
             
             activeCursorIndex = df.length - 1;
