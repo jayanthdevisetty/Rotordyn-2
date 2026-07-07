@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiTrendingUp, FiSliders, FiFolder, FiArrowRight } from 'react-icons/fi';
 import logoImg from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
 
 export const Landing = () => {
     const [showIntro, setShowIntro] = useState(true);
+    const { token, user } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (token && user) {
+            if (user.role === 'admin') {
+                navigate('/admin');
+            } else if (user.status === 'approved') {
+                navigate('/dashboard');
+            } else {
+                navigate(`/pending?status=${user.status}`);
+            }
+        }
+    }, [token, user, navigate]);
 
     if (showIntro) {
         return (

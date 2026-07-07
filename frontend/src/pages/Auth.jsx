@@ -85,7 +85,7 @@ export const Auth = () => {
         }
         supabase.auth.signInWithOAuth({
             provider: provider,
-            options: { redirectTo: window.location.origin }
+            options: { redirectTo: `${window.location.origin}/api/auth/callback/${provider}` }
         });
     };
 
@@ -474,7 +474,7 @@ export const Auth = () => {
                             {/* Google Sign-in */}
                             <button 
                                 type="button"
-                                onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
+                                onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/api/auth/callback/google` } })}
                                 style={{
                                     display: 'flex',
                                     justifyContent: 'center',
@@ -505,7 +505,7 @@ export const Auth = () => {
                             {/* GitHub Sign-in */}
                             <button 
                                 type="button"
-                                onClick={() => supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })}
+                                onClick={() => supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: `${window.location.origin}/api/auth/callback/github` } })}
                                 style={{
                                     display: 'flex',
                                     justifyContent: 'center',
