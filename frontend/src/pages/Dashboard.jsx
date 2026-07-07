@@ -2990,7 +2990,8 @@ export const Dashboard = () => {
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
                         { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        { category: 'spectrum', name: 'FFT Spectrum' },
+                        { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -3100,7 +3101,8 @@ export const Dashboard = () => {
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
                         { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        { category: 'spectrum', name: 'FFT Spectrum' },
+                        { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -4048,7 +4050,8 @@ export const Dashboard = () => {
                 centerline_orbit: 'Centerline Orbit Overlay',
                 orbit: 'Rotor Orbits (2D/3D)',
                 mode_shape: '3D Deflection Profile',
-                spectrum: 'FFT Spectrum'
+                spectrum: 'FFT Spectrum',
+                cascade: '3D Waterfall Spectrum'
             };
             return names[category] || category;
         }
@@ -4240,6 +4243,8 @@ export const Dashboard = () => {
                 renderModeShapeInSlot(slotIdx, container, filteredDf, baseLayout, limits);
             } else if (category === 'spectrum') {
                 renderSpectrumInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+            } else if (category === 'cascade') {
+                renderCascadePlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
             }
         }
 
@@ -5464,6 +5469,132 @@ export const Dashboard = () => {
                     updateSlotTelemetryBox(slotIdx, activeCursorIndex);
                 }
             });
+            updateSlotTelemetryBox(slotIdx, activeCursorIndex);
+        }
+
+        function renderCascadePlotInSlot(slotIdx, container, ch, filteredDf, baseLayout, limits) {
+            const cols = getChannelColumns(ch);
+            const clean_df = filteredDf.filter(r => isNumber(r[speedCol]));
+            if (checkEmptyData(container, clean_df)) return;
+            
+            const numChunks = Math.min(15, clean_df.length);
+            if (numChunks < 2) {
+                // Not enough data points to build a 3D waterfall
+                throw new Error("Waterfall Plot requires a larger range of data points (at least 2 samples).");
+            }
+            
+            // Sort data chronologically to trace speed change
+            const df_chrono = [...clean_df].sort((a, b) => a._time_ms - b._time_ms);
+            const chunkSize = Math.max(1, Math.floor(df_chrono.length / numChunks));
+            
+            const traces = [];
+            
+            for (let c = 0; c < numChunks; c++) {
+                const startIndex = c * chunkSize;
+                const endIndex = Math.min(df_chrono.length, startIndex + chunkSize);
+                const chunkData = df_chrono.slice(startIndex, endIndex);
+                if (chunkData.length === 0) continue;
+                
+                // Calculate average parameters in this chunk
+                let sumAmp1X = 0, sumPhase1X = 0, sumAmp2X = 0, sumPhase2X = 0, sumDirect = 0, sumRpm = 0;
+                let count = 0;
+                
+                chunkData.forEach(r => {
+                    sumAmp1X += cols.amp_1x && isNumber(r[cols.amp_1x]) ? r[cols.amp_1x] : 0.0;
+                    sumPhase1X += cols.phase_1x && isNumber(r[cols.phase_1x]) ? r[cols.phase_1x] : 0.0;
+                    sumAmp2X += cols.amp_2x && isNumber(r[cols.amp_2x]) ? r[cols.amp_2x] : 0.0;
+                    sumPhase2X += cols.phase_2x && isNumber(r[cols.phase_2x]) ? r[cols.phase_2x] : 0.0;
+                    sumDirect += cols.direct && isNumber(r[cols.direct]) ? r[cols.direct] : 0.0;
+                    sumRpm += r[speedCol];
+                    count++;
+                });
+                
+                const avgAmp1X = sumAmp1X / count;
+                const avgPhase1X = (sumPhase1X / count) * Math.PI / 180;
+                const avgAmp2X = sumAmp2X / count;
+                const avgPhase2X = (sumPhase2X / count) * Math.PI / 180;
+                const avgDirect = sumDirect / count;
+                const avgRpm = sumRpm / count;
+                
+                // Synthesize time signal
+                const N = 512;
+                const timeSignal = new Float64Array(N);
+                for (let i = 0; i < N; i++) {
+                    const t = (2 * Math.PI * i) / 128; // 4 cycles
+                    let val = avgAmp1X * Math.cos(t - avgPhase1X);
+                    val += avgAmp2X * Math.cos(2 * t - avgPhase2X);
+                    
+                    const residual = Math.max(0, avgDirect - (avgAmp1X + avgAmp2X));
+                    if (residual > 0.05) {
+                        val += residual * Math.cos(0.48 * t);
+                    }
+                    val += 0.02 * (Math.random() - 0.5);
+                    timeSignal[i] = val;
+                }
+                
+                const windowed = applyHanningWindow(timeSignal);
+                const magnitudes = computeFFT(windowed);
+                
+                const orders = [];
+                const spectrum_mags = [];
+                for (let i = 0; i < magnitudes.length; i++) {
+                    const orderVal = i / 4.0;
+                    if (orderVal > 4.5) break;
+                    orders.push(orderVal);
+                    spectrum_mags.push(magnitudes[i]);
+                }
+                
+                // HSL Color gradient from Blue (low RPM) to Magenta (high RPM)
+                const minRpm = df_chrono[0][speedCol];
+                const maxRpm = df_chrono[df_chrono.length - 1][speedCol];
+                const rpmRange = Math.max(100, maxRpm - minRpm);
+                const pct = (avgRpm - minRpm) / rpmRange;
+                const hue = 220 + Math.min(100, Math.max(0, pct * 100)); // shift from 220 (blue) to 320 (magenta)
+                
+                const tr = {
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: orders,
+                    y: Array(orders.length).fill(avgRpm),
+                    z: spectrum_mags,
+                    name: `${Math.round(avgRpm)} RPM`,
+                    line: {
+                        width: 4,
+                        color: `hsl(${hue}, 85%, 50%)`
+                    },
+                    hoverinfo: 'x+y+z'
+                };
+                
+                traces.push(tr);
+            }
+            
+            const layout = {
+                ...baseLayout,
+                showlegend: false,
+                scene: {
+                    xaxis: {
+                        title: 'Frequency (Orders)',
+                        gridcolor: baseLayout.xaxis.gridcolor,
+                        dtick: 1.0,
+                        zeroline: false
+                    },
+                    yaxis: {
+                        title: 'Speed (RPM)',
+                        gridcolor: baseLayout.xaxis.gridcolor,
+                        zeroline: false
+                    },
+                    zaxis: {
+                        title: `Amp (${getChannelUnit(ch, 'amp', 'mils')} pk)`,
+                        gridcolor: baseLayout.yaxis.gridcolor,
+                        zeroline: false
+                    },
+                    camera: {
+                        eye: { x: 1.5, y: -1.8, z: 1.3 } // standard dynamic 3D viewpoint angle
+                    }
+                }
+            };
+            
+            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
             updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
 
@@ -6841,6 +6972,7 @@ export const Dashboard = () => {
         window.renderOrbitInSlot = renderOrbitInSlot;
         window.renderModeShapeInSlot = renderModeShapeInSlot;
         window.renderSpectrumInSlot = renderSpectrumInSlot;
+        window.renderCascadePlotInSlot = renderCascadePlotInSlot;
         window.unwrapPhase = unwrapPhase;
         window.toggleWorkspaceTheme = toggleWorkspaceTheme;
         window.toggleCustomizeLayoutMode = toggleCustomizeLayoutMode;
@@ -7116,6 +7248,7 @@ export const Dashboard = () => {
         delete window.renderOrbitInSlot;
         delete window.renderModeShapeInSlot;
         delete window.renderSpectrumInSlot;
+        delete window.renderCascadePlotInSlot;
         delete window.unwrapPhase;
         delete window.toggleWorkspaceTheme;
         delete window.toggleCustomizeLayoutMode;
