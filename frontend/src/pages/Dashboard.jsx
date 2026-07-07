@@ -518,8 +518,29 @@ export const Dashboard = () => {
                 cycles: 8
             }
         ]; 
+        
+        try {
+            const savedSlots = localStorage.getItem('rotordyn_custom_slots');
+            if (savedSlots) {
+                const parsed = JSON.parse(savedSlots);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    plotSlots = parsed;
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to load saved plot slots:", e);
+        }
+
         let activeSlotIndex = 0; 
         let currentLayout = '2V'; 
+        try {
+            const savedLayout = localStorage.getItem('rotordyn_custom_layout');
+            if (savedLayout) {
+                currentLayout = savedLayout;
+            }
+        } catch (e) {
+            console.warn("Failed to load saved grid layout:", e);
+        } 
         let currentGridPage = 0; 
         let customizeLayoutMode = false; 
         let timeSyncCursor = true; 
@@ -3210,6 +3231,7 @@ export const Dashboard = () => {
             }
             
             renderGrid();
+            saveWorkspaceConfig();
         }
 
         function populatePlotFromToolbar(category) {
@@ -3914,6 +3936,7 @@ export const Dashboard = () => {
             
             currentGridPage = 0;
             renderGrid();
+            saveWorkspaceConfig();
         }
 
         function toggleTimeSync() {
@@ -4005,6 +4028,7 @@ export const Dashboard = () => {
         function clearSlot(idx) {
             plotSlots[idx] = null;
             renderGrid();
+            saveWorkspaceConfig();
         }
 
         function toggleAutoScale(idx) {
@@ -4016,6 +4040,7 @@ export const Dashboard = () => {
                     limits.max = null;
                 }
                 updateSlotScale(idx);
+                saveWorkspaceConfig();
             }
         }
 
@@ -4023,6 +4048,7 @@ export const Dashboard = () => {
             if (plotSlots[idx]) {
                 plotSlots[idx].layoutLimits.min = val !== '' ? parseFloat(val) : null;
                 updateSlotScale(idx);
+                saveWorkspaceConfig();
             }
         }
 
@@ -4030,6 +4056,7 @@ export const Dashboard = () => {
             if (plotSlots[idx]) {
                 plotSlots[idx].layoutLimits.max = val !== '' ? parseFloat(val) : null;
                 updateSlotScale(idx);
+                saveWorkspaceConfig();
             }
         }
 
