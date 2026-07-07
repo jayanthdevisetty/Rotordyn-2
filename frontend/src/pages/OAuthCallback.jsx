@@ -5,12 +5,32 @@ import { useAuth } from '../context/AuthContext';
 export const OAuthCallback = ({ provider }) => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { saveToken, API_BASE_URL } = useAuth();
+    const { saveToken, API_BASE_URL, token, user, loading } = useAuth();
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        // 1. If already logged in, redirect immediately based on status
+        if (token && user) {
+            console.log("OAuthCallback: Session active, redirecting to appropriate workspace.");
+            if (user.status === 'approved') {
+                navigate('/dashboard');
+            } else {
+                navigate('/pending');
+            }
+            return;
+        }
+
+        // 2. If auth state is still loading, wait for it
+        if (loading) return;
+
+        // 3. Extract PKCE code parameter
         const code = searchParams.get('code');
         if (!code) {
+            // If the URL code was already consumed by Supabase client, the session should be loading or active
+            if (token) {
+                console.log("OAuthCallback: Token present but user profile is loading. Waiting...");
+                return;
+            }
             setError('Missing authorization code from provider.');
             return;
         }
@@ -55,7 +75,7 @@ export const OAuthCallback = ({ provider }) => {
         };
 
         exchangeCode();
-    }, [searchParams, provider, API_BASE_URL, saveToken, navigate]);
+    }, [searchParams, provider, API_BASE_URL, saveToken, navigate, token, user, loading]);
 
     return (
         <div style={{
