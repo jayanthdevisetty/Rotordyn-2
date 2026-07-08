@@ -7473,7 +7473,84 @@ export const Dashboard = () => {
         };
         
         window.printReport = () => {
-            window.print();
+            const element = document.getElementById('report-modal-body');
+            if (!element) return;
+            
+            const generatePDF = (el) => {
+                const datasetName = document.getElementById("active-dataset-name")?.innerText || "Rotor";
+                const filename = `RotorDyn_AI_Report_${datasetName.replace(/\.[^/.]+$/, "")}.pdf`;
+                
+                const originalBoxSizing = el.style.boxSizing;
+                const originalMaxHeight = el.style.maxHeight;
+                const originalHeight = el.style.height;
+                const originalOverflowY = el.style.overflowY;
+                
+                el.style.boxSizing = 'content-box';
+                el.style.maxHeight = 'none';
+                el.style.height = 'auto';
+                el.style.overflowY = 'visible';
+                
+                const opt = {
+                    margin:       [0.5, 0.5, 0.5, 0.5],
+                    filename:     filename,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                
+                const printBtn = document.querySelector('#report-modal button[onclick*="printReport"]');
+                const originalText = printBtn ? printBtn.innerText : '';
+                if (printBtn) {
+                    printBtn.innerText = '⏳ Exporting PDF...';
+                    printBtn.disabled = true;
+                }
+                
+                window.html2pdf().from(el).set(opt).save().then(() => {
+                    el.style.boxSizing = originalBoxSizing;
+                    el.style.maxHeight = originalMaxHeight;
+                    el.style.height = originalHeight;
+                    el.style.overflowY = originalOverflowY;
+                    
+                    if (printBtn) {
+                        printBtn.innerText = originalText;
+                        printBtn.disabled = false;
+                    }
+                }).catch(err => {
+                    console.error("PDF generation failed:", err);
+                    alert("Export failed. Falling back to browser print...");
+                    window.print();
+                    
+                    el.style.boxSizing = originalBoxSizing;
+                    el.style.maxHeight = originalMaxHeight;
+                    el.style.height = originalHeight;
+                    el.style.overflowY = originalOverflowY;
+                    
+                    if (printBtn) {
+                        printBtn.innerText = originalText;
+                        printBtn.disabled = false;
+                    }
+                });
+            };
+
+            if (typeof window.html2pdf !== 'undefined') {
+                generatePDF(element);
+            } else {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                script.onload = () => {
+                    generatePDF(element);
+                };
+                script.onerror = () => {
+                    alert("Failed to load PDF library. Falling back to browser print...");
+                    window.print();
+                };
+                document.head.appendChild(script);
+            }
         };
 
         return () => {
