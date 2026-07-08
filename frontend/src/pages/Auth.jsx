@@ -658,117 +658,119 @@ export const Auth = () => {
                 </div>
             )}
 
-            {/* Collapsible Diagnostic Console overlay */}
-            <div style={{
-                position: 'fixed',
-                bottom: '16px',
-                right: '16px',
-                width: isDebugOpen ? '500px' : '180px',
-                height: isDebugOpen ? '320px' : '36px',
-                backgroundColor: '#1e293b',
-                color: '#f8fafc',
-                borderRadius: '8px',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                zIndex: 9999,
-                fontFamily: 'monospace',
-                fontSize: '0.7rem',
-                border: '1px solid #475569',
-                transition: 'all 0.3s ease'
-            }}>
-                <div 
-                    onClick={() => setIsDebugOpen(!isDebugOpen)}
-                    style={{
-                        padding: '8px 12px',
-                        backgroundColor: '#0f172a',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        userSelect: 'none'
-                    }}
-                >
-                    <span>⚙️ Diagnostic Console</span>
-                    <span>{isDebugOpen ? '▼' : '▲'}</span>
-                </div>
-                {isDebugOpen && (
-                    <>
-                        <div style={{
-                            flex: 1,
-                            overflowY: 'auto',
-                            padding: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            backgroundColor: '#111827'
-                        }}>
-                            {debugLogs.length === 0 ? (
-                                <p style={{ color: '#94a3b8', margin: 0 }}>No console logs captured...</p>
-                            ) : (
-                                debugLogs.map((log, idx) => (
-                                    <div key={idx} style={{
-                                        color: log.type === 'error' ? '#f87171' : log.type === 'warn' ? '#fbbf24' : '#cbd5e1',
-                                        borderBottom: '1px solid #1f2937',
-                                        paddingBottom: '2px',
-                                        wordBreak: 'break-all'
-                                    }}>
-                                        [{log.time}] [{log.type.toUpperCase()}] {log.text}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                        <div style={{
-                            padding: '6px 12px',
+            {/* Collapsible Diagnostic Console overlay (development environments only) */}
+            {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '16px',
+                    right: '16px',
+                    width: isDebugOpen ? '500px' : '180px',
+                    height: isDebugOpen ? '320px' : '36px',
+                    backgroundColor: '#1e293b',
+                    color: '#f8fafc',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    zIndex: 9999,
+                    fontFamily: 'monospace',
+                    fontSize: '0.7rem',
+                    border: '1px solid #475569',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <div 
+                        onClick={() => setIsDebugOpen(!isDebugOpen)}
+                        style={{
+                            padding: '8px 12px',
                             backgroundColor: '#0f172a',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
                             display: 'flex',
                             justifyContent: 'space-between',
-                            gap: '8px'
-                        }}>
-                            <button 
-                                onClick={() => {
-                                    const text = debugLogs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.text}`).join('\n');
-                                    navigator.clipboard.writeText(text);
-                                    alert('Copied diagnostic logs to clipboard!');
-                                }}
-                                style={{
-                                    flex: 1,
-                                    padding: '4px',
-                                    backgroundColor: '#2563eb',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.7rem'
-                                }}
-                            >
-                                Copy Logs
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    window.debugLogs = [];
-                                    setDebugLogs([]);
-                                }}
-                                style={{
-                                    padding: '4px 8px',
-                                    backgroundColor: '#ef4444',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.7rem'
-                                }}
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    </>
-                )}
-            </div>
+                            alignItems: 'center',
+                            userSelect: 'none'
+                        }}
+                    >
+                        <span>⚙️ Diagnostic Console</span>
+                        <span>{isDebugOpen ? '▼' : '▲'}</span>
+                    </div>
+                    {isDebugOpen && (
+                        <>
+                            <div style={{
+                                flex: 1,
+                                overflowY: 'auto',
+                                padding: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                backgroundColor: '#111827'
+                            }}>
+                                {debugLogs.length === 0 ? (
+                                    <p style={{ color: '#94a3b8', margin: 0 }}>No console logs captured...</p>
+                                ) : (
+                                    debugLogs.map((log, idx) => (
+                                        <div key={idx} style={{
+                                            color: log.type === 'error' ? '#f87171' : log.type === 'warn' ? '#fbbf24' : '#cbd5e1',
+                                            borderBottom: '1px solid #1f2937',
+                                            paddingBottom: '2px',
+                                            wordBreak: 'break-all'
+                                        }}>
+                                            [{log.time}] [{log.type.toUpperCase()}] {log.text}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#0f172a',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '8px'
+                            }}>
+                                <button 
+                                    onClick={() => {
+                                        const text = debugLogs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.text}`).join('\n');
+                                        navigator.clipboard.writeText(text);
+                                        alert('Copied diagnostic logs to clipboard!');
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '4px',
+                                        backgroundColor: '#2563eb',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.7rem'
+                                    }}
+                                >
+                                    Copy Logs
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        window.debugLogs = [];
+                                        setDebugLogs([]);
+                                    }}
+                                    style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.7rem'
+                                    }}
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

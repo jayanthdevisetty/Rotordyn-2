@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from routes.auth import get_current_approved_user
 from config import settings
+from database import log_audit_action
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -76,6 +77,12 @@ async def generate_report(
             }
         ]
     }
+    
+    log_audit_action(current_user["id"], "GENERATE_AI_REPORT", {
+        "bearing_name": payload.bearing_name,
+        "primary_diagnosis": payload.primary_diagnosis,
+        "confidence_score": payload.confidence_score
+    })
     
     async def stream_generator():
         try:

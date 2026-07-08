@@ -7,7 +7,12 @@ import { useAuth } from '../context/AuthContext';
 export const Landing = () => {
     const { token, user, loading } = useAuth();
     const navigate = useNavigate();
-    const [showIntro, setShowIntro] = useState(!localStorage.getItem('token'));
+    const [showIntro, setShowIntro] = useState(!localStorage.getItem('token') && !localStorage.getItem('hasWatchedIntro'));
+
+    const dismissIntro = () => {
+        localStorage.setItem('hasWatchedIntro', 'true');
+        setShowIntro(false);
+    };
 
     useEffect(() => {
         if (token && user) {
@@ -73,7 +78,7 @@ export const Landing = () => {
                     autoPlay
                     muted
                     playsInline
-                    onEnded={() => setShowIntro(false)}
+                    onEnded={dismissIntro}
                     style={{
                         width: '100%',
                         height: '100%',
@@ -81,7 +86,7 @@ export const Landing = () => {
                     }}
                 />
                 <button
-                    onClick={() => setShowIntro(false)}
+                    onClick={dismissIntro}
                     style={{
                         position: 'absolute',
                         top: '24px',
@@ -223,7 +228,7 @@ export const Landing = () => {
                     marginBottom: '40px',
                     maxWidth: '820px'
                 }}>
-                    An advanced machinery diagnostics engine designed for critical rotating systems. Upload startup, steady-state, or coastdown datasets, calculate Bode, Polar, Orbits, Shaft Centerline sweeps, and execute automated AI malfunction diagnostics in a secure React workspace.
+                    An advanced machinery diagnostics engine designed for critical rotating equipment. Upload startup, steady-state, or coastdown datasets, plot Trend, Bode, Polar, Orbit, and Shaft Centerline, and let automated AI execute malfunction diagnostics — all in a secure workspace.
                 </p>
                 
                 <div style={{ display: 'flex', gap: '25px', marginBottom: '80px' }}>
@@ -282,13 +287,13 @@ export const Landing = () => {
                     <div className="feature-card-glass" style={{ transition: 'all 0.25s ease' }}>
                         <div className="feature-icon-box" style={{ background: '#f1f5f9', boxShadow: 'inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff', color: '#10b981' }}><FiSliders /></div>
                         <h3>Dynamic Timeline Slider</h3>
-                        <p>Resize timeframe intervals interactively by dragging the Range Box edges over the speed waveform timeline to sweep analysis sweeps.</p>
+                        <p>Drag the Range Box edges along the speed timeline to isolate any sweep you want to analyze.</p>
                     </div>
 
                     <div className="feature-card-glass" style={{ transition: 'all 0.25s ease' }}>
                         <div className="feature-icon-box" style={{ background: '#f1f5f9', boxShadow: 'inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff', color: '#4f46e5' }}><FiFolder /></div>
                         <h3>Secure Session Storage</h3>
-                        <p>Seamlessly upload large workbook sheets to your account. MongoDB secure uploads metadata keeps your analysis pipeline organized.</p>
+                        <p>Encrypted, versioned storage for every dataset you upload — your analysis pipeline stays organized and auditable, with nothing exposed at the infrastructure level.</p>
                     </div>
                 </div>
             </section>
@@ -315,7 +320,7 @@ export const Landing = () => {
                     <div style={{ textAlign: 'center' }}>
                         <div className="step-number" style={{ background: '#f1f5f9', color: '#2563eb', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff' }}>01</div>
                         <h4 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '15px 0 10px 0', fontFamily: "'Outfit', sans-serif", color: '#0f172a' }}>Secure Upload</h4>
-                        <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.5 }}>Upload CSV or Excel sheets via the drag & drop zone. Datasets are securely processed, saved, and emailed to the admin.</p>
+                        <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.5 }}>Upload CSV or Excel sheets via the drag & drop zone. Datasets are encrypted in transit and at rest, then queued for processing.</p>
                     </div>
 
                     <div style={{ textAlign: 'center' }}>

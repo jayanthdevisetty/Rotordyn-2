@@ -4,7 +4,7 @@ from datetime import datetime
 import httpx
 from jose import jwt, JWTError
 from models.user import UserRegister, UserLogin, UserResponse, Token
-from database import supabase
+from database import supabase, log_audit_action
 from config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -229,6 +229,9 @@ async def login(user_in: UserLogin):
                 detail="Incorrect email or password."
             )
             
+        # Log successful login audit trail
+        log_audit_action(login_res.user.id, "USER_LOGIN", {"email": user_in.email})
+            
         return {
             "access_token": login_res.session.access_token,
             "token_type": "bearer"
@@ -287,6 +290,9 @@ async def oauth_callback(provider: str, body: dict):
                     detail="Failed to create user profile after OAuth registration."
                 )
                 
+        # Log successful OAuth login audit trail
+        log_audit_action(user.id, "USER_LOGIN_OAUTH", {"email": user.email, "provider": provider})
+            
         return {
             "access_token": session.access_token,
             "token_type": "bearer"

@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 from pydantic import BaseModel
 from models.upload import UploadResponse
-from database import supabase
+from database import supabase, log_audit_action
 from routes.auth import get_current_approved_user
 from services.email_service import send_upload_email
 import os
@@ -85,6 +85,7 @@ async def log_upload_metadata(
             file_size_bytes=payload.file_size,
             file_path=payload.file_url
         )
+        log_audit_action(current_user["id"], "UPLOAD_DATASET", {"filename": payload.original_filename, "size": payload.file_size})
         
         return serialize_upload(record)
     except Exception as e:
@@ -142,11 +143,22 @@ async def get_upload_file(
         if not (is_owner or is_admin or is_same_tenant):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this upload.")
             
-        file_url = upload.get("file_url")
-        if not file_url:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File download URL not found in record.")
+        stored_filename = upload.get("stored_filename")
+        if not stored_filename:
+            file_url = upload.get("file_url")
+            if not file_url:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File download URL not found in record.")
+            stored_filename = file_url.split("/")[-1]
             
-        return RedirectResponse(url=file_url)
+        # Generate a 15-minute secure presigned URL (900 seconds)
+        signed_url_res = supabase.storage.from_("vibration-datasets").create_signed_url(stored_filename, 900)
+        signed_url = signed_url_res.get("signedURL") or signed_url_res.get("signedUrl")
+        if not signed_url:
+            raise ValueError("Failed to create signed URL from Supabase.")
+            
+        log_audit_action(current_user["id"], "DOWNLOAD_DATASET", {"upload_id": upload_id, "filename": upload.get("original_filename")})
+        
+        return RedirectResponse(url=signed_url)
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

@@ -19,3 +19,16 @@ async def ping_database():
     except Exception as e:
         print(f"Database ping failed: {e}")
         return False
+
+def log_audit_action(user_id: str, action: str, details: dict = None, ip_address: str = None):
+    """Log user operations to public.audit_logs for security and compliance audits."""
+    try:
+        log_entry = {
+            "user_id": user_id,
+            "action": action,
+            "details": details or {},
+            "ip_address": ip_address
+        }
+        supabase.table("audit_logs").insert(log_entry).execute()
+    except Exception as e:
+        print(f"Failed to write audit log to database: {e}")
