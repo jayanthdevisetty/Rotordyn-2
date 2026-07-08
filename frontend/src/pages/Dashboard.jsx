@@ -7840,10 +7840,6 @@ export const Dashboard = () => {
             </div>
 
             <div className="error-message" id="upload-error">Invalid CSV structure detected. Please check your data file.</div>
-            <p style={{fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "12px", maxWidth: "480px", marginLeft: "auto", marginRight: "auto", lineHeight: 1.4, textAlign: "center"}}>
-                <FiInfo style={{ verticalAlign: "middle", marginRight: "5px", color: "var(--accent-color)" }} /> <b>CORS Notice:</b> Standard browser security blocks automatic file fetching when opened via <code>file://</code>. 
-                Please drag and drop your CSV file above to load the data immediately, or run a local server (e.g. <code>python -m http.server</code>).
-            </p>
         </div>
     </div>
 
