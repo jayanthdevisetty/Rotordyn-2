@@ -8204,7 +8204,7 @@ export const Dashboard = () => {
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
                                     <input type="checkbox" id="show-iso-limits" onChange={() => window.renderGrid && window.renderGrid()} />
-                                    Show ISO 10816 Limits
+                                    Show ISO 20816 Limits
                                 </label>
                             </div>
                         </div>

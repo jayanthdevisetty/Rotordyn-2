@@ -1837,14 +1837,24 @@ input:focus, textarea:focus {
     display: inline-block;
 }
 
-/* --- AI Diagnostics Report Printing Styles --- */
 @media print {
-    body * {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    /* Hide sibling dashboard layout containers on print */
+    #welcome-screen,
+    #main-container,
+    .dashboard-container,
+    .activity-bar,
+    .sidebar,
+    #sidebar-toggle-btn {
+        display: none !important;
+        height: 0 !important;
+        overflow: hidden !important;
         visibility: hidden !important;
     }
-    #report-modal, #report-modal * {
-        visibility: visible !important;
-    }
+    /* Show the report modal full-screen */
     #report-modal {
         position: absolute !important;
         left: 0 !important;
@@ -1853,11 +1863,13 @@ input:focus, textarea:focus {
         height: auto !important;
         background-color: #ffffff !important;
         padding: 0 !important;
+        margin: 0 !important;
         display: block !important;
         overflow: visible !important;
         z-index: 99999 !important;
         box-shadow: none !important;
         border: none !important;
+        backdrop-filter: none !important;
     }
     #report-modal .neu-card {
         border: none !important;
@@ -1871,6 +1883,7 @@ input:focus, textarea:focus {
         background: #ffffff !important;
     }
     #report-modal-body {
+        overflow: visible !important;
         overflow-y: visible !important;
         height: auto !important;
         display: block !important;
@@ -1878,7 +1891,7 @@ input:focus, textarea:focus {
         background: #ffffff !important;
         color: #000000 !important;
     }
-    /* Hide the header and utility buttons on print */
+    /* Hide modal header, close/print buttons, and border on print */
     #report-modal > div:first-child,
     #report-modal div[style*="borderBottom"],
     #report-modal button {
