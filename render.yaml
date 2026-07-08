@@ -5,22 +5,22 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: PYTHONPATH=. uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: MONGODB_URI
-        value: mongodb+srv://djay8im_db_user:07A88459zdyVmujh@cluster0.hsmnkyb.mongodb.net/?appName=Cluster0
-      - key: DB_NAME
-        value: rotordyn
+      - key: SUPABASE_URL
+        value: https://wqgsqyvtugcnwahblpnn.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: sb_publishable_JvKg6k3uJyr1vnp-N-016g_H-S24esc
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: GMAIL_USERNAME
         value: shaikbashah20@gmail.com
       - key: GMAIL_APP_PASSWORD
-        value: vgrtyjnrmxupecsa
+        sync: false
       - key: ADMIN_UPLOAD_EMAIL
         value: djay8im@gmail.com
-      - key: JWT_SECRET_KEY
-        value: supersecretkeychangeinproduction
-      - key: ADMIN_EMAIL
-        value: admin@rotordyn.ai
-      - key: ADMIN_PASSWORD
-        value: AdminPassword123
       - key: FRONTEND_URL
         value: https://cosmic-dodol-084d0a.netlify.app
       - key: BACKEND_URL
