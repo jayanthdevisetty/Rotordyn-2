@@ -1942,6 +1942,11 @@ input:focus, textarea:focus {
         background: #ffffff !important;
         color: #000000 !important;
     }
+    #report-modal-body,
+    #report-modal-body * {
+        color: #000000 !important;
+        background-color: transparent !important;
+    }
     /* Hide modal header and close/print buttons on print */
     #report-modal .neu-card > div:first-child,
     #report-modal button {
