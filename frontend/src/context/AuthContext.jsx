@@ -4,8 +4,10 @@ import { supabase } from '../supabaseClient';
 const AuthContext = createContext(null);
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:8000'
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' ||
+    /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname)
+        ? `http://${window.location.hostname}:8000`
         : 'https://rotordyn-ai-v2.onrender.com'
 );
 

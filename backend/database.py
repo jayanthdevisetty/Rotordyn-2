@@ -10,6 +10,14 @@ if not supabase_url or not supabase_key:
 
 supabase: Client = create_client(supabase_url, supabase_key)
 
+# Ensure the private storage bucket 'vibration-datasets' exists in Supabase
+try:
+    supabase.storage.create_bucket("vibration-datasets", options={"public": False})
+    print("Supabase Storage: Checked/Created private bucket 'vibration-datasets' successfully.")
+except Exception as e:
+    # Safely ignore if the bucket already exists
+    pass
+
 async def ping_database():
     """Verify database connection by performing a simple select query."""
     try:
