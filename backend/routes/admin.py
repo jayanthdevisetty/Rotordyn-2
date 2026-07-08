@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from models.user import UserResponse
-from database import supabase
+from database import supabase, log_audit_action
 from routes.auth import get_current_admin, serialize_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -21,7 +21,7 @@ async def list_users(admin: dict = Depends(get_current_admin)):
             detail=f"Failed to fetch users: {str(e)}"
         )
 
-async def update_user_status(user_id: str, new_status: str) -> dict:
+async def update_user_status(user_id: str, new_status: str, admin_id: str) -> dict:
     """Helper to update a user's status by ID in both database and Supabase Auth metadata."""
     try:
         # 1. Update in profiles table
@@ -42,6 +42,9 @@ async def update_user_status(user_id: str, new_status: str) -> dict:
             # log the error but don't fail, as database is updated
             print(f"WARNING: Failed to update Supabase Auth user metadata: {e}")
             
+        # Log update action in audit trail
+        log_audit_action(admin_id, f"ADMIN_UPDATE_USER_STATUS", {"target_user_id": user_id, "new_status": new_status})
+            
         return serialize_user(db_res.data[0])
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -54,17 +57,17 @@ async def update_user_status(user_id: str, new_status: str) -> dict:
 @router.patch("/users/{user_id}/approve", response_model=UserResponse)
 async def approve_user(user_id: str, admin: dict = Depends(get_current_admin)):
     """Approves a user's registration request, granting them system access."""
-    return await update_user_status(user_id, "approved")
+    return await update_user_status(user_id, "approved", admin["id"])
 
 @router.patch("/users/{user_id}/reject", response_model=UserResponse)
 async def reject_user(user_id: str, admin: dict = Depends(get_current_admin)):
     """Rejects a user's registration request."""
-    return await update_user_status(user_id, "rejected")
+    return await update_user_status(user_id, "rejected", admin["id"])
 
 @router.patch("/users/{user_id}/block", response_model=UserResponse)
 async def block_user(user_id: str, admin: dict = Depends(get_current_admin)):
     """Blocks an approved user from accessing the system."""
-    return await update_user_status(user_id, "blocked")
+    return await update_user_status(user_id, "blocked", admin["id"])
 
 @router.get("/uploads")
 async def list_all_uploads(admin: dict = Depends(get_current_admin)):
@@ -118,6 +121,9 @@ async def delete_upload(upload_id: str, admin: dict = Depends(get_current_admin)
         # 3. Delete record from database
         supabase.table("uploads").delete().eq("id", upload_id).execute()
         
+        # Log deletion action in audit trail
+        log_audit_action(admin["id"], "ADMIN_DELETE_UPLOAD", {"upload_id": upload_id, "stored_filename": stored_filename})
+        
         return {"detail": "Upload record and file deleted successfully."}
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -125,4 +131,36 @@ async def delete_upload(upload_id: str, admin: dict = Depends(get_current_admin)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete upload: {str(e)}"
+        )
+
+@router.get("/audit-logs")
+async def list_audit_logs(admin: dict = Depends(get_current_admin)):
+    """Lists all audit logs in the system with user profile details (Admin only)."""
+    try:
+        # Perform a join query to load profile info along with audit log records
+        res = supabase.table("audit_logs")\
+            .select("*, profile:profiles(name, email, company)")\
+            .order("created_at", desc=True)\
+            .execute()
+            
+        logs = []
+        for doc in res.data:
+            profile = doc.get("profile") or {}
+            logs.append({
+                "id": str(doc["id"]),
+                "action": doc["action"],
+                "details": doc.get("details", {}),
+                "ip_address": doc.get("ip_address"),
+                "created_at": doc["created_at"],
+                "user": {
+                    "name": profile.get("name", "Unknown"),
+                    "email": profile.get("email", "Unknown"),
+                    "company": profile.get("company", "Unknown")
+                }
+            })
+        return logs
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch audit logs: {str(e)}"
         )

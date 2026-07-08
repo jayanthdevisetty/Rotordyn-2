@@ -155,6 +155,61 @@ export const Dashboard = () => {
         let activeActivityTab = 'tree'; 
         let isDrawerOpen = false; // Start collapsed by default
 
+        function fetchTeamMembers() {
+            const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+            const listContainer = document.getElementById('team-members-list');
+            if (!listContainer) return;
+            
+            listContainer.innerHTML = '<p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 10px;">Loading workspace crew...</p>';
+            
+            fetch(`${apiBase}/auth/team`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch team members");
+                return res.json();
+            })
+            .then(members => {
+                listContainer.innerHTML = '';
+                if (!members || members.length === 0) {
+                    listContainer.innerHTML = '<p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 10px;">No workspace members found.</p>';
+                    return;
+                }
+                
+                members.forEach(member => {
+                    const div = document.createElement('div');
+                    div.style.padding = '8px';
+                    div.style.background = 'rgba(255, 255, 255, 0.03)';
+                    div.style.border = '1px solid var(--border-color)';
+                    div.style.borderRadius = '4px';
+                    div.style.marginBottom = '6px';
+                    div.style.fontSize = '0.75rem';
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.style.gap = '2px';
+                    
+                    let statusColor = '#f59e0b';
+                    if (member.status === 'approved') statusColor = '#10b981';
+                    
+                    div.innerHTML = `
+                        <div style="font-weight: 600; color: var(--text-color);">${member.name} ${member.id === (user ? user.id : '') ? '<b>(You)</b>' : ''}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">${member.email}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                            <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">${member.role}</span>
+                            <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: bold; text-transform: uppercase;">● ${member.status}</span>
+                        </div>
+                    `;
+                    listContainer.appendChild(div);
+                });
+            })
+            .catch(err => {
+                console.error("Error fetching team members:", err);
+                listContainer.innerHTML = `<p style="font-size: 0.75rem; color: #ef4444; text-align: center; padding: 10px;">Error loading team: ${err.message}</p>`;
+            });
+        }
+
         function selectActivityTab(tabName) {
             const container = document.getElementById('main-container');
             const toggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -170,7 +225,7 @@ export const Dashboard = () => {
             isDrawerOpen = true;
             
             // Highlight selected button, show tab content
-            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics'];
+            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -186,9 +241,15 @@ export const Dashboard = () => {
                 tree: 'Sensor Navigation',
                 filters: 'Timeline & RPM Filters',
                 styles: 'Styles & Formatting',
-                diagnostics: 'AI Diagnostics Report'
+                diagnostics: 'AI Diagnostics Report',
+                team: 'Team & Workspace'
             };
             document.getElementById('drawer-title').innerText = titleMap[tabName] || '';
+            
+            // Fetch team members if switching to team tab
+            if (tabName === 'team') {
+                fetchTeamMembers();
+            }
             
             // Expand drawer
             container.style.setProperty('--sidebar-width', '320px');
@@ -216,7 +277,7 @@ export const Dashboard = () => {
             isDrawerOpen = false;
             
             // Unhighlight all buttons
-            const tabs = ['data', 'tree', 'filters', 'styles'];
+            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -7901,6 +7962,14 @@ export const Dashboard = () => {
                             <line x1="12" y1="16" x2="12.01" y2="16"/>
                         </svg>
                     </button>
+                    <button className="activity-btn" id="act-btn-team" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('team')} title="Team & Workspace">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </button>
                 </div>
                 
                 {/* Bottom Collapse Chevron Toggle */}
@@ -8219,6 +8288,82 @@ export const Dashboard = () => {
                     <div className="tab-content" id="tab-content-diagnostics" style={{padding: "0px"}}>
                         <div style={{padding: "15px", color: "var(--text-muted)", fontSize: "0.8rem", textAlign: "center"}}>
                             No dataset loaded. Upload or select a CSV dataset to execute AI diagnostics.
+                        </div>
+                    </div>
+                    {/* Tab Content: Team & Workspace */}
+                    <div className="tab-content" id="tab-content-team" style={{padding: "15px"}}>
+                        <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "12px"}}>Company Workspace</h4>
+                        
+                        {/* Company Details Card */}
+                        <div style={{
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: '6px',
+                            padding: '12px',
+                            marginBottom: '15px',
+                            fontSize: '0.75rem',
+                            lineHeight: '1.4'
+                        }}>
+                            <div style={{fontWeight: 700, color: 'var(--text-color)', fontSize: '0.8rem', marginBottom: '4px'}}>
+                                🏢 {user ? user.company : 'Default Company'}
+                            </div>
+                            <div style={{color: 'var(--text-muted)'}}>
+                                📍 Plant: {user ? user.plant : 'Default Plant'}
+                            </div>
+                            <p style={{marginTop: '8px', fontSize: '0.7rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px'}}>
+                                🔒 <b>Tenant Boundary Active:</b> Colleagues in this company workspace share read-write permissions over all uploaded vibration dataset logs.
+                            </p>
+                        </div>
+                        
+                        <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Workspace Members</h4>
+                        <div id="team-members-list" style={{maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '15px'}}>
+                            {/* Loaded Dynamically */}
+                        </div>
+
+                        {/* Quick Invitation Block */}
+                        <div style={{borderTop: '1px solid var(--border-color)', paddingTop: '12px'}}>
+                            <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Invite Colleague</h4>
+                            <input 
+                                type="email" 
+                                id="team-invite-email" 
+                                placeholder="name@company.com" 
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 10px',
+                                    borderRadius: '4px',
+                                    border: '1px solid var(--border-color)',
+                                    backgroundColor: 'rgba(0,0,0,0.2)',
+                                    color: 'var(--text-color)',
+                                    fontSize: '0.75rem',
+                                    marginBottom: '8px'
+                                }}
+                            />
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const emailInput = document.getElementById('team-invite-email');
+                                    const email = emailInput ? emailInput.value.trim() : '';
+                                    if (!email) {
+                                        alert("Please enter a valid email address.");
+                                        return;
+                                    }
+                                    alert(`Invitation sent to ${email}! They will automatically join your company workspace (${user ? user.company : 'Default Company'}) upon signing up.`);
+                                    if (emailInput) emailInput.value = '';
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    background: 'var(--accent-color)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Send Invitation
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -309,3 +309,22 @@ async def oauth_callback(provider: str, body: dict):
 async def read_current_user(current_user: dict = Depends(get_current_user)):
     """Returns the current user profile."""
     return current_user
+
+@router.get("/team", response_model=List[UserResponse])
+async def list_team_members(current_user: dict = Depends(get_current_approved_user)):
+    """Retrieves list of colleagues belonging to the same company organization."""
+    try:
+        company = current_user.get("company")
+        if not company or company == "OAuth Registered" or company == "Default Company":
+            return [current_user]
+            
+        res = supabase.table("profiles").select("*").eq("company", company).execute()
+        members = []
+        for doc in res.data:
+            members.append(serialize_user(doc))
+        return members
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch team members: {str(e)}"
+        )

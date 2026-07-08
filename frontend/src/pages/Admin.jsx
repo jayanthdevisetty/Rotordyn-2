@@ -10,6 +10,8 @@ export const Admin = () => {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [uploads, setUploads] = useState([]);
     const [loadingUploads, setLoadingUploads] = useState(true);
+    const [auditLogs, setAuditLogs] = useState([]);
+    const [loadingLogs, setLoadingLogs] = useState(true);
 
     const fetchUsers = async () => {
         try {
@@ -46,6 +48,25 @@ export const Admin = () => {
             console.error('Error fetching uploads:', err);
         } finally {
             setLoadingUploads(false);
+        }
+    };
+
+    const fetchAuditLogs = async () => {
+        try {
+            setLoadingLogs(true);
+            const response = await fetch(`${API_BASE_URL}/admin/audit-logs`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAuditLogs(data);
+            } else {
+                console.error('Failed to fetch audit logs');
+            }
+        } catch (err) {
+            console.error('Error fetching audit logs:', err);
+        } finally {
+            setLoadingLogs(false);
         }
     };
 
@@ -100,6 +121,7 @@ export const Admin = () => {
     useEffect(() => {
         fetchUsers();
         fetchUploads();
+        fetchAuditLogs();
     }, [token]);
 
     const updateStatus = async (userId, action) => {
@@ -358,6 +380,104 @@ export const Admin = () => {
                                                     style={{ ...actionBtnStyle, backgroundColor: '#ef4444' }}
                                                 >Delete</button>
                                             </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '50px', marginBottom: '20px' }}>
+                <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>System Audit Trails & Logs</h2>
+                <button 
+                    onClick={fetchAuditLogs}
+                    style={{
+                        background: '#f1f5f9',
+                        border: 'none',
+                        color: '#2563eb',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        boxShadow: '3px 3px 6px #cbd5e1, -3px -3px 6px #ffffff',
+                        fontSize: '0.8rem',
+                        transition: 'all 0.2s'
+                    }}
+                >Refresh Logs</button>
+            </div>
+
+            <div className="neu-card" style={{
+                overflow: 'hidden',
+                marginBottom: '60px'
+            }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                    <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.2)' }}>
+                            <th style={thStyle}>Timestamp</th>
+                            <th style={thStyle}>User</th>
+                            <th style={thStyle}>Company</th>
+                            <th style={thStyle}>Action</th>
+                            <th style={thStyle}>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loadingLogs ? (
+                            <tr>
+                                <td colSpan="5" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>Loading audit logs...</td>
+                            </tr>
+                        ) : auditLogs.length === 0 ? (
+                            <tr>
+                                <td colSpan="5" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>No audit logs recorded yet.</td>
+                            </tr>
+                        ) : (
+                            auditLogs.map((log) => {
+                                const logDate = new Date(log.created_at).toLocaleString();
+                                let actionColor = '#3b82f6';
+                                let actionBg = 'rgba(59, 130, 246, 0.1)';
+                                if (log.action.startsWith('ADMIN_')) {
+                                    actionColor = '#ec4899';
+                                    actionBg = 'rgba(236, 72, 153, 0.1)';
+                                } else if (log.action.includes('DOWNLOAD') || log.action.includes('DELETE')) {
+                                    actionColor = '#ef4444';
+                                    actionBg = 'rgba(239, 68, 68, 0.1)';
+                                } else if (log.action.includes('UPLOAD')) {
+                                    actionColor = '#10b981';
+                                    actionBg = 'rgba(16, 185, 129, 0.1)';
+                                }
+                                
+                                return (
+                                    <tr key={log.id}>
+                                        <td style={tdStyle}>{logDate}</td>
+                                        <td style={tdStyle}>
+                                            <div style={{ color: '#0f172a', fontWeight: 600 }}>{log.user.name}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{log.user.email}</div>
+                                        </td>
+                                        <td style={tdStyle}>{log.user.company}</td>
+                                        <td style={tdStyle}>
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '3px 8px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                color: actionColor,
+                                                backgroundColor: actionBg
+                                            }}>{log.action}</span>
+                                        </td>
+                                        <td style={{ 
+                                            ...tdStyle, 
+                                            fontSize: '0.75rem', 
+                                            fontFamily: 'monospace', 
+                                            color: '#475569',
+                                            maxWidth: '300px',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
+                                        }} title={JSON.stringify(log.details)}>
+                                            {JSON.stringify(log.details)}
                                         </td>
                                     </tr>
                                 );
