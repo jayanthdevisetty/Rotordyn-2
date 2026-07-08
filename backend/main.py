@@ -1,3 +1,8 @@
+import os
+import sys
+# Ensure backend directory is in python search path dynamically
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
