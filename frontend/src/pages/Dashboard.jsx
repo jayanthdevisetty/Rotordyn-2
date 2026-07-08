@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
 export const Dashboard = () => {
@@ -4342,8 +4342,8 @@ export const Dashboard = () => {
                                 <button class="grid-card-btn" type="button" onclick="clearSlot(${i})" title="Close plot" style="color: #ef4444; font-weight: bold; margin-left:5px;">✕</button>
                             </div>
                         </div>
+                        <div class="plot-telemetry-box-inline" id="plot-telemetry-box-${i}" style="display: none;"></div>
                         <div class="grid-card-body" id="plotly-slot-body-${i}">
-                            <div class="plot-telemetry-box" id="plot-telemetry-box-${i}"></div>
                             <div id="plotly-container-${i}" class="chart-container"></div>
                         </div>
                     `;
@@ -7264,6 +7264,22 @@ export const Dashboard = () => {
 
         window.setLayout = setLayout;
         window.toggleTimeSync = toggleTimeSync;
+        window.toggleTimelineBar = () => {
+            const bar = document.getElementById('global-timeline-bar');
+            const btn = document.getElementById('btn-toggle-timeline');
+            if (bar) {
+                if (bar.style.display === 'none') {
+                    bar.style.display = 'flex';
+                    if (btn) btn.classList.add('active');
+                } else {
+                    bar.style.display = 'none';
+                    if (btn) btn.classList.remove('active');
+                }
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 50);
+            }
+        };
         window.prevGridPage = prevGridPage;
         window.nextGridPage = nextGridPage;
         window.selectSlot = selectSlot;
@@ -7546,6 +7562,7 @@ export const Dashboard = () => {
         delete window.populateSlowRollDropdown;
         delete window.setLayout;
         delete window.toggleTimeSync;
+        delete window.toggleTimelineBar;
         delete window.prevGridPage;
         delete window.nextGridPage;
         delete window.selectSlot;
@@ -8503,6 +8520,10 @@ export const Dashboard = () => {
                 <button className="toolbar-btn active" id="btn-time-sync" type="button" onClick={() => window.toggleTimeSync && window.toggleTimeSync()}>
                     <FiClock style={{ verticalAlign: "middle" }} />
                     <span className="tooltip">Toggle Cursor Time-Sync</span>
+                </button>
+                <button className="toolbar-btn active" id="btn-toggle-timeline" type="button" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ marginTop: "6px" }}>
+                    <FiSliders style={{ verticalAlign: "middle" }} />
+                    <span className="tooltip">Toggle Speed Profile Player</span>
                 </button>
                 
                 <div className="toolbar-divider"></div>
