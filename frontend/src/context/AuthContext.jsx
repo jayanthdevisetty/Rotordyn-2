@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || (
     window.location.hostname === '127.0.0.1' ||
     /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname)
         ? `http://${window.location.hostname}:8000`
-        : 'https://rotordyn-ai-v2.onrender.com'
+        : 'https://rotordyn-2.onrender.com'
 );
 
 export const AuthProvider = ({ children }) => {

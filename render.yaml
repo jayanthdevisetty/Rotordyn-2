@@ -24,4 +24,4 @@ services:
       - key: FRONTEND_URL
         value: https://cosmic-dodol-084d0a.netlify.app
       - key: BACKEND_URL
-        value: https://rotordyn-ai-v2.onrender.com
+        value: https://rotordyn-2.onrender.com
