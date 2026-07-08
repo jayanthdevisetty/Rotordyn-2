@@ -1842,13 +1842,24 @@ input:focus, textarea:focus {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Hide sibling dashboard layout containers on print */
+    /* Prevent root container from clipping content or fixing layout in print */
+    #app-root-container {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        overflow: visible !important;
+        background-color: #ffffff !important;
+        z-index: auto !important;
+    }
+    /* Hide sibling dashboard layout containers and explicit no-print elements on print */
     #welcome-screen,
     #main-container,
     .dashboard-container,
     .activity-bar,
     .sidebar,
-    #sidebar-toggle-btn {
+    #sidebar-toggle-btn,
+    .no-print {
         display: none !important;
         height: 0 !important;
         overflow: hidden !important;

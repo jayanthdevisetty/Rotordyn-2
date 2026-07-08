@@ -7669,10 +7669,10 @@ export const Dashboard = () => {
     }
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', overflow: 'hidden', zIndex: 1000 }}>
+        <div id="app-root-container" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', overflow: 'hidden', zIndex: 1000 }}>
             {/* Global Top-Right Controls & Profile Dropdown */}
             {user && (
-                <div style={{
+                <div className="no-print" style={{
                     position: 'absolute',
                     top: '16px',
                     right: '70px',
