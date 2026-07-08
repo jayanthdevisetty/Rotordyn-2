@@ -1929,9 +1929,8 @@ input:focus, textarea:focus {
         background: #ffffff !important;
         color: #000000 !important;
     }
-    /* Hide modal header, close/print buttons, and border on print */
-    #report-modal > div:first-child,
-    #report-modal div[style*="borderBottom"],
+    /* Hide modal header and close/print buttons on print */
+    #report-modal .neu-card > div:first-child,
     #report-modal button {
         display: none !important;
     }
