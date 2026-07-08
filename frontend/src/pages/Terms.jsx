@@ -79,7 +79,17 @@ export const Terms = () => {
                         Vibration diagnostics calculations, 3D orbits, polar plots, and mode shape calculations are advisory only. Rotordyn.ai provides automated tool insights but does not replace certified ISO Vibration Analyst reviews. The platform accepts no liability for decisions made based on its outputs, machinery downtime, catastrophic failure, or financial loss.
                     </p>
                     
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>4. Administrator Privileges</h3>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>4. Organization Workspaces</h3>
+                    <p style={{ marginBottom: '20px' }}>
+                        By establishing or joining a company workspace, you agree that uploaded vibration datasets, slow-roll configuration settings, and AI-generated maintenance reports will be accessible to all approved colleagues sharing the same tenant company and plant boundaries.
+                    </p>
+
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>5. Compliance & Activity Logging</h3>
+                    <p style={{ marginBottom: '20px' }}>
+                        To satisfy industrial plant security requirements, Rotordyn.ai logs user operations—including logins, dataset additions, file retrievals, and AI report requests—in a secure database. System administrators have full visibility over these compliance audit logs.
+                    </p>
+
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>6. Administrator Privileges</h3>
                     <p style={{ marginBottom: '25px' }}>
                         Accounts are subject to administrator approval. The administration reserves the right to reject, restrict, block, or delete any profile at its sole discretion for violation of system guidelines.
                     </p>

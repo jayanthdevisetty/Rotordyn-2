@@ -71,7 +71,7 @@ export const Privacy = () => {
                     
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>2. Telemetry Processing & Security</h3>
                     <p style={{ marginBottom: '20px' }}>
-                        Uploaded dataset files are stored on secure local server nodes and processed inside the active browser sandbox. Telemetry values are parsed in the client window and are only transmitted to the server when utilizing cloud-save features. Transmitted telemetry files are subject to strict de-identification rules.
+                        Uploaded telemetry datasets are stored inside private cloud storage buckets. Direct public URLs to files are blocked at the infrastructure level. Telemetry file downloads are served via authenticated backend redirects utilizing secure, short-lived presigned links that automatically expire after 15 minutes. Row data metadata is partitioned in PostgreSQL and protected via strict Row-Level Security (RLS) policies.
                     </p>
                     
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginTop: '25px', marginBottom: '10px' }}>3. Third-Party Sharing</h3>

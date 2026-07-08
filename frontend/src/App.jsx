@@ -13,6 +13,7 @@ import { Dashboard } from './pages/Dashboard';
 import { OAuthCallback } from './pages/OAuthCallback';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
+import { Security } from './pages/Security';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         {/* Public Policy Pages */}
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/security" element={<Security />} />
 
         {/* OAuth Callback Endpoints */}
         <Route path="/api/auth/callback/google" element={<OAuthCallback provider="google" />} />

@@ -157,6 +157,7 @@ export const Landing = () => {
                 <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
                     <a href="#features" className="nav-link-item nav-hide-mobile">Features</a>
                     <a href="#workflow" className="nav-link-item nav-hide-mobile">Workflow</a>
+                    <Link to="/security" className="nav-link-item nav-hide-mobile">Security</Link>
                     <Link to="/auth" className="nav-link-item" style={{ color: '#475569' }}>Sign In</Link>
                     <Link to="/auth" className="btn-glow-cta" style={{
                         background: '#2563eb',
@@ -350,6 +351,7 @@ export const Landing = () => {
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '25px', marginBottom: '15px' }}>
                     <Link to="/terms" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#2563eb'} onMouseLeave={(e) => e.target.style.color = '#64748b'}>Terms of Service</Link>
                     <Link to="/privacy" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#2563eb'} onMouseLeave={(e) => e.target.style.color = '#64748b'}>Privacy Policy</Link>
+                    <Link to="/security" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#2563eb'} onMouseLeave={(e) => e.target.style.color = '#64748b'}>Security Features</Link>
                 </div>
                 <p>&copy; 2026 Rotordyn.ai. All rights reserved. Professional Turbomachinery & Generator machinery diagnostics environments.</p>
             </footer>
