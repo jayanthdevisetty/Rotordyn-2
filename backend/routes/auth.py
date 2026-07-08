@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from typing import List
 from datetime import datetime
 import httpx
 from jose import jwt, JWTError
