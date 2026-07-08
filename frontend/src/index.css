@@ -1879,9 +1879,18 @@ input:focus, textarea:focus {
         background-color: #ffffff !important;
         z-index: auto !important;
     }
-    /* Hide sibling dashboard layout containers and explicit no-print elements on print */
+    /* Prevent main container from hiding its children modal on print */
+    #main-container {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        overflow: visible !important;
+        visibility: visible !important;
+        background: transparent !important;
+    }
+    /* Hide sibling layout containers and explicit no-print elements on print */
     #welcome-screen,
-    #main-container,
     .dashboard-container,
     .activity-bar,
     .sidebar,
@@ -1904,10 +1913,14 @@ input:focus, textarea:focus {
         margin: 0 !important;
         display: block !important;
         overflow: visible !important;
+        visibility: visible !important;
         z-index: 99999 !important;
         box-shadow: none !important;
         border: none !important;
         backdrop-filter: none !important;
+    }
+    #report-modal * {
+        visibility: visible !important;
     }
     #report-modal .neu-card {
         border: none !important;
