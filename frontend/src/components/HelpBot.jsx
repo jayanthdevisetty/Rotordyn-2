@@ -54,12 +54,18 @@ const BUDDY_KNOWLEDGE = [
     }
 ];
 
-export const HelpBot = () => {
-    const [isOpen, setIsOpen] = useState(false);
+export const HelpBot = ({ mode = 'floating' }) => {
+    const [isOpen, setIsOpen] = useState(mode === 'tab');
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+
+    useEffect(() => {
+        if (mode === 'tab') {
+            setIsOpen(true);
+        }
+    }, [mode]);
     
     // Persistent buddy memory
     const [memory, setMemory] = useState(() => {
@@ -249,10 +255,10 @@ export const HelpBot = () => {
     };
 
     return (
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div style={mode === 'tab' ? { width: '100%', height: '100%', display: 'flex', flexDirection: 'column' } : { position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             
             {/* Toggle Button */}
-            {!isOpen && (
+            {mode !== 'tab' && !isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
                     style={{
@@ -279,7 +285,14 @@ export const HelpBot = () => {
 
             {/* Chat Box Panel */}
             {isOpen && (
-                <div style={{
+                <div style={mode === 'tab' ? {
+                    width: '100%',
+                    height: 'calc(100vh - 120px)',
+                    backgroundColor: '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden'
+                } : {
                     width: '360px',
                     height: '520px',
                     backgroundColor: '#ffffff',
@@ -314,12 +327,14 @@ export const HelpBot = () => {
                                 </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
-                        >
-                            <FiX />
-                        </button>
+                        {mode !== 'tab' && (
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
+                            >
+                                <FiX />
+                            </button>
+                        )}
                     </div>
 
                     {/* Chat Messages Logs */}

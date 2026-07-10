@@ -229,7 +229,7 @@ export const Dashboard = () => {
             isDrawerOpen = true;
             
             // Highlight selected button, show tab content
-            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
+            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -246,7 +246,8 @@ export const Dashboard = () => {
                 filters: 'Timeline & RPM Filters',
                 styles: 'Styles & Formatting',
                 diagnostics: 'AI Diagnostics Report',
-                team: 'Team & Workspace'
+                team: 'Team & Workspace',
+                helpbot: 'RotorBuddy Co-pilot'
             };
             document.getElementById('drawer-title').innerText = titleMap[tabName] || '';
             
@@ -8244,6 +8245,11 @@ export const Dashboard = () => {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                     </button>
+                    <button className="activity-btn" id="act-btn-helpbot" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('helpbot')} title="RotorBuddy Assistant">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </button>
                 </div>
                 
                 {/* Bottom Collapse Chevron Toggle */}
@@ -8640,6 +8646,10 @@ export const Dashboard = () => {
                             </button>
                         </div>
                     </div>
+                    {/* Tab Content: RotorBuddy Assistant */}
+                    <div className="tab-content" id="tab-content-helpbot" style={{padding: "0px"}}>
+                        <HelpBot mode="tab" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -8945,8 +8955,6 @@ export const Dashboard = () => {
 
     </div>
 
-    
-            <HelpBot />
         </div>
     );
 };
