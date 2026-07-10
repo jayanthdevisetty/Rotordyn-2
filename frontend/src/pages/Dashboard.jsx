@@ -4,18 +4,7 @@ import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
-const maskPersonalEmail = (email) => {
-    if (!email) return '';
-    const personalDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com'];
-    const parts = email.split('@');
-    if (parts.length === 2) {
-        const [local, domain] = parts;
-        if (personalDomains.includes(domain.toLowerCase()) || local.includes('djay8im') || local.includes('chinnu') || local.includes('shaik')) {
-            return 'contact@rotordyn.com';
-        }
-    }
-    return email;
-};
+
 
 export const Dashboard = () => {
     const {user, token, logout, API_BASE_URL} = useAuth();
@@ -208,7 +197,7 @@ export const Dashboard = () => {
                     
                     div.innerHTML = `
                         <div style="font-weight: 600; color: var(--text-color);">${member.name} ${member.id === (user ? user.id : '') ? '<b>(You)</b>' : ''}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">${maskPersonalEmail(member.email)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">${member.email}</div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                             <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">${member.role}</span>
                             <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: bold; text-transform: uppercase;">● ${member.status}</span>
@@ -7961,7 +7950,7 @@ export const Dashboard = () => {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                                         <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</span>
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{maskPersonalEmail(user.email)}</span>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
                                     </div>
                                 </div>
 

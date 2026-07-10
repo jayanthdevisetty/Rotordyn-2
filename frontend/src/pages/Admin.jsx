@@ -2,18 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const maskPersonalEmail = (email) => {
-    if (!email) return '';
-    const personalDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com'];
-    const parts = email.split('@');
-    if (parts.length === 2) {
-        const [local, domain] = parts;
-        if (personalDomains.includes(domain.toLowerCase()) || local.includes('djay8im') || local.includes('chinnu') || local.includes('shaik')) {
-            return 'contact@rotordyn.com';
-        }
-    }
-    return email;
-};
+
 
 export const Admin = () => {
     const { token, logout, API_BASE_URL } = useAuth();
@@ -291,7 +280,7 @@ export const Admin = () => {
                                 return (
                                     <tr key={user.id}>
                                         <td style={{ ...tdStyle, fontWeight: 600 }}>{user.name}</td>
-                                        <td style={tdStyle}>{maskPersonalEmail(user.email)}</td>
+                                        <td style={tdStyle}>{user.email}</td>
                                         <td style={tdStyle}>{user.company}</td>
                                         <td style={{ 
                                             ...tdStyle,
@@ -378,7 +367,7 @@ export const Admin = () => {
                                         <td style={tdStyle}>{sizeStr}</td>
                                         <td style={tdStyle}>
                                             <div style={{ color: '#0f172a', fontWeight: 600 }}>{upload.uploader.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{maskPersonalEmail(upload.uploader.email)}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{upload.uploader.email}</div>
                                         </td>
                                         <td style={tdStyle}>{upload.uploader.company}</td>
                                         <td style={tdStyle}>{uploadDate}</td>
@@ -465,7 +454,7 @@ export const Admin = () => {
                                         <td style={tdStyle}>{logDate}</td>
                                         <td style={tdStyle}>
                                             <div style={{ color: '#0f172a', fontWeight: 600 }}>{log.user.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{maskPersonalEmail(log.user.email)}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{log.user.email}</div>
                                         </td>
                                         <td style={tdStyle}>{log.user.company}</td>
                                         <td style={tdStyle}>
