@@ -15,6 +15,7 @@ export const Subscription = () => {
     const [cvc, setCvc] = useState('');
     const [cardName, setCardName] = useState('');
     const [checkoutError, setCheckoutError] = useState('');
+    const [isCardFlipped, setIsCardFlipped] = useState(false);
 
     const isGuest = !token || !user;
     const isPremium = !isGuest && user.subscription_status === 'premium';
@@ -260,56 +261,111 @@ export const Subscription = () => {
 
             {/* Mock Checkout Modal overlay */}
             {showCheckout && (
-                <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(15,23,42,0.6)", zIndex: 100000, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px", backdropFilter: "blur(8px)" }}>
-                    <div className="neu-card" style={{ backgroundColor: "var(--card-color, #ffffff)", width: "100%", maxWidth: "440px", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--border-color, #cbd5e1)", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.15)" }}>
+                <div className="payment-modal-backdrop">
+                    <div className="payment-modal-card">
                         
                         {/* Header */}
-                        <div style={{ padding: "20px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <h3 style={{ margin: 0, fontFamily: "'Outfit', sans-serif", fontSize: "1.1rem", fontWeight: 800 }}>Payment Details</h3>
-                            <button type="button" onClick={() => setShowCheckout(false)} style={{ background: "transparent", border: "none", color: "#64748b", fontSize: "1.4rem", cursor: "pointer" }}>&times;</button>
+                        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <h3 style={{ margin: 0, fontFamily: "'Outfit', sans-serif", fontSize: "1.15rem", fontWeight: 800, color: "#0f172a" }}>Payment Details</h3>
+                            <button type="button" onClick={() => setShowCheckout(false)} style={{ background: "transparent", border: "none", color: "#64748b", fontSize: "1.5rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>&times;</button>
                         </div>
                         
                         {/* Form Body */}
                         <form onSubmit={handleMockCheckout} style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                            <div>
-                                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Order Total</span>
-                                <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>$199.00 <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: "normal" }}>/ month</span></div>
+                            
+                            {/* Cardholder Visual Preview Card */}
+                            <div className="interactive-card-wrapper">
+                                <div className={`interactive-card ${isCardFlipped ? 'flipped' : ''}`}>
+                                    {/* Front Side */}
+                                    <div className="card-face front">
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div className="card-chip" />
+                                            <div className="card-logo">
+                                                <svg style={{ width: "20px", height: "20px" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                                    <path d="M2 12h20" />
+                                                </svg>
+                                                RotorPay
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="card-number-display">
+                                            {cardNumber || "•••• •••• •••• ••••"}
+                                        </div>
+                                        
+                                        <div className="card-lower">
+                                            <div style={{ flexGrow: 1, marginRight: "10px" }}>
+                                                <div className="card-label">Card Holder</div>
+                                                <div className="card-value">{cardName || "Jane Doe"}</div>
+                                            </div>
+                                            <div style={{ flexShrink: 0 }}>
+                                                <div className="card-label">Expires</div>
+                                                <div className="card-value">{expiry || "MM/YY"}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Back Side */}
+                                    <div className="card-face back">
+                                        <div className="card-back-stripe" />
+                                        <div>
+                                            <div className="card-label" style={{ paddingLeft: "24px" }}>CVC / CVV</div>
+                                            <div className="card-back-signature">
+                                                {cvc || "•••"}
+                                            </div>
+                                        </div>
+                                        <div style={{ padding: "0 24px", fontSize: "0.5rem", color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
+                                            Simulated Sandbox Card
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Order Total</span>
+                                <div style={{ fontSize: "1.45rem", fontWeight: 900, color: "#1e3a8a" }}>$199.00 <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: "normal" }}>/ month</span></div>
                             </div>
                             
                             {/* Cardholder name */}
                             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Cardholder Name</label>
+                                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>Cardholder Name</label>
                                 <input 
                                     type="text" 
                                     required
                                     value={cardName} 
                                     onChange={(e) => setCardName(e.target.value)}
                                     placeholder="Jane Doe" 
-                                    style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none" }}
+                                    className="card-input-field"
                                 />
                             </div>
 
                             {/* Card Number */}
                             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Card Number</label>
+                                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>Card Number</label>
                                 <input 
                                     type="text" 
                                     required
                                     maxLength="19"
                                     value={cardNumber} 
                                     onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim();
-                                        setCardNumber(val);
+                                        let val = e.target.value.replace(/\D/g, '');
+                                        // Format as 4-4-4-4
+                                        let parts = [];
+                                        for (let i = 0; i < val.length; i += 4) {
+                                            parts.push(val.substring(i, i + 4));
+                                        }
+                                        setCardNumber(parts.join(' '));
                                     }}
                                     placeholder="4242 4242 4242 4242" 
-                                    style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none" }}
+                                    className="card-input-field"
                                 />
                             </div>
                             
                             {/* Expiry and CVC */}
                             <div style={{ display: "flex", gap: "16px" }}>
                                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                                    <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Expiry Date</label>
+                                    <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>Expiry Date</label>
                                     <input 
                                         type="text" 
                                         required
@@ -323,41 +379,50 @@ export const Subscription = () => {
                                             setExpiry(val);
                                         }}
                                         placeholder="MM/YY" 
-                                        style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none", width: "100%", boxSizing: "border-box" }}
+                                        className="card-input-field"
+                                        style={{ width: "100%", boxSizing: "border-box" }}
                                     />
                                 </div>
                                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                                    <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>CVC</label>
+                                    <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>CVC</label>
                                     <input 
                                         type="text" 
                                         required
                                         maxLength="4"
                                         value={cvc} 
                                         onChange={(e) => setCvc(e.target.value.replace(/\D/g, ''))}
+                                        onFocus={() => setIsCardFlipped(true)}
+                                        onBlur={() => setIsCardFlipped(false)}
                                         placeholder="123" 
-                                        style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none", width: "100%", boxSizing: "border-box" }}
+                                        className="card-input-field"
+                                        style={{ width: "100%", boxSizing: "border-box" }}
                                     />
                                 </div>
                             </div>
 
                             {checkoutError && (
-                                <div style={{ color: "#ef4444", fontSize: "0.78rem", fontWeight: 600 }}>
+                                <div style={{ color: "#ef4444", fontSize: "0.78rem", fontWeight: 600, padding: "8px 12px", backgroundColor: "#fef2f2", borderRadius: "8px", border: "1px solid #fee2f2" }}>
                                     {checkoutError}
                                 </div>
                             )}
 
                             {/* Alert Sandbox Message */}
-                            <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#fef3c7", border: "1px solid #fde68a", fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
-                                <strong>Sandbox Mode:</strong> You can enter any credit card details (e.g. Stripe test card 4242) to trigger a simulated successful license activation.
+                            <div style={{ padding: "12px", borderRadius: "10px", backgroundColor: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)", fontSize: "0.72rem", color: "#b45309", lineHeight: "1.4", display: "flex", gap: "8px" }}>
+                                <svg style={{ flexShrink: 0, width: "14px", height: "14px", marginTop: "2px" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span>
+                                    <strong>Sandbox Mode:</strong> You can enter any credit card details (e.g. Stripe test card 4242) to trigger a simulated successful license activation.
+                                </span>
                             </div>
                             
                             {/* Buttons */}
-                            <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+                            <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
                                 <button 
                                     type="button" 
                                     onClick={() => setShowCheckout(false)}
                                     className="neu-button" 
-                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", cursor: "pointer" }}
+                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", cursor: "pointer", borderRadius: "10px" }}
                                 >
                                     Cancel
                                 </button>
@@ -365,7 +430,7 @@ export const Subscription = () => {
                                     type="submit" 
                                     disabled={loadingCheckout}
                                     className="neu-button" 
-                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", background: "#2563eb", color: "white", border: "none", cursor: loadingCheckout ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", background: "#2563eb", color: "white", border: "none", cursor: loadingCheckout ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", borderRadius: "10px" }}
                                 >
                                     {loadingCheckout ? (
                                         <>
