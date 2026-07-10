@@ -2357,6 +2357,14 @@ export const Dashboard = () => {
                             if (playBtn) playBtn.innerText = 'Play';
                         }
                         document.getElementById('global-timeline-bar').style.display = 'flex';
+                        const topBtn = document.getElementById('btn-top-toggle-timeline');
+                        if (topBtn) {
+                            topBtn.style.display = 'inline-block';
+                            topBtn.innerText = '▲ Hide Speed Profile';
+                            topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
+                            topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                            topBtn.style.color = '#ef4444';
+                        }
 
                         populateSlowRollDropdown();
                         updateSavedSlowRollList();
@@ -7233,6 +7241,14 @@ export const Dashboard = () => {
                     
                     const timelineBar = document.getElementById('global-timeline-bar');
                     if (timelineBar) timelineBar.style.display = 'flex';
+                    const topBtn = document.getElementById('btn-top-toggle-timeline');
+                    if (topBtn) {
+                        topBtn.style.display = 'inline-block';
+                        topBtn.innerText = '▲ Hide Speed Profile';
+                        topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
+                        topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        topBtn.style.color = '#ef4444';
+                    }
                     
                     if (!plotSlots[0]) {
                         plotSlots[0] = { bearingOrChannel: 'BRG1X', category: 'trend', isDual: false, layoutLimits: { min: null, max: null, autoScale: true } };
@@ -7269,13 +7285,26 @@ export const Dashboard = () => {
         window.toggleTimelineBar = () => {
             const bar = document.getElementById('global-timeline-bar');
             const btn = document.getElementById('btn-toggle-timeline');
+            const topBtn = document.getElementById('btn-top-toggle-timeline');
             if (bar) {
                 if (bar.style.display === 'none') {
                     bar.style.display = 'flex';
                     if (btn) btn.classList.add('active');
+                    if (topBtn) {
+                        topBtn.innerText = '▲ Hide Speed Profile';
+                        topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
+                        topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        topBtn.style.color = '#ef4444';
+                    }
                 } else {
                     bar.style.display = 'none';
                     if (btn) btn.classList.remove('active');
+                    if (topBtn) {
+                        topBtn.innerText = '🎛️ Show Speed Profile';
+                        topBtn.style.background = 'rgba(2, 132, 199, 0.08)';
+                        topBtn.style.borderColor = 'rgba(2, 132, 199, 0.2)';
+                        topBtn.style.color = 'var(--accent-color)';
+                    }
                 }
                 setTimeout(() => {
                     window.dispatchEvent(new Event('resize'));
@@ -8553,8 +8582,11 @@ export const Dashboard = () => {
         <div className="main-view">
             <div style={{display: "flex", flexDirection: "column", flexGrow: 1, height: "100%", overflow: "hidden", position: "relative"}}>
                 {/* Telemetry Header Display */}
-                <div className="telemetry-bar" id="telemetry-display">
+                 <div className="telemetry-bar" id="telemetry-display" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px" }}>
                     <span className="telemetry-item" style={{color: "var(--text-muted)"}}>Hover cursor over data points on the plot area to view detailed diagnostic values...</span>
+                    <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "rgba(2, 132, 199, 0.08)", border: "1px solid rgba(2, 132, 199, 0.2)", color: "var(--accent-color)", padding: "4px 10px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 600, cursor: "pointer", display: "none", transition: "all 0.2s" }}>
+                        🎛️ Toggle Speed Profile
+                    </button>
                 </div>
 
                 {/* Unified Timeline Player Controls */}
