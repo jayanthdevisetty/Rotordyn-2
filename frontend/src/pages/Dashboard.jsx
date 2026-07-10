@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
 
@@ -2361,7 +2361,7 @@ export const Dashboard = () => {
                         const topBtn = document.getElementById('btn-top-toggle-timeline');
                         if (topBtn) {
                             topBtn.style.display = 'inline-block';
-                            topBtn.innerText = '▲ Hide Speed Profile';
+                            topBtn.innerText = 'Hide Speed Profile';
                             topBtn.style.background = 'var(--card-color)';
                             topBtn.style.borderColor = 'var(--border-color)';
                             topBtn.style.color = '#ef4444';
@@ -7245,7 +7245,7 @@ export const Dashboard = () => {
                     const topBtn = document.getElementById('btn-top-toggle-timeline');
                     if (topBtn) {
                         topBtn.style.display = 'inline-block';
-                        topBtn.innerText = '▲ Hide Speed Profile';
+                        topBtn.innerText = 'Hide Speed Profile';
                         topBtn.style.background = 'var(--card-color)';
                         topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = '#ef4444';
@@ -7292,7 +7292,7 @@ export const Dashboard = () => {
                     bar.style.display = 'flex';
                     if (btn) btn.classList.add('active');
                     if (topBtn) {
-                        topBtn.innerText = '▲ Hide Speed Profile';
+                        topBtn.innerText = 'Hide Speed Profile';
                         topBtn.style.background = 'var(--card-color)';
                         topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = '#ef4444';
@@ -7301,7 +7301,7 @@ export const Dashboard = () => {
                     bar.style.display = 'none';
                     if (btn) btn.classList.remove('active');
                     if (topBtn) {
-                        topBtn.innerText = '🎛️ Show Speed Profile';
+                        topBtn.innerText = 'Show Speed Profile';
                         topBtn.style.background = 'var(--card-color)';
                         topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = 'var(--accent-color)';
@@ -7542,7 +7542,7 @@ export const Dashboard = () => {
                 const printBtn = document.querySelector('#report-modal button[onclick*="printReport"]');
                 const originalText = printBtn ? printBtn.innerText : '';
                 if (printBtn) {
-                    printBtn.innerText = '⏳ Exporting PDF...';
+                    printBtn.innerText = 'Exporting PDF...';
                     printBtn.disabled = true;
                 }
                 
@@ -7603,7 +7603,7 @@ export const Dashboard = () => {
             const btn = document.getElementById("btn-export-docx");
             const originalText = btn ? btn.innerHTML : '';
             if (btn) {
-                btn.innerHTML = '⏳ Exporting Word...';
+                btn.innerHTML = 'Exporting Word...';
                 btn.disabled = true;
             }
             
@@ -7901,7 +7901,7 @@ export const Dashboard = () => {
                     gap: '12px'
                 }}>
                     <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
-                        ▲ Hide Speed Profile
+                        Hide Speed Profile
                     </button>
                     {/* Profile Trigger Pill */}
                     <div 
@@ -8036,9 +8036,13 @@ export const Dashboard = () => {
                                         fontWeight: 700,
                                         padding: '2px 8px',
                                         borderRadius: '4px',
-                                        textTransform: 'uppercase'
+                                        textTransform: 'uppercase',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
                                     }}>
-                                        👑 {user.subscription_status === 'premium' ? 'Premium' : 'Free'}
+                                        <FiAward size={11} />
+                                        {user.subscription_status === 'premium' ? 'Premium' : 'Free'}
                                     </span>
                                 </div>
 
@@ -8810,10 +8814,10 @@ export const Dashboard = () => {
                     <h3 style={{margin: 0, fontFamily: "'Outfit'", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-color)"}}>AI Diagnostics & Maintenance Report</h3>
                     <div style={{display: "flex", gap: "10px"}}>
                         <button className="neu-button" onClick={() => window.printReport && window.printReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
-                            🖨️ Print / Save PDF
+                            <FiPrinter /> Print / Save PDF
                         </button>
                         <button className="neu-button" id="btn-export-docx" onClick={() => window.exportDocxReport && window.exportDocxReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", backgroundColor: "#1e3a8a", color: "#fff", border: "1px solid #1d4ed8"}}>
-                            📝 Save as Word (.docx)
+                            <FiFileText /> Save as Word (.docx)
                         </button>
                         <button className="neu-button" onClick={() => { document.getElementById('report-modal').style.display = 'none'; }} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", cursor: "pointer"}}>
                             Close
@@ -8834,7 +8838,7 @@ export const Dashboard = () => {
                     {/* Modal Header */}
                     <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontSize: "1.3rem" }}>👑</span>
+                            <FiAward size={22} style={{ color: "var(--accent-color)" }} />
                             <h3 style={{ margin: 0, fontFamily: "'Outfit'", fontSize: "1.2rem", fontWeight: 800, color: "var(--text-color)" }}>Upgrade to Premium Analyst</h3>
                         </div>
                         <button type="button" onClick={() => setShowUpgradeModal(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "1.5rem", cursor: "pointer", padding: "0 5px" }}>&times;</button>
