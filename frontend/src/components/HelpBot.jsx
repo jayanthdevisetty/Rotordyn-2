@@ -33,8 +33,8 @@ const BUDDY_KNOWLEDGE = [
         answer: "Vector Slow-Roll Compensation is awesome for cleaning runout error. Just check the Slow Roll panel in the Left Drawer, select a low-speed baseline range (like 200-400 RPM), and hit 'Subtract Baseline'. It immediately adjusts your Bode and Polar plots to show the true dynamic motion!"
     },
     {
-        keywords: ["iso", "severity", "limits", "10816", "alarm"],
-        answer: "Yes, we support standard ISO 10816 vibration severity alarm zones! Flip the 'ISO severity limits' switch under your vibration charts. It overlays clear color bands (Green for newly commissioned, Yellow for long-term, Orange for warning, and Red for trip recommendation) so you can audit machine health instantly."
+        keywords: ["iso", "severity", "limits", "20816", "alarm"],
+        answer: "Yes, we support standard ISO 20816 vibration severity alarm zones! Flip the 'ISO severity limits' switch under your vibration charts. It overlays clear color bands (Green for newly commissioned, Yellow for long-term, Orange for warning, and Red for trip recommendation) so you can audit machine health instantly."
     },
     {
         keywords: ["3d", "waterfall", "cascade", "webgl", "spectral"],
