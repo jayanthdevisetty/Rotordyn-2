@@ -36,6 +36,7 @@ def serialize_user(profile) -> dict:
         "purpose": profile.get("purpose", ""),
         "role": profile.get("role", "user"),
         "status": profile.get("status", "pending"),
+        "subscription_status": profile.get("subscription_status", "free"),
         "created_at": created_at_val
     }
 
@@ -65,7 +66,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
                     "plant": metadata.get("plant", "Default Plant"),
                     "purpose": metadata.get("purpose", ""),
                     "role": metadata.get("role", "user"),
-                    "status": metadata.get("status", "pending")
+                    "status": metadata.get("status", "pending"),
+                    "subscription_status": metadata.get("subscription_status", "free")
                 }
         except JWTError:
             pass
@@ -91,7 +93,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
                         "plant": metadata.get("plant", "Default Plant"),
                         "purpose": metadata.get("purpose", ""),
                         "role": metadata.get("role", "user"),
-                        "status": metadata.get("status", "pending")
+                        "status": metadata.get("status", "pending"),
+                        "subscription_status": metadata.get("subscription_status", "free")
                     }
         except Exception as e:
             print(f"Token verification fallback failed: {e}")
@@ -107,6 +110,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
             profile = db_res.data[0]
             user_data["role"] = profile.get("role", user_data["role"])
             user_data["status"] = profile.get("status", user_data["status"])
+            user_data["subscription_status"] = profile.get("subscription_status", "free")
             user_data["company"] = profile.get("company", user_data["company"])
             user_data["plant"] = profile.get("plant", user_data["plant"])
             user_data["name"] = profile.get("name", user_data["name"])
@@ -115,7 +119,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     except Exception as e:
         print(f"Error checking user profile status: {e}")
         # fallback to token data if database is down
-        pass
+        user_data["subscription_status"] = "free"
         
     return user_data
 

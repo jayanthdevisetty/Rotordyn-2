@@ -164,3 +164,45 @@ async def list_audit_logs(admin: dict = Depends(get_current_admin)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch audit logs: {str(e)}"
         )
+
+async def update_user_subscription(user_id: str, new_status: str, admin_id: str) -> dict:
+    """Helper to update a user's subscription_status in profiles and Supabase Auth metadata."""
+    try:
+        # 1. Update in profiles table
+        db_res = supabase.table("profiles").update({"subscription_status": new_status}).eq("id", user_id).execute()
+        if not db_res.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User profile not found."
+            )
+            
+        # 2. Update in Supabase Auth user_metadata using Admin API
+        try:
+            supabase.auth.admin.update_user_by_id(
+                user_id,
+                {"user_metadata": {"subscription_status": new_status}}
+            )
+        except Exception as e:
+            print(f"WARNING: Failed to update Supabase Auth user subscription metadata: {e}")
+            
+        # Log action in audit trail
+        log_audit_action(admin_id, "ADMIN_UPDATE_SUBSCRIPTION", {"target_user_id": user_id, "subscription_status": new_status})
+            
+        return serialize_user(db_res.data[0])
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update user subscription: {str(e)}"
+        )
+
+@router.patch("/users/{user_id}/grant_subscription", response_model=UserResponse)
+async def grant_subscription(user_id: str, admin: dict = Depends(get_current_admin)):
+    """Manually grants premium subscription status to a user (Admin only)."""
+    return await update_user_subscription(user_id, "premium", admin["id"])
+
+@router.patch("/users/{user_id}/revoke_subscription", response_model=UserResponse)
+async def revoke_subscription(user_id: str, admin: dict = Depends(get_current_admin)):
+    """Manually revokes a user's premium subscription (sets back to 'free') (Admin only)."""
+    return await update_user_subscription(user_id, "free", admin["id"])

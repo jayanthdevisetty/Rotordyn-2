@@ -30,6 +30,12 @@ async def generate_report(
     payload: ReportRequest,
     current_user: dict = Depends(get_current_approved_user)
 ):
+    if current_user.get("subscription_status", "free") != "premium":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Upgrade to a Premium subscription is required to generate AI Diagnostics Reports."
+        )
+
     if not settings.GEMINI_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -131,6 +137,12 @@ async def download_docx(
     payload: DocxReportRequest,
     current_user: dict = Depends(get_current_approved_user)
 ):
+    if current_user.get("subscription_status", "free") != "premium":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Upgrade to a Premium subscription is required to export reports as Word Documents."
+        )
+
     try:
         temp_dir = tempfile.gettempdir()
         safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', payload.bearing_name)

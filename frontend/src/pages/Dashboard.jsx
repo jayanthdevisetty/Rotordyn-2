@@ -12,6 +12,7 @@ export const Dashboard = () => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [scriptsLoaded, setScriptsLoaded] = useState(false);
     const [scriptsLoadingError, setScriptsLoadingError] = useState('');
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     // Hook 1: Dynamic Parallel Script Loader
     useEffect(() => {
@@ -7504,6 +7505,10 @@ export const Dashboard = () => {
         };
         
         window.printReport = () => {
+            if (user && user.subscription_status !== 'premium') {
+                setShowUpgradeModal(true);
+                return;
+            }
             const element = document.getElementById('report-modal-body');
             if (!element) return;
             
@@ -7585,6 +7590,10 @@ export const Dashboard = () => {
         };
 
         window.exportDocxReport = async () => {
+            if (user && user.subscription_status !== 'premium') {
+                setShowUpgradeModal(true);
+                return;
+            }
             const reportBody = document.getElementById('report-modal-body');
             if (!reportBody) return;
             
@@ -8018,6 +8027,18 @@ export const Dashboard = () => {
                                     }}>
                                         <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                         {user.role}
+                                    </span>
+                                    <span style={{
+                                        background: user.subscription_status === 'premium' ? 'rgba(2, 132, 199, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                                        border: user.subscription_status === 'premium' ? '1px solid rgba(2, 132, 199, 0.15)' : '1px solid rgba(100, 116, 139, 0.15)',
+                                        color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        👑 {user.subscription_status === 'premium' ? 'Premium' : 'Free'}
                                     </span>
                                 </div>
 
@@ -8805,6 +8826,83 @@ export const Dashboard = () => {
                 </div>
             </div>
         </div>
+
+        {/* Premium Upgrade Pricing Modal */}
+        {showUpgradeModal && (
+            <div id="upgrade-modal" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(15,23,42,0.6)", zIndex: 100000, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px", backdropFilter: "blur(8px)" }}>
+                <div className="neu-card" style={{ backgroundColor: "var(--card-color)", width: "100%", maxWidth: "680px", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--border-color)", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.15)", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {/* Modal Header */}
+                    <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "1.3rem" }}>👑</span>
+                            <h3 style={{ margin: 0, fontFamily: "'Outfit'", fontSize: "1.2rem", fontWeight: 800, color: "var(--text-color)" }}>Upgrade to Premium Analyst</h3>
+                        </div>
+                        <button type="button" onClick={() => setShowUpgradeModal(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "1.5rem", cursor: "pointer", padding: "0 5px" }}>&times;</button>
+                    </div>
+                    {/* Modal Body */}
+                    <div style={{ padding: "24px 30px", overflowY: "auto" }}>
+                        <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", textAlign: "center", marginBottom: "24px" }}>
+                            To export technical engineering reports with embedded dynamic plot evidence, select a premium subscription tier.
+                        </p>
+                        
+                        {/* Two Columns Options */}
+                        <div style={{ display: "flex", gap: "20px", marginBottom: "24px" }}>
+                            {/* Free Card */}
+                            <div style={{ flex: 1, border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", backgroundColor: "rgba(0,0,0,0.01)", display: "flex", flexDirection: "column" }}>
+                                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Basic Tier</span>
+                                <h4 style={{ margin: "5px 0 10px 0", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-color)" }}>Free Account</h4>
+                                <div style={{ marginBottom: "15px" }}>
+                                    <span style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-color)" }}>$0</span>
+                                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}> / month</span>
+                                </div>
+                                <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "8px", flexGrow: 1 }}>
+                                    <li>✓ Basic dynamic workspace</li>
+                                    <li>✓ 1 concurrent dataset limit</li>
+                                    <li>✗ Gated PDF & Word exports</li>
+                                    <li>✗ No WebGL cascade plots</li>
+                                </ul>
+                            </div>
+                            
+                            {/* Premium Card */}
+                            <div style={{ flex: 1, border: "2px solid var(--accent-color)", borderRadius: "12px", padding: "20px", backgroundColor: "rgba(2, 132, 199, 0.02)", display: "flex", flexDirection: "column", boxShadow: "0 10px 20px rgba(2, 132, 199, 0.05)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--accent-color)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Machinery Analyst</span>
+                                    <span style={{ fontSize: "0.6rem", fontWeight: 700, backgroundColor: "var(--accent-color)", color: "white", padding: "2px 6px", borderRadius: "20px" }}>RECOMMENDED</span>
+                                </div>
+                                <h4 style={{ margin: "5px 0 10px 0", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-color)" }}>Premium Analyst</h4>
+                                <div style={{ marginBottom: "15px" }}>
+                                    <span style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-color)" }}>$199</span>
+                                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}> / month</span>
+                                </div>
+                                <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.8rem", color: "var(--text-color)", display: "flex", flexDirection: "column", gap: "8px", flexGrow: 1 }}>
+                                    <li>✓ Unlimited telemetry dataset uploads</li>
+                                    <li>✓ WebGL 3D waterfall cascade analysis</li>
+                                    <li>✓ Unlimited PDF & Word report exports</li>
+                                    <li>✓ Automatic Plot Evidence embedding</li>
+                                    <li>✓ 24/7 dedicated support SLA</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        {/* Call to Action Admin Info */}
+                        <div style={{ padding: "16px", borderRadius: "8px", backgroundColor: "rgba(2, 132, 199, 0.05)", border: "1px solid rgba(2, 132, 199, 0.1)", textAlign: "center" }}>
+                            <p style={{ margin: 0, fontSize: "0.82rem", fontWeight: 600, color: "var(--text-color)" }}>
+                                To unlock Premium access, please contact your systems administrator:
+                            </p>
+                            <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem", fontWeight: 800, color: "var(--accent-color)" }}>
+                                Shaik Rameez Basha (contact@rotordyn.com)
+                            </p>
+                        </div>
+                    </div>
+                    {/* Modal Footer */}
+                    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "flex-end" }}>
+                        <button type="button" className="neu-button" onClick={() => setShowUpgradeModal(false)} style={{ padding: "8px 16px", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                            Close Window
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
     </div>
 

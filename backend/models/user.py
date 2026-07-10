@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     purpose: Optional[str] = None
     role: str
     status: str
+    subscription_status: str = "free"
     created_at: datetime
 
     class Config:

@@ -145,6 +145,25 @@ export const Admin = () => {
         }
     };
 
+    const updateSubscription = async (userId, action) => {
+        const endpoint = action === 'grant' ? 'grant_subscription' : 'revoke_subscription';
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/${endpoint}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                fetchUsers();
+            } else {
+                const data = await response.json();
+                alert(data.detail || 'Action failed');
+            }
+        } catch (err) {
+            console.error('Error updating subscription:', err);
+            alert('A network error occurred.');
+        }
+    };
+
     const handleSignOut = () => {
         logout();
         navigate('/admin-login');
@@ -249,17 +268,18 @@ export const Admin = () => {
                             <th style={thStyle}>Company</th>
                             <th style={thStyle}>Intended Purpose</th>
                             <th style={thStyle}>Status</th>
+                            <th style={thStyle}>Subscription</th>
                             <th style={thStyle}>Action Controls</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loadingUsers ? (
                             <tr>
-                                <td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>Loading registered users list...</td>
+                                <td colSpan="7" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>Loading registered users list...</td>
                             </tr>
                         ) : users.length === 0 ? (
                             <tr>
-                                <td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>No user registrations found.</td>
+                                <td colSpan="7" style={{ textAlign: 'center', color: '#64748b', padding: '30px' }}>No user registrations found.</td>
                             </tr>
                         ) : (
                             users.map((user) => {
@@ -304,18 +324,41 @@ export const Admin = () => {
                                             }}>{user.status}</span>
                                         </td>
                                         <td style={tdStyle}>
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '3px 8px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                color: user.subscription_status === 'premium' ? '#0369a1' : '#4b5563',
+                                                backgroundColor: user.subscription_status === 'premium' ? '#e0f2fe' : '#f3f4f6'
+                                            }}>{user.subscription_status || 'free'}</span>
+                                        </td>
+                                        <td style={tdStyle}>
                                             {user.role === 'admin' ? (
                                                 <span style={{ color: '#64748b', fontSize: '0.8rem' }}>System Administrator</span>
                                             ) : (
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    {user.status !== 'approved' && (
-                                                        <button style={{ ...actionBtnStyle, backgroundColor: '#10b981' }} onClick={() => updateStatus(user.id, 'approve')}>Approve</button>
-                                                    )}
-                                                    {user.status !== 'rejected' && (
-                                                        <button style={{ ...actionBtnStyle, backgroundColor: '#f59e0b' }} onClick={() => updateStatus(user.id, 'reject')}>Reject</button>
-                                                    )}
-                                                    {user.status !== 'blocked' && (
-                                                        <button style={{ ...actionBtnStyle, backgroundColor: '#ef4444' }} onClick={() => updateStatus(user.id, 'block')}>Block</button>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        {user.status !== 'approved' && (
+                                                            <button style={{ ...actionBtnStyle, backgroundColor: '#10b981' }} onClick={() => updateStatus(user.id, 'approve')}>Approve</button>
+                                                        )}
+                                                        {user.status !== 'rejected' && (
+                                                            <button style={{ ...actionBtnStyle, backgroundColor: '#f59e0b' }} onClick={() => updateStatus(user.id, 'reject')}>Reject</button>
+                                                        )}
+                                                        {user.status !== 'blocked' && (
+                                                            <button style={{ ...actionBtnStyle, backgroundColor: '#ef4444' }} onClick={() => updateStatus(user.id, 'block')}>Block</button>
+                                                        )}
+                                                    </div>
+                                                    {user.status === 'approved' && (
+                                                        <div style={{ display: 'flex', gap: '6px', borderLeft: '1px solid #cbd5e1', paddingLeft: '8px' }}>
+                                                            {user.subscription_status !== 'premium' ? (
+                                                                <button style={{ ...actionBtnStyle, backgroundColor: '#0284c7' }} onClick={() => updateSubscription(user.id, 'grant')} title="Grant Premium Subscription">Grant Premium</button>
+                                                            ) : (
+                                                                <button style={{ ...actionBtnStyle, backgroundColor: '#4b5563' }} onClick={() => updateSubscription(user.id, 'revoke')} title="Revoke Premium Subscription">Revoke Premium</button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
