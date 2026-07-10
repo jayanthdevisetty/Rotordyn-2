@@ -1,79 +1,115 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiMessageSquare, FiMic, FiSend, FiX, FiHelpCircle, FiLoader } from 'react-icons/fi';
+import { FiMessageSquare, FiMic, FiSend, FiX, FiActivity, FiLoader, FiUser, FiHelpCircle } from 'react-icons/fi';
 
-// Predefined quick-start suggestions
+// Predefined quick questions
 const PREDEFINED_QUESTIONS = [
-    { text: "How do I register a new account?", category: "setup" },
-    { text: "How does the admin approval queue work?", category: "setup" },
-    { text: "How do I upload dynamic telemetry datasets?", category: "workspace" },
-    { text: "Starter Plan vs. Premium Analyst pricing?", category: "pricing" },
-    { text: "What ISO vibration severity standards are supported?", category: "workspace" }
+    { text: "How do I register an account?", category: "setup" },
+    { text: "How does admin approval work?", category: "setup" },
+    { text: "How do I upload telemetry data?", category: "workspace" },
+    { text: "What is Starter vs Premium pricing?", category: "pricing" },
+    { text: "How do I use Vector Slow-Roll?", category: "workspace" }
 ];
 
-// Rich offline machinery diagnostics client knowledge base
-const KNOWLEDGE_BASE = [
+// Buddy conversational answers
+const BUDDY_KNOWLEDGE = [
     {
         keywords: ["register", "account", "signup", "create account", "registration"],
-        answer: "To register a new account on Rotordyn.ai: \n1. Click 'Launch Workspace' or go to the Auth page.\n2. Switch to the Register form.\n3. Input your name, email, password, company, plant, and intended purpose.\n4. Click 'Register'. New user profiles are queued under 'Pending Admin Approval' to prevent unauthorized access to critical plant telemetry."
+        answer: "Hey! Creating an account is super easy. Just click 'Launch Workspace' or head to /auth, flip to the Register form, and fill in your details. Once you register, your account goes into our pending admin queue. We review accounts manually to keep our plant data secure. Hit up support@rotordyn.com if you have any questions!"
     },
     {
         keywords: ["admin", "approval", "queue", "approved", "pending"],
-        answer: "Every registered user account is subject to review by the system administrator for security compliance. Once approved, the account status switches from 'pending' to 'approved', allowing you to access the diagnostics dashboard. Administrators can grant or revoke approval statuses inside the Admin Panel."
+        answer: "No worries, the pending queue is just our standard security check! A system administrator reviews new signups. Once they verify your credentials, they will approve you, and you'll get immediate dashboard access. Admin staff can toggle this inside the Admin page anytime."
     },
     {
         keywords: ["login", "signin", "credentials", "oauth", "google", "github"],
-        answer: "You can sign in using either: \n1. Your registered email and password.\n2. Google or GitHub Single Sign-On (SSO) OAuth integration buttons at the top of the Auth form. If your account is approved, SSO will automatically redirect you straight to the dashboard."
+        answer: "You can sign in with your email and password, or use Google/GitHub SSO buttons for instant login. Once you are approved, SSO will drop you right into the diagnostics dashboard!"
     },
     {
         keywords: ["upload", "csv", "excel", "dataset", "telemetry", "data"],
-        answer: "To upload dynamic machinery sensor datasets:\n1. Open your workspace and click the drag-and-drop zone in the Left Control Drawer.\n2. Select a valid CSV/Excel file containing speed (RPM) and proximity probe vibration columns.\n3. Verify your sensor configurations in the sensors listing tree.\n4. Click 'Load Dataset' to sync variables and render the Trend, Bode, and Orbit plots."
+        answer: "Ready to analyze some telemetry? Go to the Left Drawer in your dashboard and drag your CSV or Excel file right in. Verify your probe sensors on the tree, click 'Load Dataset', and watch the Trend, Bode, and Orbit plots render live!"
     },
     {
         keywords: ["slow roll", "compensation", "baseline", "vector subtraction"],
-        answer: "Vector Slow-Roll Compensation subtracts slow-speed runout error from dynamic probe telemetry. To enable it: \n1. Load your dataset and check the Slow Roll section in the Control Drawer.\n2. Select a low speed range (e.g. 300 RPM) as your baseline runout target.\n3. Click 'Subtract Baseline'. The system will recalculate your Bode and 1X Polar plots with runout baseline vectors subtracted automatically."
+        answer: "Vector Slow-Roll Compensation is awesome for cleaning runout error. Just check the Slow Roll panel in the Left Drawer, select a low-speed baseline range (like 200-400 RPM), and hit 'Subtract Baseline'. It immediately adjusts your Bode and Polar plots to show the true dynamic motion!"
     },
     {
         keywords: ["iso", "severity", "limits", "10816", "alarm"],
-        answer: "Rotordyn.ai overlays standard ISO 10816 machinery vibration severity bands on Trend plots. Toggle the 'ISO severity limits' switch under your vibration charts. This overlays color-coded threshold zones:\n- Green: Zone A (Newly commissioned machines)\n- Yellow: Zone B (Unrestricted long-term operation)\n- Orange: Zone C (Restricted short-term operation)\n- Red: Zone D (Catastrophic vibration level; trip recommended)"
+        answer: "Yes, we support standard ISO 10816 vibration severity alarm zones! Flip the 'ISO severity limits' switch under your vibration charts. It overlays clear color bands (Green for newly commissioned, Yellow for long-term, Orange for warning, and Red for trip recommendation) so you can audit machine health instantly."
     },
     {
         keywords: ["3d", "waterfall", "cascade", "webgl", "spectral"],
-        answer: "The WebGL 3D Spectral Cascade plot maps frequency spectrum lines over time and shaft speed. Go to the plot selectors in the sidebar and enable 'WebGL 3D Waterfall'. Drag, rotate, and zoom the interactive 3D mesh surface to identify sub-synchronous rub, oil whirl, or resonance peaks during machine speed sweeps."
+        answer: "Our WebGL 3D Spectral Cascade is beautiful! Turn it on via the plot selectors in the drawer. You can drag, zoom, and rotate the interactive 3D frequency-RPM spectrum map to catch mechanical rubs, oil whirl, or resonance peaks during machine speed sweeps."
     },
     {
         keywords: ["pricing", "cost", "subscription", "premium", "free", "tier", "starter", "usd", "dollars"],
-        answer: "Rotordyn.ai operates on two plan tiers:\n1. **Starter Plan ($0 / month):** Grants access to basic dynamic plotting. Limit of 3 free AI Diagnostics report generations; PDF and Word downloads are locked.\n2. **Premium Analyst ($199 / month):** Grants unlimited telemetry uploads, WebGL 3D waterfall cascades, and unlimited PDF & Word report exports with embedded plot evidence. Upgrade instantly inside the Subscription panel."
+        answer: "We keep it simple: \n1. **Starter Plan ($0/month):** Great for testing. Includes basic workspace plots and 3 free AI Diagnostics reports (Word/PDF downloads locked).\n2. **Premium Analyst ($199/month):** Unleashes unlimited uploads, 3D waterfalls, and unlimited PDF/Word exports with embedded plot evidence. You can upgrade instantly using our checkout modal in the Subscription tab!"
     },
     {
         keywords: ["password", "reset", "forgot password", "change password"],
-        answer: "If you forgot your password, please contact your company administrator or system support (support@rotordyn.com) to trigger a password reset instruction link to your email address."
+        answer: "Forgot your password? No problem! Contact your company coordinator or drop a message to support@rotordyn.com. They will shoot over a password reset link to your email inbox right away."
     },
     {
         keywords: ["report", "generate", "pdf", "word", "docx", "export"],
-        answer: "To generate a report:\n1. Click the 'Generate AI Report' button in the toolbar.\n2. The system prompts Gemini AI to compile diagnostics based on telemetry peaks.\n3. Premium users can click 'Print / Save PDF' or 'Save as Word (.docx)' to export the report with embedded plot images. Free-tier users are restricted to 3 total generations."
+        answer: "You can compile diagnostic reports by clicking 'Generate AI Report' in the toolbar. Gemini AI will analyze your telemetry peaks and write up the details. Premium users can download this as PDF or Word (.docx) with active chart evidence embedded."
     }
 ];
 
 export const HelpBot = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { sender: 'bot', text: "Hello! I am your Rotordyn AI assistant. How can I help you navigate the platform today?", timestamp: new Date() }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     
+    // Persistent buddy memory
+    const [memory, setMemory] = useState(() => {
+        try {
+            const saved = localStorage.getItem('rotorbuddy_memory');
+            return saved ? JSON.parse(saved) : {
+                userName: '',
+                askedTopics: [],
+                interactionCount: 0,
+                affinity: 0
+            };
+        } catch {
+            return { userName: '', askedTopics: [], interactionCount: 0, affinity: 0 };
+        }
+    });
+
     const messagesEndRef = useRef(null);
     const recognitionRef = useRef(null);
 
-    // Auto-scroll to bottom
+    // Save memory updates
+    useEffect(() => {
+        try {
+            localStorage.setItem('rotorbuddy_memory', JSON.stringify(memory));
+        } catch (e) {
+            console.error(e);
+        }
+    }, [memory]);
+
+    // Initial greeting based on memory
+    useEffect(() => {
+        let greeting = "Hey there! I'm RotorBuddy, your diagnostics co-pilot. ";
+        if (memory.userName) {
+            greeting = `Hey ${memory.userName}! Welcome back to the deck. I'm ready to analyze some rotors. What are we looking at today?`;
+        } else {
+            greeting += "What's your name, buddy? Or you can ask me anything about registration, datasets, or pricing plans to get started!";
+        }
+        
+        setMessages([
+            { sender: 'bot', text: greeting, timestamp: new Date() }
+        ]);
+    }, [memory.userName]);
+
+    // Auto-scroll chat
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, isTyping]);
 
-    // Setup speech recognition
+    // Web Speech recognition setup
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -107,10 +143,9 @@ export const HelpBot = () => {
 
     const toggleVoiceInput = () => {
         if (!recognitionRef.current) {
-            alert("Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+            alert("Voice input is not supported in this browser. Try Google Chrome or Microsoft Edge!");
             return;
         }
-
         if (isListening) {
             recognitionRef.current.stop();
         } else {
@@ -123,27 +158,55 @@ export const HelpBot = () => {
         const queryText = textToSend || input;
         if (!queryText.trim()) return;
 
-        // User message
+        // Save message
         const userMsg = { sender: 'user', text: queryText, timestamp: new Date() };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
 
-        // Simulate typing delay
+        // Update interaction counts and affinity score
+        const newInteractionCount = memory.interactionCount + 1;
+        const newAffinity = memory.affinity + 1;
+        let nextMemory = { ...memory, interactionCount: newInteractionCount, affinity: newAffinity };
+
+        // Attempt to learn name
+        const cleanQuery = queryText.toLowerCase();
+        let nameExtracted = '';
+        if (cleanQuery.startsWith("my name is ")) {
+            nameExtracted = queryText.substring(11).trim();
+        } else if (cleanQuery.startsWith("call me ")) {
+            nameExtracted = queryText.substring(8).trim();
+        } else if (cleanQuery.startsWith("i am ") && !cleanQuery.includes("trying") && !cleanQuery.includes("a ")) {
+            nameExtracted = queryText.substring(5).trim();
+        }
+
+        if (nameExtracted) {
+            // Capitalize name
+            nameExtracted = nameExtracted.charAt(0).toUpperCase() + nameExtracted.slice(1);
+            nextMemory.userName = nameExtracted;
+        }
+
+        setMemory(nextMemory);
         setIsTyping(true);
+
         setTimeout(() => {
-            const replyText = getBotResponse(queryText);
+            let replyText = "";
+            if (nameExtracted) {
+                replyText = `Awesome! I'll remember that, ${nameExtracted}. Nice to partner up! Let me know if you need help uploading telemetry data or managing subscriptions.`;
+            } else {
+                replyText = getBuddyResponse(queryText, nextMemory);
+            }
+
             setMessages(prev => [...prev, { sender: 'bot', text: replyText, timestamp: new Date() }]);
             setIsTyping(false);
         }, 800);
     };
 
-    const getBotResponse = (query) => {
+    const getBuddyResponse = (query, currentMemory) => {
         const cleanQuery = query.toLowerCase();
 
-        // Confidentiality check
+        // Confidentiality checks
         const confidentialKeywords = ["postgres", "password", "secret", "apikey", "jwt", "database connection", "credentials list", "config", "port"];
         const holdsConfidentialQuery = confidentialKeywords.some(keyword => {
-            // Avoid flagging safe general queries about standard password reset
             if (cleanQuery.includes("forgot") || cleanQuery.includes("reset") || cleanQuery.includes("change")) {
                 return false;
             }
@@ -151,25 +214,44 @@ export const HelpBot = () => {
         });
 
         if (holdsConfidentialQuery) {
-            return "I am not authorized to disclose confidential system credentials, backend connection strings, database parameters, or application API keys. For security issues, contact System Support.";
+            return "I am not authorized to disclose confidential system credentials, backend connection strings, database keys, or API tokens. Let's keep our session safe and focus on workspace analysis features!";
         }
 
-        // Search in offline knowledge base
-        for (const entry of KNOWLEDGE_BASE) {
+        // Check dictionary
+        for (const entry of BUDDY_KNOWLEDGE) {
             const matched = entry.keywords.some(keyword => cleanQuery.includes(keyword));
             if (matched) {
-                return entry.answer;
+                // Add some buddy flavor based on affinity level
+                let suffix = "";
+                if (currentMemory.affinity >= 15) {
+                    suffix = `\n\n(P.S. We've compiled a lot of data together, partner. High-five! 🤝)`;
+                } else if (currentMemory.affinity === 8) {
+                    suffix = `\n\n(By the way, you're getting really good at this. Co-pilot affinity calibrated!)`;
+                }
+                return entry.answer + suffix;
             }
         }
 
-        // Generic fallback
-        return "I'm not sure about that specific topic. I can guide you on account creation, dashboard navigation, telemetry uploads, vector slow-roll compensation, ISO standards, and subscription tiers. What else can I answer?";
+        // Generic friendly co-pilot responses
+        if (currentMemory.userName) {
+            return `I'm not fully sure about that one, ${currentMemory.userName}. But I can teach you about loading CSV data, runout slow-roll subtraction, checking ISO vibration bands, or upgrading to our Premium Analyst plan. What should we look at?`;
+        }
+        return "I didn't quite catch that topic. I can guide you through account setups, dynamic probe configurations, ISO vibration levels, or subscription checkout. Let me know what you need!";
+    };
+
+    // Determine Relationship Badge based on affinity
+    const getRelationshipLabel = () => {
+        const score = memory.affinity || 0;
+        if (score < 3) return "Co-pilot Calibrating";
+        if (score < 8) return "Diagnostics Buddy";
+        if (score < 16) return "Rotor Partner";
+        return "Dynamic Duo";
     };
 
     return (
         <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             
-            {/* Toggle Floating button */}
+            {/* Toggle Button */}
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
@@ -200,8 +282,8 @@ export const HelpBot = () => {
                 <div style={{
                     width: '360px',
                     height: '520px',
-                    backgroundColor: 'var(--card-color, #ffffff)',
-                    border: '1px solid var(--border-color, #e2e8f0)',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '16px',
                     boxShadow: '0 20px 40px rgba(15, 23, 42, 0.12)',
                     display: 'flex',
@@ -212,29 +294,35 @@ export const HelpBot = () => {
                     
                     {/* Header */}
                     <div style={{
-                        padding: '16px 20px',
+                        padding: '14px 18px',
                         background: '#2563eb',
                         color: 'white',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <FiHelpCircle size={20} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {/* Glowing robot avatar */}
+                            <div style={{ position: 'relative', width: '34px', height: '34px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center' }}>
+                                <FiActivity size={18} style={{ color: '#60a5fa' }} />
+                                <span style={{ position: 'absolute', bottom: 0, right: 0, width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', border: '2px solid #2563eb' }} />
+                            </div>
                             <div>
-                                <div style={{ fontSize: '0.9rem', fontWeight: 800 }}>Platform Assistant</div>
-                                <div style={{ fontSize: '0.68rem', opacity: 0.85 }}>Online | Guided FAQ</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>RotorBuddy</div>
+                                <div style={{ fontSize: '0.65rem', opacity: 0.85, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    {getRelationshipLabel()}
+                                </div>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.25rem', cursor: 'pointer' }}
+                            style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
                         >
                             <FiX />
                         </button>
                     </div>
 
-                    {/* Chat Body */}
+                    {/* Chat Messages Logs */}
                     <div style={{
                         flexGrow: 1,
                         padding: '16px',
@@ -249,15 +337,18 @@ export const HelpBot = () => {
                                 key={index}
                                 style={{
                                     alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                                    maxWidth: '85%',
+                                    maxWidth: '82%',
                                     padding: '10px 14px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.82rem',
+                                    borderRadius: '16px',
+                                    borderTopRightRadius: msg.sender === 'user' ? '4px' : '16px',
+                                    borderTopLeftRadius: msg.sender === 'user' ? '16px' : '4px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 500,
                                     lineHeight: '1.45',
                                     whiteSpace: 'pre-line',
                                     backgroundColor: msg.sender === 'user' ? '#2563eb' : '#ffffff',
-                                    color: msg.sender === 'user' ? 'white' : '#0f172a',
-                                    boxShadow: msg.sender === 'user' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
+                                    color: msg.sender === 'user' ? 'white' : '#1e293b',
+                                    boxShadow: msg.sender === 'user' ? '0 4px 10px rgba(37, 99, 235, 0.15)' : '0 2px 4px rgba(15,23,42,0.02)',
                                     border: msg.sender === 'user' ? 'none' : '1px solid #e2e8f0'
                                 }}
                             >
@@ -269,15 +360,16 @@ export const HelpBot = () => {
                             <div style={{
                                 alignSelf: 'flex-start',
                                 padding: '10px 14px',
-                                borderRadius: '12px',
+                                borderRadius: '16px',
+                                borderTopLeftRadius: '4px',
                                 backgroundColor: '#ffffff',
                                 border: '1px solid #e2e8f0',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '6px'
                             }}>
-                                <FiLoader className="spinner" style={{ animation: 'spin 1s linear infinite', color: '#64748b' }} />
-                                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Typing response...</span>
+                                <FiLoader className="spinner" style={{ animation: 'spin 1s linear infinite', color: '#3b82f6' }} />
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>RotorBuddy is thinking...</span>
                             </div>
                         )}
                         <div ref={messagesEndRef} />
@@ -285,8 +377,8 @@ export const HelpBot = () => {
 
                     {/* Predefined suggestion list */}
                     <div style={{
-                        padding: '8px 12px',
-                        borderTop: '1px solid #e2e8f0',
+                        padding: '10px 12px',
+                        borderTop: '1px solid #edf2f7',
                         backgroundColor: '#f8fafc',
                         display: 'flex',
                         gap: '6px',
@@ -299,13 +391,13 @@ export const HelpBot = () => {
                                 key={idx}
                                 onClick={() => handleSend(q.text)}
                                 style={{
-                                    padding: '5px 10px',
+                                    padding: '5px 12px',
                                     borderRadius: '30px',
                                     border: '1px solid #cbd5e1',
                                     backgroundColor: '#ffffff',
                                     color: '#475569',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 600,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
                                     cursor: 'pointer',
                                     transition: 'all 0.15s ease'
                                 }}
@@ -323,28 +415,45 @@ export const HelpBot = () => {
                         ))}
                     </div>
 
-                    {/* Footer Input */}
+                    {/* Horizontal Combined Input Bar */}
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
                             handleSend();
                         }}
                         style={{
-                            padding: '12px 16px',
-                            borderTop: '1px solid var(--border-color, #e2e8f0)',
+                            padding: '12px 14px',
+                            borderTop: '1px solid #e2e8f0',
                             display: 'flex',
                             gap: '8px',
                             alignItems: 'center',
-                            backgroundColor: 'var(--card-color, #ffffff)'
+                            backgroundColor: '#ffffff'
                         }}
                     >
-                        {/* Voice recognition mic */}
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={isListening ? "Listening..." : "Ask RotorBuddy co-pilot..."}
+                            disabled={isListening}
+                            style={{
+                                flexGrow: 1,
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '30px',
+                                padding: '8px 14px',
+                                fontSize: '0.8rem',
+                                outline: 'none',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                        
+                        {/* Voice Mic inside the row */}
                         <button
                             type="button"
                             onClick={toggleVoiceInput}
                             style={{
-                                width: '36px',
-                                height: '36px',
+                                width: '34px',
+                                height: '34px',
                                 borderRadius: '50%',
                                 border: 'none',
                                 cursor: 'pointer',
@@ -352,37 +461,21 @@ export const HelpBot = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 backgroundColor: isListening ? '#ef4444' : '#f1f5f9',
-                                color: isListening ? 'white' : '#64748b',
-                                transition: 'all 0.25s ease',
-                                animation: isListening ? 'pulseRed 1.5s infinite' : 'none'
+                                color: isListening ? 'white' : '#475569',
+                                transition: 'all 0.2s ease',
+                                flexShrink: 0
                             }}
-                            title={isListening ? "Listening..." : "Enable Voice Input"}
+                            title={isListening ? "Stop listening" : "Start voice input"}
                         >
-                            <FiMic size={16} />
+                            <FiMic size={14} />
                         </button>
                         
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder={isListening ? "Listening..." : "Ask plataforma help bot..."}
-                            disabled={isListening}
-                            style={{
-                                flexGrow: 1,
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '20px',
-                                padding: '8px 14px',
-                                fontSize: '0.82rem',
-                                outline: 'none',
-                                fontFamily: 'inherit'
-                            }}
-                        />
-                        
+                        {/* Send button inside the row */}
                         <button
                             type="submit"
                             style={{
-                                width: '36px',
-                                height: '36px',
+                                width: '34px',
+                                height: '34px',
                                 borderRadius: '50%',
                                 border: 'none',
                                 backgroundColor: '#2563eb',
@@ -391,10 +484,11 @@ export const HelpBot = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
+                                flexShrink: 0,
                                 boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)'
                             }}
                         >
-                            <FiSend size={14} />
+                            <FiSend size={12} />
                         </button>
                     </form>
                 </div>
@@ -408,11 +502,6 @@ export const HelpBot = () => {
                 @keyframes spin {
                     0% { transform: rotate(0deg); }
                     100% { transform: rotate(360deg); }
-                }
-                @keyframes pulseRed {
-                    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-                    70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
                 }
             `}</style>
         </div>
