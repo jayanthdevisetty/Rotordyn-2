@@ -3,6 +3,7 @@ import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import { HelpBot } from '../components/HelpBot';
 
 
 
@@ -8945,6 +8946,7 @@ export const Dashboard = () => {
     </div>
 
     
+            <HelpBot />
         </div>
     );
 };
