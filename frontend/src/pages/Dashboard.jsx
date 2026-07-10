@@ -229,7 +229,7 @@ export const Dashboard = () => {
             isDrawerOpen = true;
             
             // Highlight selected button, show tab content
-            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
+            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -241,6 +241,7 @@ export const Dashboard = () => {
             
             // Update Drawer Title
             const titleMap = {
+                profile: 'My Profile',
                 data: 'Dataset Source',
                 tree: 'Sensor Navigation',
                 filters: 'Timeline & RPM Filters',
@@ -7914,7 +7915,7 @@ export const Dashboard = () => {
                     </button>
                     {/* Profile Trigger Pill */}
                     <div 
-                        onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                        onClick={() => window.selectActivityTab && window.selectActivityTab('profile')}
                         style={{
                             background: 'var(--card-color)',
                             border: '1px solid var(--border-color)',
@@ -7949,200 +7950,8 @@ export const Dashboard = () => {
                             {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
                         </div>
                         <span style={{ fontWeight: 700 }}>{user.name ? user.name.split(' ')[0] : 'User'}</span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>▼</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>▶</span>
                     </div>
-
-                    {/* Dropdown Menu Card */}
-                    {profileMenuOpen && (
-                        <>
-                            {/* Backdrop click handling */}
-                            <div 
-                                onClick={() => setProfileMenuOpen(false)}
-                                style={{
-                                    position: 'fixed',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100vw',
-                                    height: '100vh',
-                                    zIndex: 10004,
-                                    background: 'transparent'
-                                }}
-                            />
-                            
-                            <div style={{
-                                position: 'absolute',
-                                top: '48px',
-                                right: 0,
-                                zIndex: 10005,
-                                width: '260px',
-                                background: 'var(--card-color)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '12px',
-                                padding: '16px',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '14px',
-                                animation: 'fadeIn 0.15s ease-out'
-                            }}>
-                                {/* Profile Header Details */}
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                    <div style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        borderRadius: '50%',
-                                        background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
-                                        color: '#ffffff',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.95rem',
-                                        fontWeight: 700
-                                    }}>
-                                        {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</span>
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
-                                    </div>
-                                </div>
-
-                                {/* Company & Status Badges */}
-                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                    <span style={{
-                                        background: 'rgba(59, 130, 246, 0.08)',
-                                        border: '1px solid rgba(59, 130, 246, 0.15)',
-                                        color: 'var(--accent-color)',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 700,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {user.company || 'RotorDyn'}
-                                    </span>
-                                    <span style={{
-                                        background: 'rgba(16, 185, 129, 0.08)',
-                                        border: '1px solid rgba(16, 185, 129, 0.15)',
-                                        color: '#10b981',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 700,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        textTransform: 'uppercase',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                                        {user.role}
-                                    </span>
-                                    <span style={{
-                                        background: user.subscription_status === 'premium' ? 'rgba(2, 132, 199, 0.08)' : 'rgba(100, 116, 139, 0.08)',
-                                        border: user.subscription_status === 'premium' ? '1px solid rgba(2, 132, 199, 0.15)' : '1px solid rgba(100, 116, 139, 0.15)',
-                                        color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 700,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        textTransform: 'uppercase',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        <FiAward size={11} />
-                                        {user.subscription_status === 'premium' ? 'Premium' : 'Free'}
-                                    </span>
-                                </div>
-
-                                <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 0' }} />
-
-                                {/* Menu Items */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    {/* Subscription & Plan Link */}
-                                    <button 
-                                        onClick={() => {
-                                            setProfileMenuOpen(false);
-                                            navigate('/subscription');
-                                        }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'var(--text-color)',
-                                            padding: '8px 10px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            transition: 'background 0.2s'
-                                        }}
-                                        className="dropdown-menu-item"
-                                    >
-                                        <FiAward size={14} style={{ color: 'var(--text-muted)' }} /> <span>Subscription & Plan</span>
-                                    </button>
-
-                                    {/* Theme Switch Button */}
-                                    <button 
-                                        onClick={() => {
-                                            window.toggleWorkspaceTheme && window.toggleWorkspaceTheme();
-                                            setProfileMenuOpen(false);
-                                        }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'var(--text-color)',
-                                            padding: '8px 10px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            transition: 'background 0.2s'
-                                        }}
-                                        className="dropdown-menu-item"
-                                    >
-                                        <FiMoon size={14} style={{ color: 'var(--text-muted)' }} /> <span>Toggle Theme</span>
-                                    </button>
-
-                                    {/* Logout Button */}
-                                    <button 
-                                        onClick={() => {
-                                            window.logout && window.logout();
-                                            setProfileMenuOpen(false);
-                                        }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#ef4444',
-                                            padding: '8px 10px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            transition: 'background 0.2s'
-                                        }}
-                                        className="dropdown-menu-item-logout"
-                                    >
-                                        <span style={{ fontSize: '0.9rem', color: '#ef4444', display: 'flex', alignItems: 'center' }}>⎋</span> <span>Sign Out</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
                 </div>
             )}
             {/* WELCOME / UPLOADER SCREEN */}
@@ -8197,6 +8006,25 @@ export const Dashboard = () => {
                 
                 {/* Navigation Tab Buttons */}
                 <div className="activity-nav">
+                    {/* User Profile Button */}
+                    <button className="activity-btn" id="act-btn-profile" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('profile')} title="My Profile" style={{ marginBottom: "6px" }}>
+                        <div style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.72rem',
+                            fontWeight: 700
+                        }}>
+                            {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                        </div>
+                    </button>
+                    <div style={{ width: "30px", height: "1px", backgroundColor: "var(--border-color)", margin: "2px auto 10px auto" }}></div>
+
                     <button className="activity-btn" id="act-btn-data" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('data')} title="Dataset Source">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -8278,6 +8106,84 @@ export const Dashboard = () => {
                 {/* Panel Body Scrollable Content */}
                 <div className="drawer-body">
                     
+                    {/* Tab Content: User Profile */}
+                    <div className="tab-content" id="tab-content-profile" style={{padding: "15px"}}>
+                        <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "12px"}}>Account Details</h4>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.25rem',
+                                fontWeight: 800
+                            }}>
+                                {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                            </div>
+                            <div style={{ minWidth: 0, flexGrow: 1 }}>
+                                <h3 style={{ margin: 0, fontFamily: "'Outfit'", fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-color)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.email}</p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Role:</span>
+                                <span style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-color)' }}>{user.role}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Plan:</span>
+                                <span style={{ 
+                                    fontWeight: 700, 
+                                    textTransform: 'uppercase', 
+                                    color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <FiAward size={11} />
+                                    {user.subscription_status === 'premium' ? 'Premium' : 'Free-tier'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button 
+                                onClick={() => {
+                                    window.closePanelDrawer && window.closePanelDrawer();
+                                    navigate('/subscription');
+                                }}
+                                className="neu-button"
+                                style={{ width: '100%', padding: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                            >
+                                <FiAward size={14} /> Subscription & Billing
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    window.toggleWorkspaceTheme && window.toggleWorkspaceTheme();
+                                }}
+                                className="neu-button"
+                                style={{ width: '100%', padding: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                            >
+                                <FiMoon size={14} /> Toggle Theme
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    window.logout && window.logout();
+                                }}
+                                className="neu-button"
+                                style={{ width: '100%', padding: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer', backgroundColor: '#ef4444', color: 'white', border: '1px solid #dc2626' }}
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Tab Content: Data Source */}
                     <div className="tab-content" id="tab-content-data" style={{padding: "15px"}}>
                         <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "12px"}}>Active Dataset</h4>
