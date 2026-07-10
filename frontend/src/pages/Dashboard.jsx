@@ -4,6 +4,19 @@ import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
+const maskPersonalEmail = (email) => {
+    if (!email) return '';
+    const personalDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com'];
+    const parts = email.split('@');
+    if (parts.length === 2) {
+        const [local, domain] = parts;
+        if (personalDomains.includes(domain.toLowerCase()) || local.includes('djay8im') || local.includes('chinnu') || local.includes('shaik')) {
+            return 'contact@rotordyn.com';
+        }
+    }
+    return email;
+};
+
 export const Dashboard = () => {
     const {user, token, logout, API_BASE_URL} = useAuth();
     const navigate = useNavigate();
@@ -195,7 +208,7 @@ export const Dashboard = () => {
                     
                     div.innerHTML = `
                         <div style="font-weight: 600; color: var(--text-color);">${member.name} ${member.id === (user ? user.id : '') ? '<b>(You)</b>' : ''}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">${member.email}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">${maskPersonalEmail(member.email)}</div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                             <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">${member.role}</span>
                             <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: bold; text-transform: uppercase;">● ${member.status}</span>
@@ -7553,9 +7566,92 @@ export const Dashboard = () => {
             }
         };
 
+        window.exportDocxReport = async () => {
+            const reportBody = document.getElementById('report-modal-body');
+            if (!reportBody) return;
+            
+            const activeDatasetEl = document.getElementById("active-dataset-name");
+            const datasetName = activeDatasetEl ? activeDatasetEl.innerText : "Rotor";
+            
+            const btn = document.getElementById("btn-export-docx");
+            const originalText = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '⏳ Exporting Word...';
+                btn.disabled = true;
+            }
+            
+            try {
+                const images = [];
+                const gdElements = document.querySelectorAll('.chart-container');
+                
+                for (let i = 0; i < gdElements.length; i++) {
+                    const gd = gdElements[i];
+                    if (!gd) continue;
+                    
+                    if (gd.classList.contains('js-plotly-plot') && typeof Plotly !== 'undefined') {
+                        try {
+                            const dataUrl = await Plotly.toImage(gd, { format: 'png', height: 500, width: 900 });
+                            images.push(dataUrl);
+                        } catch (plotlyErr) {
+                            console.warn("Failed to capture Plotly image:", plotlyErr);
+                        }
+                    } else {
+                        const canvas = gd.querySelector('canvas');
+                        if (canvas) {
+                            try {
+                                const dataUrl = canvas.toDataURL('image/png');
+                                images.push(dataUrl);
+                            } catch (canvasErr) {
+                                console.warn("Failed to capture Canvas image:", canvasErr);
+                            }
+                        }
+                    }
+                }
+                
+                const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+                const response = await fetch(`${apiBase}/reports/download_docx`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        bearing_name: datasetName,
+                        report_text: reportBody.innerText,
+                        images: images
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(errText);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `RotorDyn_AI_Report_${datasetName.replace(/\.[^/.]+$/, "")}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+            } catch (err) {
+                console.error("Export Word report failed:", err);
+                alert(`Export failed: ${err.message}`);
+            } finally {
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+        };
+
         return () => {
             delete window.handleGenerateReport;
             delete window.printReport;
+            delete window.exportDocxReport;
             
         // Cleanup window bindings on unmount
         delete window.selectActivityTab;
@@ -7865,7 +7961,7 @@ export const Dashboard = () => {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                                         <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</span>
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{maskPersonalEmail(user.email)}</span>
                                     </div>
                                 </div>
 
@@ -8670,6 +8766,9 @@ export const Dashboard = () => {
                     <div style={{display: "flex", gap: "10px"}}>
                         <button className="neu-button" onClick={() => window.printReport && window.printReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
                             🖨️ Print / Save PDF
+                        </button>
+                        <button className="neu-button" id="btn-export-docx" onClick={() => window.exportDocxReport && window.exportDocxReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", backgroundColor: "#1e3a8a", color: "#fff", border: "1px solid #1d4ed8"}}>
+                            📝 Save as Word (.docx)
                         </button>
                         <button className="neu-button" onClick={() => { document.getElementById('report-modal').style.display = 'none'; }} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", cursor: "pointer"}}>
                             Close
