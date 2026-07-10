@@ -338,3 +338,26 @@ async def list_team_members(current_user: dict = Depends(get_current_approved_us
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch team members: {str(e)}"
         )
+
+@router.post("/upgrade_subscription", response_model=UserResponse)
+async def upgrade_subscription(current_user: dict = Depends(get_current_approved_user)):
+    """Upgrades the current user to premium status via the mock payment checkout integration."""
+    try:
+        supabase.table("profiles").update({"subscription_status": "premium"}).eq("id", current_user["id"]).execute()
+        try:
+            supabase.auth.admin.update_user_by_id(
+                current_user["id"],
+                {"user_metadata": {"subscription_status": "premium"}}
+            )
+        except Exception:
+            pass
+        db_res = supabase.table("profiles").select("*").eq("id", current_user["id"]).execute()
+        if db_res.data and len(db_res.data) > 0:
+            return serialize_user(db_res.data[0])
+        current_user["subscription_status"] = "premium"
+        return current_user
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Subscription upgrade failed: {str(e)}"
+        )

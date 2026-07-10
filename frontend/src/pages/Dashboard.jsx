@@ -8929,7 +8929,7 @@ export const Dashboard = () => {
                                 To unlock Premium access, please contact your systems administrator:
                             </p>
                             <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem", fontWeight: 800, color: "var(--accent-color)" }}>
-                                Shaik Rameez Basha (contact@rotordyn.com)
+                                Billing Support (support@rotordyn.com)
                             </p>
                         </div>
                     </div>

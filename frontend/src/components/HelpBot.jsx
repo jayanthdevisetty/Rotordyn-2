@@ -18,7 +18,7 @@ const KNOWLEDGE_BASE = [
     },
     {
         keywords: ["admin", "approval", "queue", "approved", "pending"],
-        answer: "Every registered user account is subject to review by the system administrator (Shaik Rameez Basha) for security compliance. Once approved, the account status switches from 'pending' to 'approved', allowing you to access the diagnostics dashboard. Administrators can grant or revoke approval statuses inside the Admin Panel."
+        answer: "Every registered user account is subject to review by the system administrator for security compliance. Once approved, the account status switches from 'pending' to 'approved', allowing you to access the diagnostics dashboard. Administrators can grant or revoke approval statuses inside the Admin Panel."
     },
     {
         keywords: ["login", "signin", "credentials", "oauth", "google", "github"],
@@ -42,11 +42,11 @@ const KNOWLEDGE_BASE = [
     },
     {
         keywords: ["pricing", "cost", "subscription", "premium", "free", "tier", "starter", "usd", "dollars"],
-        answer: "Rotordyn.ai operates on two plan tiers:\n1. **Starter Plan ($0 / month):** Grants access to basic dynamic plotting. Limit of 3 free AI Diagnostics report generations; PDF and Word downloads are locked.\n2. **Premium Analyst ($199 / month):** Grants unlimited telemetry uploads, WebGL 3D waterfall cascades, and unlimited PDF & Word report exports with embedded plot evidence. Contact Shaik Rameez Basha (contact@rotordyn.com) to upgrade."
+        answer: "Rotordyn.ai operates on two plan tiers:\n1. **Starter Plan ($0 / month):** Grants access to basic dynamic plotting. Limit of 3 free AI Diagnostics report generations; PDF and Word downloads are locked.\n2. **Premium Analyst ($199 / month):** Grants unlimited telemetry uploads, WebGL 3D waterfall cascades, and unlimited PDF & Word report exports with embedded plot evidence. Upgrade instantly inside the Subscription panel."
     },
     {
         keywords: ["password", "reset", "forgot password", "change password"],
-        answer: "If you forgot your password, please contact your company administrator or system administrator (Shaik Rameez Basha at contact@rotordyn.com) to trigger a password reset instruction link to your email address."
+        answer: "If you forgot your password, please contact your company administrator or system support (support@rotordyn.com) to trigger a password reset instruction link to your email address."
     },
     {
         keywords: ["report", "generate", "pdf", "word", "docx", "export"],
@@ -151,7 +151,7 @@ export const HelpBot = () => {
         });
 
         if (holdsConfidentialQuery) {
-            return "I am not authorized to disclose confidential system credentials, backend connection strings, database parameters, or application API keys. For security issues, contact Shaik Rameez Basha.";
+            return "I am not authorized to disclose confidential system credentials, backend connection strings, database parameters, or application API keys. For security issues, contact System Support.";
         }
 
         // Search in offline knowledge base

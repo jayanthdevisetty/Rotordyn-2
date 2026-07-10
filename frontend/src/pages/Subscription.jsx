@@ -1,11 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiAward, FiArrowLeft, FiPrinter, FiFileText, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiAward, FiArrowLeft, FiPrinter, FiFileText, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 
 export const Subscription = () => {
-    const { user, token } = useAuth();
+    const { user, setUser, token, API_BASE_URL } = useAuth();
     const navigate = useNavigate();
+
+    // Mock checkout states
+    const [showCheckout, setShowCheckout] = useState(false);
+    const [loadingCheckout, setLoadingCheckout] = useState(false);
+    const [cardNumber, setCardNumber] = useState('');
+    const [expiry, setExpiry] = useState('');
+    const [cvc, setCvc] = useState('');
+    const [cardName, setCardName] = useState('');
+    const [checkoutError, setCheckoutError] = useState('');
 
     useEffect(() => {
         if (!token) {
@@ -20,6 +29,51 @@ export const Subscription = () => {
     const limit = 3;
     const remaining = Math.max(0, limit - genCount);
     const usagePercent = Math.min(100, (genCount / limit) * 100);
+
+    const handleMockCheckout = async (e) => {
+        e.preventDefault();
+        setCheckoutError('');
+        
+        if (!cardNumber || !expiry || !cvc || !cardName) {
+            setCheckoutError('Please fill in all credit card details.');
+            return;
+        }
+
+        setLoadingCheckout(true);
+
+        try {
+            const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+            const response = await fetch(`${apiBase}/auth/upgrade_subscription`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(errText || "Checkout failed.");
+            }
+
+            const updatedUser = await response.json();
+            
+            if (setUser) {
+                setUser(updatedUser);
+            }
+
+            setTimeout(() => {
+                setLoadingCheckout(false);
+                setShowCheckout(false);
+                alert("Payment Confirmed! Your account is upgraded to Premium Analyst license.");
+                navigate('/dashboard');
+            }, 1200);
+
+        } catch (err) {
+            setLoadingCheckout(false);
+            setCheckoutError(err.message || 'Payment processing failed. Please try again.');
+        }
+    };
 
     return (
         <div style={{
@@ -161,7 +215,14 @@ export const Subscription = () => {
                             </button>
                         ) : (
                             <button 
-                                onClick={() => alert("Please contact Shaik Rameez Basha at contact@rotordyn.com or your company administrator to activate your Premium Analyst subscription license.")}
+                                onClick={() => {
+                                    setCardNumber('');
+                                    setExpiry('');
+                                    setCvc('');
+                                    setCardName('');
+                                    setCheckoutError('');
+                                    setShowCheckout(true);
+                                }}
                                 className="neu-button" 
                                 style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff, 0 4px 12px rgba(37, 99, 235, 0.15)', cursor: 'pointer' }}
                             >
@@ -178,11 +239,134 @@ export const Subscription = () => {
                         Need corporate team licensing or volume pricing? Contact our billing department:
                     </p>
                     <p style={{ margin: '5px 0 0 0', fontSize: '0.9rem', fontWeight: 800, color: '#2563eb' }}>
-                        Shaik Rameez Basha (contact@rotordyn.com)
+                        Billing Department (support@rotordyn.com)
                     </p>
                 </div>
 
             </div>
+
+            {/* Mock Checkout Modal overlay */}
+            {showCheckout && (
+                <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(15,23,42,0.6)", zIndex: 100000, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px", backdropFilter: "blur(8px)" }}>
+                    <div className="neu-card" style={{ backgroundColor: "var(--card-color, #ffffff)", width: "100%", maxWidth: "440px", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--border-color, #cbd5e1)", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.15)" }}>
+                        
+                        {/* Header */}
+                        <div style={{ padding: "20px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <h3 style={{ margin: 0, fontFamily: "'Outfit', sans-serif", fontSize: "1.1rem", fontWeight: 800 }}>Payment Details</h3>
+                            <button type="button" onClick={() => setShowCheckout(false)} style={{ background: "transparent", border: "none", color: "#64748b", fontSize: "1.4rem", cursor: "pointer" }}>&times;</button>
+                        </div>
+                        
+                        {/* Form Body */}
+                        <form onSubmit={handleMockCheckout} style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <div>
+                                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Order Total</span>
+                                <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>$199.00 <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: "normal" }}>/ month</span></div>
+                            </div>
+                            
+                            {/* Cardholder name */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Cardholder Name</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={cardName} 
+                                    onChange={(e) => setCardName(e.target.value)}
+                                    placeholder="Jane Doe" 
+                                    style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none" }}
+                                />
+                            </div>
+
+                            {/* Card Number */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Card Number</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    maxLength="19"
+                                    value={cardNumber} 
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                                        setCardNumber(val);
+                                    }}
+                                    placeholder="4242 4242 4242 4242" 
+                                    style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none" }}
+                                />
+                            </div>
+                            
+                            {/* Expiry and CVC */}
+                            <div style={{ display: "flex", gap: "16px" }}>
+                                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                                    <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>Expiry Date</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        maxLength="5"
+                                        value={expiry} 
+                                        onChange={(e) => {
+                                            let val = e.target.value.replace(/\D/g, '');
+                                            if (val.length > 2) {
+                                                val = val.substring(0, 2) + '/' + val.substring(2);
+                                            }
+                                            setExpiry(val);
+                                        }}
+                                        placeholder="MM/YY" 
+                                        style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none", width: "100%", boxSizing: "border-box" }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                                    <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>CVC</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        maxLength="4"
+                                        value={cvc} 
+                                        onChange={(e) => setCvc(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="123" 
+                                        style={{ padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.85rem", outline: "none", width: "100%", boxSizing: "border-box" }}
+                                    />
+                                </div>
+                            </div>
+
+                            {checkoutError && (
+                                <div style={{ color: "#ef4444", fontSize: "0.78rem", fontWeight: 600 }}>
+                                    {checkoutError}
+                                </div>
+                            )}
+
+                            {/* Alert Sandbox Message */}
+                            <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#fef3c7", border: "1px solid #fde68a", fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
+                                <strong>Sandbox Mode:</strong> You can enter any credit card details (e.g. Stripe test card 4242) to trigger a simulated successful license activation.
+                            </div>
+                            
+                            {/* Buttons */}
+                            <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowCheckout(false)}
+                                    className="neu-button" 
+                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", cursor: "pointer" }}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    disabled={loadingCheckout}
+                                    className="neu-button" 
+                                    style={{ flex: 1, padding: "12px", fontSize: "0.85rem", background: "#2563eb", color: "white", border: "none", cursor: loadingCheckout ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                                >
+                                    {loadingCheckout ? (
+                                        <>
+                                            <FiLoader className="spinner" style={{ animation: "spin 1s linear infinite" }} /> Processing...
+                                        </>
+                                    ) : (
+                                        "Confirm Payment"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
