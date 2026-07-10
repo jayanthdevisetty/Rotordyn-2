@@ -2361,8 +2361,8 @@ export const Dashboard = () => {
                         if (topBtn) {
                             topBtn.style.display = 'inline-block';
                             topBtn.innerText = '▲ Hide Speed Profile';
-                            topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
-                            topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                            topBtn.style.background = 'var(--card-color)';
+                            topBtn.style.borderColor = 'var(--border-color)';
                             topBtn.style.color = '#ef4444';
                         }
 
@@ -7245,8 +7245,8 @@ export const Dashboard = () => {
                     if (topBtn) {
                         topBtn.style.display = 'inline-block';
                         topBtn.innerText = '▲ Hide Speed Profile';
-                        topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
-                        topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        topBtn.style.background = 'var(--card-color)';
+                        topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = '#ef4444';
                     }
                     
@@ -7292,8 +7292,8 @@ export const Dashboard = () => {
                     if (btn) btn.classList.add('active');
                     if (topBtn) {
                         topBtn.innerText = '▲ Hide Speed Profile';
-                        topBtn.style.background = 'rgba(239, 68, 68, 0.08)';
-                        topBtn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        topBtn.style.background = 'var(--card-color)';
+                        topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = '#ef4444';
                     }
                 } else {
@@ -7301,8 +7301,8 @@ export const Dashboard = () => {
                     if (btn) btn.classList.remove('active');
                     if (topBtn) {
                         topBtn.innerText = '🎛️ Show Speed Profile';
-                        topBtn.style.background = 'rgba(2, 132, 199, 0.08)';
-                        topBtn.style.borderColor = 'rgba(2, 132, 199, 0.2)';
+                        topBtn.style.background = 'var(--card-color)';
+                        topBtn.style.borderColor = 'var(--border-color)';
                         topBtn.style.color = 'var(--accent-color)';
                     }
                 }
@@ -7886,8 +7886,14 @@ export const Dashboard = () => {
                     right: '70px',
                     zIndex: 10005,
                     pointerEvents: 'auto',
-                    fontFamily: "'Plus Jakarta Sans', sans-serif"
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
                 }}>
+                    <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
+                        ▲ Hide Speed Profile
+                    </button>
                     {/* Profile Trigger Pill */}
                     <div 
                         onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -8582,11 +8588,8 @@ export const Dashboard = () => {
         <div className="main-view">
             <div style={{display: "flex", flexDirection: "column", flexGrow: 1, height: "100%", overflow: "hidden", position: "relative"}}>
                 {/* Telemetry Header Display */}
-                 <div className="telemetry-bar" id="telemetry-display" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 16px" }}>
+                <div className="telemetry-bar" id="telemetry-display">
                     <span className="telemetry-item" style={{color: "var(--text-muted)"}}>Hover cursor over data points on the plot area to view detailed diagnostic values...</span>
-                    <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "rgba(2, 132, 199, 0.08)", border: "1px solid rgba(2, 132, 199, 0.2)", color: "var(--accent-color)", padding: "4px 10px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 600, cursor: "pointer", display: "none", transition: "all 0.2s" }}>
-                        🎛️ Toggle Speed Profile
-                    </button>
                 </div>
 
                 {/* Unified Timeline Player Controls */}
