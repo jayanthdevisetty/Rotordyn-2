@@ -1029,7 +1029,7 @@
     z-index: 2;
 }
 
-form {
+.auth-container form {
     background-color: var(--card-color);
     display: flex;
     align-items: center;
@@ -1392,6 +1392,30 @@ input:focus, textarea:focus {
     color: var(--text-color) !important;
     padding: 6px 10px !important;
     outline: none !important;
+}
+
+.drawer-panel input.helpbot-input[type="text"] {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 30px !important;
+    box-shadow: none !important;
+    color: #1e293b !important;
+    padding: 8px 14px !important;
+    height: 38px !important;
+    outline: none !important;
+}
+
+.drawer-panel .helpbot-form {
+    background-color: #ffffff !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 14px !important;
+    height: auto !important;
+    width: 100% !important;
+    gap: 8px !important;
+    border-top: 1px solid #e2e8f0 !important;
 }
 
 .sidebar-file-btn {

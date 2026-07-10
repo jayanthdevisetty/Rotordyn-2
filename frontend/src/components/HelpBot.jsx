@@ -287,7 +287,7 @@ export const HelpBot = ({ mode = 'floating' }) => {
             {isOpen && (
                 <div style={mode === 'tab' ? {
                     width: '100%',
-                    height: 'calc(100vh - 120px)',
+                    height: '100%',
                     backgroundColor: '#ffffff',
                     display: 'flex',
                     flexDirection: 'column',
@@ -306,36 +306,36 @@ export const HelpBot = ({ mode = 'floating' }) => {
                 }}>
                     
                     {/* Header */}
-                    <div style={{
-                        padding: '14px 18px',
-                        background: '#2563eb',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {/* Glowing robot avatar */}
-                            <div style={{ position: 'relative', width: '34px', height: '34px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center' }}>
-                                <FiActivity size={18} style={{ color: '#60a5fa' }} />
-                                <span style={{ position: 'absolute', bottom: 0, right: 0, width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', border: '2px solid #2563eb' }} />
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>RotorBuddy</div>
-                                <div style={{ fontSize: '0.65rem', opacity: 0.85, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    {getRelationshipLabel()}
+                    {mode !== 'tab' && (
+                        <div style={{
+                            padding: '14px 18px',
+                            background: '#2563eb',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                {/* Glowing robot avatar */}
+                                <div style={{ position: 'relative', width: '34px', height: '34px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center' }}>
+                                    <FiActivity size={18} style={{ color: '#60a5fa' }} />
+                                    <span style={{ position: 'absolute', bottom: 0, right: 0, width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', border: '2px solid #2563eb' }} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>RotorBuddy</div>
+                                    <div style={{ fontSize: '0.65rem', opacity: 0.85, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        {getRelationshipLabel()}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        {mode !== 'tab' && (
                             <button
                                 onClick={() => setIsOpen(false)}
                                 style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
                             >
                                 <FiX />
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     {/* Chat Messages Logs */}
                     <div style={{
@@ -436,6 +436,7 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             e.preventDefault();
                             handleSend();
                         }}
+                        className="helpbot-form"
                         style={{
                             padding: '12px 14px',
                             borderTop: '1px solid #e2e8f0',
@@ -451,6 +452,7 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             onChange={(e) => setInput(e.target.value)}
                             placeholder={isListening ? "Listening..." : "Ask RotorBuddy co-pilot..."}
                             disabled={isListening}
+                            className="helpbot-input"
                             style={{
                                 flexGrow: 1,
                                 border: '1px solid #cbd5e1',

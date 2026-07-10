@@ -16,16 +16,9 @@ export const Subscription = () => {
     const [cardName, setCardName] = useState('');
     const [checkoutError, setCheckoutError] = useState('');
 
-    useEffect(() => {
-        if (!token) {
-            navigate('/auth');
-        }
-    }, [token, navigate]);
-
-    if (!user) return null;
-
-    const isPremium = user.subscription_status === 'premium';
-    const genCount = user.report_generation_count || 0;
+    const isGuest = !token || !user;
+    const isPremium = !isGuest && user.subscription_status === 'premium';
+    const genCount = !isGuest ? (user.report_generation_count || 0) : 0;
     const limit = 3;
     const remaining = Math.max(0, limit - genCount);
     const usagePercent = Math.min(100, (genCount / limit) * 100);
@@ -87,7 +80,7 @@ export const Subscription = () => {
             {/* Header / Nav */}
             <div style={{ maxWidth: '960px', margin: '0 auto 30px auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <button 
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate(isGuest ? '/' : '/dashboard')}
                     className="neu-button"
                     style={{
                         padding: '10px 18px',
@@ -98,7 +91,7 @@ export const Subscription = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <FiArrowLeft size={14} /> Back to Dashboard
+                    <FiArrowLeft size={14} /> {isGuest ? 'Back to Home' : 'Back to Dashboard'}
                 </button>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.25rem' }}>
                     Rotordyn<span style={{ color: '#2563eb' }}>.ai</span>
@@ -108,7 +101,8 @@ export const Subscription = () => {
             <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                 
                 {/* Active Subscription Summary */}
-                <div className="neu-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {!isGuest && (
+                    <div className="neu-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px' }}>
                         <div>
                             <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Active Subscription</span>
@@ -159,7 +153,8 @@ export const Subscription = () => {
                             </p>
                         </div>
                     )}
-                </div>
+                    </div>
+                )}
 
                 {/* Pricing Tiers Columns */}
                 <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
@@ -178,13 +173,23 @@ export const Subscription = () => {
                             <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><FiCheckCircle size={14} style={{ color: '#10b981' }} /> Max 3 AI Report generations</li>
                             <li style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}><FiXCircle size={14} style={{ color: '#ef4444' }} /> Locked PDF / Word downloads</li>
                         </ul>
-                        <button 
-                            disabled 
-                            className="neu-button" 
-                            style={{ width: '100%', padding: '12px', fontSize: '0.85rem', color: '#94a3b8', cursor: 'not-allowed' }}
-                        >
-                            {!isPremium ? 'Current Plan' : 'Downgrade Restricted'}
-                        </button>
+                        {isGuest ? (
+                            <button 
+                                onClick={() => navigate('/auth')}
+                                className="neu-button" 
+                                style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}
+                            >
+                                Get Started
+                            </button>
+                        ) : (
+                            <button 
+                                disabled 
+                                className="neu-button" 
+                                style={{ width: '100%', padding: '12px', fontSize: '0.85rem', color: '#94a3b8', cursor: 'not-allowed' }}
+                            >
+                                {!isPremium ? 'Current Plan' : 'Downgrade Restricted'}
+                            </button>
+                        )}
                     </div>
 
                     {/* Premium Card */}
@@ -212,6 +217,14 @@ export const Subscription = () => {
                                 style={{ width: '100%', padding: '12px', fontSize: '0.85rem', color: '#94a3b8', cursor: 'not-allowed' }}
                             >
                                 Active Plan
+                            </button>
+                        ) : isGuest ? (
+                            <button 
+                                onClick={() => navigate('/auth')}
+                                className="neu-button" 
+                                style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff, 0 4px 12px rgba(37, 99, 235, 0.15)', cursor: 'pointer' }}
+                            >
+                                Upgrade Account
                             </button>
                         ) : (
                             <button 

@@ -7913,24 +7913,7 @@ export const Dashboard = () => {
                     <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
                         Hide Speed Profile
                     </button>
-                    {/* Subscription Plan Badge */}
-                    <div style={{
-                        background: user.subscription_status === 'premium' ? 'rgba(2, 132, 199, 0.08)' : 'rgba(100, 116, 139, 0.08)',
-                        border: user.subscription_status === 'premium' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(100, 116, 139, 0.2)',
-                        color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b',
-                        padding: '6px 14px',
-                        borderRadius: '50px',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.03)',
-                        userSelect: 'none'
-                    }}>
-                        <FiAward size={13} style={{ color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b' }} />
-                        {user.subscription_status === 'premium' ? 'Premium Analyst' : 'Starter Plan'}
-                    </div>
+
                 </div>
             )}
             {/* WELCOME / UPLOADER SCREEN */}
@@ -8152,8 +8135,9 @@ export const Dashboard = () => {
                                 <FiMoon size={14} /> Toggle Theme
                             </button>
                             <button 
-                                onClick={() => {
-                                    window.logout && window.logout();
+                                onClick={async () => {
+                                    await logout();
+                                    navigate('/auth');
                                 }}
                                 className="neu-button"
                                 style={{ width: '100%', padding: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer', backgroundColor: '#ef4444', color: 'white', border: '1px solid #dc2626' }}
