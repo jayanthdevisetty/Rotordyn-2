@@ -14,6 +14,7 @@ import { OAuthCallback } from './pages/OAuthCallback';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { Security } from './pages/Security';
+import { Subscription } from './pages/Subscription';
 
 function App() {
   return (
@@ -46,6 +47,16 @@ function App() {
           element={
             <ProtectedRoute requireAdmin={false}>
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Protected Billing & Subscription Page */}
+        <Route 
+          path="/subscription" 
+          element={
+            <ProtectedRoute requireAdmin={false}>
+              <Subscription />
             </ProtectedRoute>
           } 
         />

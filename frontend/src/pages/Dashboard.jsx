@@ -7398,14 +7398,21 @@ export const Dashboard = () => {
         }
 
         window.handleGenerateReport = async () => {
+            const btn = document.getElementById("btn-generate-report");
+            const spinner = document.getElementById("report-btn-spinner");
+
+            if (user && user.subscription_status === 'free-tier' && (user.report_generation_count || 0) >= 3) {
+                alert("You have reached the Starter Plan limit of 3 free AI diagnostics report generations. Please upgrade to a Premium subscription.");
+                navigate('/subscription');
+                return;
+            }
+
             const data = window.activeDiagnosticsData;
             if (!data) {
                 alert("No diagnostic data available. Please load a dataset first.");
                 return;
             }
             
-            const btn = document.getElementById("btn-generate-report");
-            const spinner = document.getElementById("report-btn-spinner");
             if (btn) btn.disabled = true;
             if (spinner) spinner.style.display = "inline-block";
             
@@ -8050,6 +8057,33 @@ export const Dashboard = () => {
 
                                 {/* Menu Items */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {/* Subscription & Plan Link */}
+                                    <button 
+                                        onClick={() => {
+                                            setProfileMenuOpen(false);
+                                            navigate('/subscription');
+                                        }}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--text-color)',
+                                            padding: '8px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        className="dropdown-menu-item"
+                                    >
+                                        <FiAward size={14} style={{ color: 'var(--text-muted)' }} /> <span>Subscription & Plan</span>
+                                    </button>
+
                                     {/* Theme Switch Button */}
                                     <button 
                                         onClick={() => {

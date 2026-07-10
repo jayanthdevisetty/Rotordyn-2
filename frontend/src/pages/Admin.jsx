@@ -333,7 +333,12 @@ export const Admin = () => {
                                                 textTransform: 'uppercase',
                                                 color: user.subscription_status === 'premium' ? '#0369a1' : '#4b5563',
                                                 backgroundColor: user.subscription_status === 'premium' ? '#e0f2fe' : '#f3f4f6'
-                                            }}>{user.subscription_status || 'free'}</span>
+                                            }}>{user.subscription_status || 'free-tier'}</span>
+                                            {user.subscription_status !== 'premium' && (
+                                                <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', marginTop: '4px' }}>
+                                                    Usage: {user.report_generation_count || 0} / 3
+                                                </span>
+                                            )}
                                         </td>
                                         <td style={tdStyle}>
                                             {user.role === 'admin' ? (

@@ -30,11 +30,28 @@ async def generate_report(
     payload: ReportRequest,
     current_user: dict = Depends(get_current_approved_user)
 ):
-    if current_user.get("subscription_status", "free") != "premium":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Upgrade to a Premium subscription is required to generate AI Diagnostics Reports."
-        )
+    sub_status = current_user.get("subscription_status", "free-tier")
+    if sub_status != "premium":
+        gen_count = current_user.get("report_generation_count", 0)
+        if gen_count >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Free-tier report generation limit of 3 reports exhausted. Upgrade to a Premium subscription for unlimited reports."
+            )
+        
+        # Increment generation counter in profiles and user_metadata
+        try:
+            new_count = gen_count + 1
+            supabase.table("profiles").update({"report_generation_count": new_count}).eq("id", current_user["id"]).execute()
+            try:
+                supabase.auth.admin.update_user_by_id(
+                    current_user["id"],
+                    {"user_metadata": {"report_generation_count": new_count}}
+                )
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Failed to increment user report generation count: {e}")
 
     if not settings.GEMINI_API_KEY:
         raise HTTPException(
@@ -137,7 +154,7 @@ async def download_docx(
     payload: DocxReportRequest,
     current_user: dict = Depends(get_current_approved_user)
 ):
-    if current_user.get("subscription_status", "free") != "premium":
+    if current_user.get("subscription_status", "free-tier") != "premium":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Upgrade to a Premium subscription is required to export reports as Word Documents."

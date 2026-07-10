@@ -204,5 +204,5 @@ async def grant_subscription(user_id: str, admin: dict = Depends(get_current_adm
 
 @router.patch("/users/{user_id}/revoke_subscription", response_model=UserResponse)
 async def revoke_subscription(user_id: str, admin: dict = Depends(get_current_admin)):
-    """Manually revokes a user's premium subscription (sets back to 'free') (Admin only)."""
-    return await update_user_subscription(user_id, "free", admin["id"])
+    """Manually revokes a user's premium subscription (sets back to 'free-tier') (Admin only)."""
+    return await update_user_subscription(user_id, "free-tier", admin["id"])
