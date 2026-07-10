@@ -283,7 +283,7 @@ export const Dashboard = () => {
             isDrawerOpen = false;
             
             // Unhighlight all buttons
-            const tabs = ['data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
+            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -5480,7 +5480,7 @@ export const Dashboard = () => {
             }
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 50, r: 50 };
+            layout.margin = { t: 45, b: 35, l: 60, r: 50 };
             
             const showIsoLimits = document.getElementById('show-iso-limits') ? document.getElementById('show-iso-limits').checked : false;
             
@@ -5527,7 +5527,7 @@ export const Dashboard = () => {
             
             layout.xaxis = {
                 anchor: 'y',
-                domain: [0, 0.93],
+                domain: [0.08, 0.93],
                 showticklabels: !hasValueTraces,
                 gridcolor: gridColor,
                 linecolor: borderCol
@@ -5546,7 +5546,7 @@ export const Dashboard = () => {
             
             layout.xaxis2 = {
                 anchor: 'y2',
-                domain: [0, 0.93],
+                domain: [0.08, 0.93],
                 matches: 'x',
                 showticklabels: true,
                 gridcolor: gridColor,
@@ -7913,44 +7913,23 @@ export const Dashboard = () => {
                     <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
                         Hide Speed Profile
                     </button>
-                    {/* Profile Trigger Pill */}
-                    <div 
-                        onClick={() => window.selectActivityTab && window.selectActivityTab('profile')}
-                        style={{
-                            background: 'var(--card-color)',
-                            border: '1px solid var(--border-color)',
-                            color: 'var(--text-color)',
-                            padding: '6px 14px 6px 8px',
-                            borderRadius: '50px',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)',
-                            userSelect: 'none',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        {/* Avatar initials badge */}
-                        <div style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            letterSpacing: '0.05em'
-                        }}>
-                            {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
-                        </div>
-                        <span style={{ fontWeight: 700 }}>{user.name ? user.name.split(' ')[0] : 'User'}</span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>▶</span>
+                    {/* Subscription Plan Badge */}
+                    <div style={{
+                        background: user.subscription_status === 'premium' ? 'rgba(2, 132, 199, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                        border: user.subscription_status === 'premium' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(100, 116, 139, 0.2)',
+                        color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b',
+                        padding: '6px 14px',
+                        borderRadius: '50px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.03)',
+                        userSelect: 'none'
+                    }}>
+                        <FiAward size={13} style={{ color: user.subscription_status === 'premium' ? '#0284c7' : '#64748b' }} />
+                        {user.subscription_status === 'premium' ? 'Premium Analyst' : 'Starter Plan'}
                     </div>
                 </div>
             )}
@@ -7989,7 +7968,7 @@ export const Dashboard = () => {
     </div>
 
     {/* MAIN DASHBOARD LAYOUT */}
-    <div id="main-container" style={{SidebarWidth: "60px"}}>
+    <div id="main-container" style={{ '--sidebar-width': '60px' }}>
         
         {/* Sidebar Toggle Button */}
         <button id="sidebar-toggle-btn" className="sidebar-toggle" type="button" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Expand Sidebar">▶</button>
