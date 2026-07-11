@@ -5075,115 +5075,127 @@ export const Dashboard = () => {
                 }
             });
 
-            window.addEventListener('mousemove', (e) => {
-                if (!isDraggingLeft && !isDraggingRight && !isDraggingBox && !isDraggingCursor) return;
-                
-                const rect = container.getBoundingClientRect();
-                const timelineDf = getTimelineData();
-                if (timelineDf.length === 0) return;
+            if (!window.timelineListenersBound) {
+                window.addEventListener('mousemove', (e) => {
+                    if (!isDraggingLeft && !isDraggingRight && !isDraggingBox && !isDraggingCursor) return;
+                    
+                    const container = document.getElementById('timeline-waveform-container');
+                    const rangeBox = document.getElementById('timeline-range-box');
+                    if (!container || !rangeBox) return;
+                    
+                    const rect = container.getBoundingClientRect();
+                    const timelineDf = getTimelineData();
+                    if (timelineDf.length === 0) return;
 
-                const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
+                    const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
 
-                if (isDraggingLeft) {
-                    const mouseX = e.clientX - rect.left;
-                    let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                    
-                    const endMs = parseTimestamp(activeEndTime).getTime();
-                    const maxStartMs = endMs - 1000;
-                    const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                    const clampedMs = Math.min(targetMs, maxStartMs);
-                    
-                    const startIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                    if (startIdx !== -1) {
-                        activeStartTime = timelineDf[startIdx][tsCol];
-                        selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
+                    if (isDraggingLeft) {
+                        const mouseX = e.clientX - rect.left;
+                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
                         
-                        const presetSelect = document.getElementById('filter-time-window');
-                        if (presetSelect) presetSelect.value = 'custom';
+                        const endMs = parseTimestamp(activeEndTime).getTime();
+                        const maxStartMs = endMs - 1000;
+                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
+                        const clampedMs = Math.min(targetMs, maxStartMs);
                         
-                        activeCursorIndex = 0;
-                        renderGrid();
-                        updateTimelineRangeUI();
-                    }
-                } else if (isDraggingRight) {
-                    const mouseX = e.clientX - rect.left;
-                    let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                    
-                    const startMs = parseTimestamp(activeStartTime).getTime();
-                    const minEndMs = startMs + 1000;
-                    const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                    const clampedMs = Math.max(targetMs, minEndMs);
-                    
-                    const endIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                    if (endIdx !== -1) {
-                        activeEndTime = timelineDf[endIdx][tsCol];
-                        selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
+                        const startIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
+                        if (startIdx !== -1) {
+                            activeStartTime = timelineDf[startIdx][tsCol];
+                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
+                            
+                            const presetSelect = document.getElementById('filter-time-window');
+                            if (presetSelect) presetSelect.value = 'custom';
+                            
+                            activeCursorIndex = 0;
+                            renderGrid();
+                            updateTimelineRangeUI();
+                        }
+                    } else if (isDraggingRight) {
+                        const mouseX = e.clientX - rect.left;
+                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
                         
-                        const presetSelect = document.getElementById('filter-time-window');
-                        if (presetSelect) presetSelect.value = 'custom';
+                        const startMs = parseTimestamp(activeStartTime).getTime();
+                        const minEndMs = startMs + 1000;
+                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
+                        const clampedMs = Math.max(targetMs, minEndMs);
                         
-                        activeCursorIndex = 0;
-                        renderGrid();
-                        updateTimelineRangeUI();
-                    }
-                } else if (isDraggingBox) {
-                    const deltaX = e.clientX - dragStartX;
-                    const deltaPct = (deltaX / rect.width) * 100;
-                    
-                    let newLeftPct = dragStartLeftPct + deltaPct;
-                    if (newLeftPct < 0) {
-                        newLeftPct = 0;
-                        dragStartX = e.clientX + (dragStartLeftPct / 100) * rect.width;
-                    } else if (newLeftPct > 100 - dragStartWidthPct) {
-                        newLeftPct = 100 - dragStartWidthPct;
-                        dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
-                    }
-                    
-                    const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
-                    const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
-                    
-                    const startIdx = findClosestRowIndexByMs(timelineDf, startMs);
-                    const endIdx = findClosestRowIndexByMs(timelineDf, endMs);
-                    
-                    if (startIdx !== -1 && endIdx !== -1) {
-                        activeStartTime = timelineDf[startIdx][tsCol];
-                        activeEndTime = timelineDf[endIdx][tsCol];
+                        const endIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
+                        if (endIdx !== -1) {
+                            activeEndTime = timelineDf[endIdx][tsCol];
+                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
+                            
+                            const presetSelect = document.getElementById('filter-time-window');
+                            if (presetSelect) presetSelect.value = 'custom';
+                            
+                            activeCursorIndex = 0;
+                            renderGrid();
+                            updateTimelineRangeUI();
+                        }
+                    } else if (isDraggingBox) {
+                        const deltaX = e.clientX - dragStartX;
+                        const deltaPct = (deltaX / rect.width) * 100;
                         
-                        selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                        selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-                        
-                        const presetSelect = document.getElementById('filter-time-window');
-                        if (presetSelect && presetSelect.value === 'all') {
-                            presetSelect.value = 'custom';
+                        let newLeftPct = dragStartLeftPct + deltaPct;
+                        if (newLeftPct < 0) {
+                            newLeftPct = 0;
+                            dragStartX = e.clientX + (dragStartLeftPct / 100) * rect.width;
+                        } else if (newLeftPct > 100 - dragStartWidthPct) {
+                            newLeftPct = 100 - dragStartWidthPct;
+                            dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
                         }
                         
-                        activeCursorIndex = 0;
-                        renderGrid();
-                        updateTimelineRangeUI();
+                        const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
+                        const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
+                        
+                        const startIdx = findClosestRowIndexByMs(timelineDf, startMs);
+                        const endIdx = findClosestRowIndexByMs(timelineDf, endMs);
+                        
+                        if (startIdx !== -1 && endIdx !== -1) {
+                            activeStartTime = timelineDf[startIdx][tsCol];
+                            activeEndTime = timelineDf[endIdx][tsCol];
+                            
+                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
+                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
+                            
+                            const presetSelect = document.getElementById('filter-time-window');
+                            if (presetSelect && presetSelect.value === 'all') {
+                                presetSelect.value = 'custom';
+                            }
+                            
+                            activeCursorIndex = 0;
+                            renderGrid();
+                            updateTimelineRangeUI();
+                        }
+                    } else if (isDraggingCursor) {
+                        const mouseX = e.clientX - rect.left;
+                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
+                        
+                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
+                        const filteredDf = getFilteredData();
+                        const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, targetMs);
+                        if (closestFilteredIdx !== -1) {
+                            activeCursorIndex = closestFilteredIdx;
+                            timelineSliderInput(activeCursorIndex);
+                        }
                     }
-                } else if (isDraggingCursor) {
-                    const mouseX = e.clientX - rect.left;
-                    let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                    
-                    const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                    const filteredDf = getFilteredData();
-                    const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, targetMs);
-                    if (closestFilteredIdx !== -1) {
-                        activeCursorIndex = closestFilteredIdx;
-                        timelineSliderInput(activeCursorIndex);
-                    }
-                }
-            });
+                });
 
-            window.addEventListener('mouseup', () => {
-                isDraggingLeft = false;
-                isDraggingRight = false;
-                isDraggingBox = false;
-                isDraggingCursor = false;
-                container.style.cursor = 'pointer';
-                rangeBox.style.cursor = 'grab';
-                if (cursorIndicator) cursorIndicator.style.cursor = 'col-resize';
-            });
+                window.addEventListener('mouseup', () => {
+                    isDraggingLeft = false;
+                    isDraggingRight = false;
+                    isDraggingBox = false;
+                    isDraggingCursor = false;
+                    
+                    const container = document.getElementById('timeline-waveform-container');
+                    const rangeBox = document.getElementById('timeline-range-box');
+                    const cursorIndicator = document.getElementById('timeline-cursor-indicator');
+                    
+                    if (container) container.style.cursor = 'pointer';
+                    if (rangeBox) rangeBox.style.cursor = 'grab';
+                    if (cursorIndicator) cursorIndicator.style.cursor = 'col-resize';
+                });
+                window.timelineListenersBound = true;
+            }
         }
 
         function updateTimelineCursorLine() {

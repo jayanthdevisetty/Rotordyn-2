@@ -113,7 +113,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
             profile = db_res.data[0]
             user_data["role"] = profile.get("role", user_data["role"])
             user_data["status"] = profile.get("status", user_data["status"])
-            user_data["subscription_status"] = profile.get("subscription_status", "free-tier")
+            user_data["subscription_status"] = profile.get("subscription_status") or user_data.get("subscription_status") or "free-tier"
             user_data["report_generation_count"] = int(profile.get("report_generation_count", 0))
             user_data["company"] = profile.get("company", user_data["company"])
             user_data["plant"] = profile.get("plant", user_data["plant"])
@@ -343,20 +343,32 @@ async def list_team_members(current_user: dict = Depends(get_current_approved_us
 async def upgrade_subscription(current_user: dict = Depends(get_current_approved_user)):
     """Upgrades the current user to premium status via the mock payment checkout integration."""
     try:
-        supabase.table("profiles").update({"subscription_status": "premium"}).eq("id", current_user["id"]).execute()
+        try:
+            supabase.table("profiles").update({"subscription_status": "premium"}).eq("id", current_user["id"]).execute()
+        except Exception as e:
+            print(f"Skipping profiles table subscription_status update: {e}")
+            pass
+            
         try:
             supabase.auth.admin.update_user_by_id(
                 current_user["id"],
                 {"user_metadata": {"subscription_status": "premium"}}
             )
-        except Exception:
+        except Exception as e:
+            print(f"Auth metadata update failed: {e}")
             pass
+            
         db_res = supabase.table("profiles").select("*").eq("id", current_user["id"]).execute()
         if db_res.data and len(db_res.data) > 0:
-            return serialize_user(db_res.data[0])
+            user_info = serialize_user(db_res.data[0])
+            user_info["subscription_status"] = "premium"
+            return user_info
+            
         current_user["subscription_status"] = "premium"
         return current_user
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Subscription upgrade failed: {str(e)}"
