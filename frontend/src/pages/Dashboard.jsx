@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 import { HelpBot } from '../components/HelpBot';
 
@@ -260,7 +260,7 @@ export const Dashboard = () => {
             // Expand drawer
             container.style.setProperty('--sidebar-width', '320px');
             if (toggleBtn) {
-                toggleBtn.innerHTML = '◀';
+                toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
                 toggleBtn.title = "Collapse Sidebar";
             }
             if (toggleIconBtn) {
@@ -294,7 +294,7 @@ export const Dashboard = () => {
             // Collapse to 60px
             container.style.setProperty('--sidebar-width', '60px');
             if (toggleBtn) {
-                toggleBtn.innerHTML = '▶';
+                toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
                 toggleBtn.title = "Expand Sidebar";
             }
             if (toggleIconBtn) {
@@ -5264,12 +5264,12 @@ export const Dashboard = () => {
                 clearInterval(timelineIntervalId);
                 isTimelinePlaying = false;
                 if (playBtn) playBtn.classList.remove('playing');
-                if (playIcon) playIcon.innerText = '▶';
+                if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
                 if (playText) playText.innerText = 'Playback';
             } else {
                 isTimelinePlaying = true;
                 if (playBtn) playBtn.classList.add('playing');
-                if (playIcon) playIcon.innerText = '❚❚';
+                if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
                 if (playText) playText.innerText = 'Pause';
                 timelineIntervalId = setInterval(() => {
                     timelineNext();
@@ -8067,6 +8067,7 @@ export const Dashboard = () => {
             delete window.detectedSpeedCols;
             delete window.handleSpeedSensorChange;
             delete window.updateSpeedSensorDropdown;
+            window.removeEventListener('resize', triggerResizeWithTimeout);
         };
     }, [scriptsLoaded, token, logout, navigate, API_BASE_URL]);
 
@@ -8156,6 +8157,11 @@ export const Dashboard = () => {
             )}
             {/* WELCOME / UPLOADER SCREEN */}
     <div id="welcome-screen">
+        <div style={{position: "absolute", top: "20px", right: "20px", zIndex: 100}}>
+            <button className="btn-upload" type="button" onClick={() => logout()} style={{display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", borderRadius: "8px", margin: 0, width: "auto", fontSize: "0.85rem"}}>
+                <FiLogOut size={16} /> Sign Out
+            </button>
+        </div>
         <div className="welcome-card">
             <img src="/favicon.png" style={{width: "56px", height: "56px", objectFit: "contain", marginBottom: "12px", borderRadius: "50%"}} />
             <div className="welcome-logo">ROTORDYN.AI</div>
@@ -8192,7 +8198,9 @@ export const Dashboard = () => {
     <div id="main-container" style={{ '--sidebar-width': '60px' }}>
         
         {/* Sidebar Toggle Button */}
-        <button id="sidebar-toggle-btn" className="sidebar-toggle" type="button" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Expand Sidebar">▶</button>
+        <button id="sidebar-toggle-btn" className="sidebar-toggle" type="button" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Expand Sidebar">
+            <FiChevronRight style={{width: "16px", height: "16px", display: "block", margin: "auto"}} />
+        </button>
         
         {/* SIDEBAR DECK */}
         <div className="sidebar">
@@ -8790,10 +8798,10 @@ export const Dashboard = () => {
                             {/* Playback Controls */}
                             <div className="timeline-group">
                                 <button className="timeline-ctrl-btn" id="tl-btn-play" onClick={() => window.timelineTogglePlay && window.timelineTogglePlay()} title="Start/Stop Automatic Data Playback">
-                                    <span id="tl-play-icon">▶</span> <span id="tl-play-text">Playback</span>
+                                    <span id="tl-play-icon" style={{display: "inline-flex", alignItems: "center"}}><FiPlay style={{marginRight: "4px"}} /></span> <span id="tl-play-text">Playback</span>
                                 </button>
-                                <button className="timeline-ctrl-btn" id="tl-btn-prev" onClick={() => window.timelinePrev && window.timelinePrev()} title="Step Back (Ctrl+Left)">◀</button>
-                                <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)">▶</button>
+                                <button className="timeline-ctrl-btn" id="tl-btn-prev" onClick={() => window.timelinePrev && window.timelinePrev()} title="Step Back (Ctrl+Left)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronLeft size={16} /></button>
+                                <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronRight size={16} /></button>
                             </div>
                             
                             {/* Step & Speed settings */}
@@ -8855,9 +8863,9 @@ export const Dashboard = () => {
                     
                     {/* Page controls at the bottom of grid */}
                     <div className="grid-page-controls" style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", padding: "6px 0", backgroundColor: "var(--card-color)", borderTop: "1px solid var(--border-color)", flexShrink: 0, fontSize: "0.8rem", fontFamily: "'Outfit'"}}>
-                        <button className="grid-card-btn" type="button" onClick={() => window.prevGridPage && window.prevGridPage()} style={{fontSize: "1rem", fontWeight: "bold", padding: "0 10px"}}>◀</button>
+                        <button className="grid-card-btn" type="button" onClick={() => window.prevGridPage && window.prevGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronLeft size={16} /></button>
                         <span id="grid-page-indicator">Page 1 of 1</span>
-                        <button className="grid-card-btn" type="button" onClick={() => window.nextGridPage && window.nextGridPage()} style={{fontSize: "1rem", fontWeight: "bold", padding: "0 10px"}}>▶</button>
+                        <button className="grid-card-btn" type="button" onClick={() => window.nextGridPage && window.nextGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronRight size={16} /></button>
                     </div>
                 </div>
             </div>
