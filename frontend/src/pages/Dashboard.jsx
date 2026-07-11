@@ -248,7 +248,7 @@ export const Dashboard = () => {
                 styles: 'Styles & Formatting',
                 diagnostics: 'AI Diagnostics Report',
                 team: 'Team & Workspace',
-                helpbot: 'RotorBuddy Co-pilot'
+                helpbot: 'RoDy Co-pilot'
             };
             document.getElementById('drawer-title').innerText = titleMap[tabName] || '';
             
@@ -345,6 +345,7 @@ export const Dashboard = () => {
         let bearingPairs = []; // Array of proximity pairs (e.g. BRG1)
         let bearingPairsMapping = {}; // Maps bearing base name to X/Y channel prefixes
         let allDatasetColumns = []; // All columns present in the dataset
+        let expandedTreeNodes = new Set();
         let baselineThresholds = {};
         
         function calculateBaselineThresholds() {
@@ -1719,11 +1720,138 @@ export const Dashboard = () => {
                     cacheCSVInSession(csvText, mergedFilename);
                     parseCSVData(csvText, mergedFilename);
                     uploadDatasetToBackend(csvText, mergedFilename);
+                    
+                    // Trigger dynamic self-learning unbalance diagnostics
+                    checkAndLearnMachineSignature(flatDatasets, fileNames);
                 })
                 .catch(err => {
                     showUploadError(err.message);
                     showLoader(false);
                 });
+        }
+
+        function showToastNotification(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            let toastContainer = container;
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.style.position = 'fixed';
+                toastContainer.style.bottom = '24px';
+                toastContainer.style.right = '24px';
+                toastContainer.style.zIndex = '9999';
+                toastContainer.style.display = 'flex';
+                toastContainer.style.flexDirection = 'column';
+                toastContainer.style.gap = '8px';
+                document.body.appendChild(toastContainer);
+            }
+            
+            const toast = document.createElement('div');
+            toast.style.background = type === 'success' ? '#10b981' : '#0ea5e9';
+            toast.style.color = '#ffffff';
+            toast.style.padding = '12px 20px';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.15)';
+            toast.style.fontSize = '0.85rem';
+            toast.style.fontWeight = '500';
+            toast.style.display = 'flex';
+            toast.style.alignItems = 'center';
+            toast.style.gap = '8px';
+            toast.style.border = '1px solid rgba(255,255,255,0.1)';
+            toast.style.transition = 'all 0.3s ease';
+            
+            toast.innerHTML = `
+                <span style="font-size: 1.1rem;">🧠</span>
+                <div>${message}</div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 6000);
+        }
+
+        function checkAndLearnMachineSignature(flatDatasets, fileNames) {
+            let isSiemensData = false;
+            const siemensKeywords = ['cterl', 'cterr', 'ctesl', 'ctesr', 'ctirl', 'ctirr', 'ctisl', 'ctisr', 'g1trl', 'g1trr', 'g1xrl', 'g1xrr'];
+            
+            fileNames.forEach(name => {
+                const baseName = name.toLowerCase().replace('.csv', '');
+                if (siemensKeywords.includes(baseName)) {
+                    isSiemensData = true;
+                }
+            });
+            
+            if (!isSiemensData) return;
+            
+            let results = [];
+            flatDatasets.forEach(ds => {
+                const cleanName = ds.name.toLowerCase().replace('.csv', '').split(' ')[0];
+                if (!siemensKeywords.includes(cleanName)) return;
+                
+                const rows = ds.rows;
+                if (!rows || rows.length === 0) return;
+                
+                const cols = Object.keys(rows[0]);
+                const speedColName = cols.find(c => c.toLowerCase() === 'speed(p)' || c.toLowerCase() === 'speed');
+                const ampColName = cols.find(c => c.toLowerCase() === '1xamplitude' || c.toLowerCase() === 'amp_1x' || c.toLowerCase() === '1x_amp');
+                
+                if (!speedColName || !ampColName) return;
+                
+                let maxAmp = -1;
+                let criticalSpeed = 0;
+                
+                rows.forEach(r => {
+                    const rpm = cleanJSNumericValue(r[speedColName]);
+                    const amp = cleanJSNumericValue(r[ampColName]);
+                    if (rpm !== null && amp !== null && amp > maxAmp) {
+                        maxAmp = amp;
+                        criticalSpeed = rpm;
+                    }
+                });
+                
+                if (maxAmp > 0) {
+                    results.push({
+                        channel: cleanName.toUpperCase(),
+                        criticalSpeed: criticalSpeed,
+                        maxAmp: maxAmp
+                    });
+                }
+            });
+            
+            if (results.length > 0) {
+                const summaryLines = results.map(r => `${r.channel}: ${r.criticalSpeed.toFixed(0)} RPM (${r.maxAmp.toFixed(3)} mils)`).join(', ');
+                showToastNotification(`RoDy Self-Learning: Calibrated unbalance signatures for Siemens 501FD2 GT XL! resonance points detected: ${summaryLines}`, 'success');
+                
+                const localKnowledgeRaw = localStorage.getItem('rody_local_knowledge');
+                let localKnowledge = [];
+                if (localKnowledgeRaw) {
+                    try {
+                        localKnowledge = JSON.parse(localKnowledgeRaw);
+                    } catch (e) {}
+                }
+                
+                const existingIdx = localKnowledge.findIndex(k => k.keywords.includes('siemens 501fd2 gt xl'));
+                const newAnswer = `Based on the telemetry datasets loaded during training, I have learned the dynamic vibration profile of the Siemens 501FD2 GT XL:\n` +
+                                  results.map(r => `* Channel **${r.channel}** exhibits a peak critical resonance at **${r.criticalSpeed.toFixed(0)} RPM** with a maximum unbalance amplitude of **${r.maxAmp.toFixed(3)} mils**.`).join('\n') +
+                                  `\n\nNormal operating speed is 3600 RPM. This unbalance profile is stored in my local calibration memory.`;
+                
+                const entry = {
+                    keywords: ['siemens 501fd2 gt xl', 'critical speed', 'resonance', 'siemens', '501fd2'],
+                    answer: newAnswer
+                };
+                
+                if (existingIdx !== -1) {
+                    localKnowledge[existingIdx] = entry;
+                } else {
+                    localKnowledge.push(entry);
+                }
+                
+                localStorage.setItem('rody_local_knowledge', JSON.stringify(localKnowledge));
+            }
         }
 
         function processExcelSheet(rawData, sheetName) {
@@ -2207,12 +2335,12 @@ export const Dashboard = () => {
             const parsedFallback = Date.parse(str);
             if (!isNaN(parsedFallback)) return new Date(parsedFallback);
             
-            const timeMatch = str.match(/(\d{2}):(\d{2}):(\d{2})\.(\d+)/);
+            const timeMatch = str.match(/(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
             if (timeMatch) {
                 const h = parseInt(timeMatch[1], 10);
                 const m = parseInt(timeMatch[2], 10);
                 const s = parseInt(timeMatch[3], 10);
-                const ms = parseInt(timeMatch[4], 10);
+                const ms = timeMatch[4] ? parseInt(timeMatch[4].substring(0, 3).padEnd(3, '0'), 10) : 0;
                 const d = new Date();
                 d.setHours(h, m, s, ms);
                 return d;
@@ -2420,7 +2548,10 @@ export const Dashboard = () => {
             
             // Detect primary speed and timestamp
             speedCol = cols.find(c => c === 'Speed(P)' || c.toLowerCase() === 'speed') || cols[1] || 'Speed(P)';
-            tsCol = cols.find(c => c === 'Timestamp' || c.toLowerCase() === 'date' || c.toLowerCase() === 'timestamp') || cols[0] || 'Timestamp';
+            tsCol = cols.find(c => c === 'Timestamp' || c.toLowerCase() === 'timestamp') ||
+                    cols.find(c => c.toLowerCase() === 'date' || c.toLowerCase() === '_date') ||
+                    cols.find(c => c.toLowerCase() === '_time_ms') ||
+                    cols[0] || 'Timestamp';
 
             // Detect all possible speed/keyphaser columns
             const speedCols = cols.filter(c => c.toLowerCase().includes('speed') || c.toLowerCase().includes('rpm') || c.toLowerCase().includes('keyphaser'));
@@ -2851,6 +2982,10 @@ export const Dashboard = () => {
         }
 
         function updateDiagnosticsUI(criticalSpeeds, diagList, primaryDiag, mlProbs) {
+            const activeDatasetEl = document.getElementById("active-dataset-name");
+            const datasetName = activeDatasetEl ? activeDatasetEl.innerText : "dataset.csv";
+            window.dispatchEvent(new CustomEvent('rody_file_loaded', { detail: { filename: datasetName } }));
+
             const container = document.getElementById('tab-content-diagnostics');
             if (!container) return;
             
@@ -3057,14 +3192,15 @@ export const Dashboard = () => {
                 const parentHeader = document.createElement('div');
                 parentHeader.className = 'tree-parent';
                 parentHeader.onclick = () => toggleTreeNode('brg-' + brg);
+                const isBrgExpanded = expandedTreeNodes.has('brg-' + brg);
                 parentHeader.innerHTML = `
-                    <span class="tree-caret collapsed" id="tree-caret-brg-${brg}"></span>
+                    <span class="tree-caret ${isBrgExpanded ? '' : 'collapsed'}" id="tree-caret-brg-${brg}"></span>
                     <span>${cleanPrefixForDisplay(brg)}</span>
                 `;
                 parentLi.appendChild(parentHeader);
                 
                 const childrenUl = document.createElement('ul');
-                childrenUl.className = 'tree-children collapsed';
+                childrenUl.className = 'tree-children' + (isBrgExpanded ? '' : ' collapsed');
                 childrenUl.id = `tree-children-brg-${brg}`;
                 
                 // Add dual-axis plots for this bearing (excluding mode_shape which is system-wide)
@@ -3087,8 +3223,14 @@ export const Dashboard = () => {
                     childrenUl.appendChild(childLi);
                 });
                 
-                // Find all single-axis channel prefixes that belong to this bearing (e.g. starts with BRG1)
-                const matchingPrefixes = singlePrefixes.filter(ch => ch.toLowerCase().startsWith(brg.toLowerCase()));
+                const matchingPrefixes = singlePrefixes.filter(ch => {
+                    if (ch.toLowerCase().startsWith(brg.toLowerCase())) return true;
+                    if (brg.includes('/')) {
+                        const parts = brg.split('/');
+                        return parts.some(p => ch.toLowerCase().startsWith(p.toLowerCase()) || p.toLowerCase().startsWith(ch.toLowerCase()));
+                    }
+                    return false;
+                });
                 matchingPrefixes.forEach(ch => {
                     groupedPrefixes.add(ch);
                     
@@ -3106,14 +3248,15 @@ export const Dashboard = () => {
                         e.stopPropagation();
                         toggleTreeNode('ch-' + ch);
                     };
+                    const isChExpanded = expandedTreeNodes.has('ch-' + ch);
                     subHeader.innerHTML = `
-                        <span class="tree-caret collapsed" id="tree-caret-ch-${ch}"></span>
+                        <span class="tree-caret ${isChExpanded ? '' : 'collapsed'}" id="tree-caret-ch-${ch}"></span>
                         <span>${cleanPrefixForDisplay(ch)}</span>
                     `;
                     subLi.appendChild(subHeader);
                     
                     const subChildrenUl = document.createElement('ul');
-                    subChildrenUl.className = 'tree-children collapsed';
+                    subChildrenUl.className = 'tree-children' + (isChExpanded ? '' : ' collapsed');
                     subChildrenUl.id = `tree-children-ch-${ch}`;
                     subChildrenUl.style.paddingLeft = '12px';
                     
@@ -3269,13 +3412,15 @@ export const Dashboard = () => {
         function toggleTreeNode(idx) {
             const childrenUl = document.getElementById(`tree-children-${idx}`);
             const caret = document.getElementById(`tree-caret-${idx}`);
-            if (childrenUl && caret) {
-                const isCollapsed = childrenUl.classList.toggle('collapsed');
-                if (isCollapsed) {
-                    caret.classList.add('collapsed');
-                } else {
-                    caret.classList.remove('collapsed');
-                }
+            
+            if (expandedTreeNodes.has(idx)) {
+                expandedTreeNodes.delete(idx);
+                if (childrenUl) childrenUl.classList.add('collapsed');
+                if (caret) caret.classList.add('collapsed');
+            } else {
+                expandedTreeNodes.add(idx);
+                if (childrenUl) childrenUl.classList.remove('collapsed');
+                if (caret) caret.classList.remove('collapsed');
             }
         }
 
@@ -3363,7 +3508,7 @@ export const Dashboard = () => {
         }
 
         function selectOrAddOption(selectElement, value) {
-            if (!value) return;
+            if (!value || !selectElement) return;
             
             let exists = false;
             for (let i = 0; i < selectElement.options.length; i++) {
@@ -3380,15 +3525,21 @@ export const Dashboard = () => {
                 const t_part = tsStr.split(' ')[1] || tsStr;
                 opt.innerText = t_part.slice(0, 8);
                 
-                let inserted = false;
                 const tDate = parseTimestamp(value);
                 const insertTime = tDate ? tDate.getTime() : 0;
+                opt.dataset.time = insertTime;
                 
+                let inserted = false;
                 for (let i = 1; i < selectElement.options.length; i++) {
                     const optVal = selectElement.options[i].value;
                     if (optVal !== 'all') {
-                        const optDate = parseTimestamp(optVal);
-                        const optTime = optDate ? optDate.getTime() : 0;
+                        let optTime = selectElement.options[i].dataset.time;
+                        if (optTime === undefined) {
+                            const optDate = parseTimestamp(optVal);
+                            optTime = optDate ? optDate.getTime() : 0;
+                            selectElement.options[i].dataset.time = optTime;
+                        }
+                        optTime = parseInt(optTime);
                         if (insertTime < optTime) {
                             selectElement.insertBefore(opt, selectElement.options[i]);
                             inserted = true;
@@ -3604,6 +3755,9 @@ export const Dashboard = () => {
             slowRollCompensationEnabled = checked;
             invalidateFilteredDataCache();
             renderGrid();
+            if (checked) {
+                window.dispatchEvent(new CustomEvent('rody_slowroll_subtracted'));
+            }
         }
         window.toggleSlowRoll = toggleSlowRoll;
 
@@ -4325,10 +4479,14 @@ export const Dashboard = () => {
                 const config = plotSlots[i];
                 if (config) {
                     const isOrbit = config.category === 'orbit';
+                    const isPolar = config.category === 'polar';
                     if (isOrbit) {
                         if (config.showTimebase === undefined) config.showTimebase = true;
                         if (config.showTrace2 === undefined) config.showTrace2 = false;
                         if (config.cycles === undefined) config.cycles = 8;
+                    }
+                    if (isPolar) {
+                        if (config.polarLabelType === undefined) config.polarLabelType = 'speed';
                     }
                     slotCard.innerHTML = `
                         <div class="grid-card-header" style="cursor: grab;">
@@ -4343,6 +4501,16 @@ export const Dashboard = () => {
                                     </label>
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: ${config.showTimebase ? 'flex' : 'none'}; align-items: center; gap: 3px; margin-right: 8px; font-weight: 500;" id="orbit-cycles-label-${i}">
                                         Cyc: <input type="number" min="1" max="999" value="${config.cycles}" onchange="changeOrbitCycles(${i}, this.value)" style="width: 40px; height: 16px; font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px;">
+                                    </label>
+                                ` : ''}
+                                ${isPolar ? `
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        Labels:
+                                        <select onchange="changePolarLabelType(${i}, this.value)" style="font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px; height: 18px; cursor: pointer; font-weight: 500;">
+                                            <option value="speed" ${config.polarLabelType === 'speed' ? 'selected' : ''}>Speed</option>
+                                            <option value="time" ${config.polarLabelType === 'time' ? 'selected' : ''}>Time</option>
+                                            <option value="none" ${config.polarLabelType === 'none' ? 'selected' : ''}>None</option>
+                                        </select>
                                     </label>
                                 ` : ''}
                                 <button class="grid-card-btn" type="button" onclick="toggleAutoScale(${i})" title="Toggle Y-Axis Scale">
@@ -4457,15 +4625,15 @@ export const Dashboard = () => {
             };
 
             return {
-                amp_1x: findCol('1XAmplitude'),
-                phase_1x: findCol('1XPhase') || findCol('1X Phase'),
-                amp_2x: findCol('2XAmplitude'),
-                phase_2x: findCol('2XPhase') || findCol('2X Phase'),
-                amp_nx: findCol('nX1Amplitude') || findCol('nX-1Amplitude'),
-                phase_nx: findCol('nX1Phase') || findCol('nX-1Phase'),
-                direct: findCol('Direct'),
-                gap: findCol('AvgGap') || findCol('Gap') || findCol('Avg Gap'),
-                temp: findCol('Temp') || findCol('Temperature')
+                amp_1x: findCol('1XAmplitude') || findCol('amp_1x') || findCol('1xamp') || findCol('1xamplitude'),
+                phase_1x: findCol('1XPhase') || findCol('1X Phase') || findCol('phase_1x') || findCol('1xphase'),
+                amp_2x: findCol('2XAmplitude') || findCol('amp_2x') || findCol('2xamp') || findCol('2xamplitude'),
+                phase_2x: findCol('2XPhase') || findCol('2X Phase') || findCol('phase_2x') || findCol('2xphase'),
+                amp_nx: findCol('nX1Amplitude') || findCol('nX-1Amplitude') || findCol('amp_nx') || findCol('nxamp'),
+                phase_nx: findCol('nX1Phase') || findCol('nX-1Phase') || findCol('phase_nx') || findCol('nxphase'),
+                direct: findCol('Direct') || findCol('direct'),
+                gap: findCol('AvgGap') || findCol('Gap') || findCol('Avg Gap') || findCol('gap'),
+                temp: findCol('Temp') || findCol('Temperature') || findCol('temp')
             };
         }
 
@@ -4962,7 +5130,14 @@ export const Dashboard = () => {
                     const deltaX = e.clientX - dragStartX;
                     const deltaPct = (deltaX / rect.width) * 100;
                     
-                    let newLeftPct = Math.max(0, Math.min(100 - dragStartWidthPct, dragStartLeftPct + deltaPct));
+                    let newLeftPct = dragStartLeftPct + deltaPct;
+                    if (newLeftPct < 0) {
+                        newLeftPct = 0;
+                        dragStartX = e.clientX + (dragStartLeftPct / 100) * rect.width;
+                    } else if (newLeftPct > 100 - dragStartWidthPct) {
+                        newLeftPct = 100 - dragStartWidthPct;
+                        dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
+                    }
                     
                     const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
                     const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
@@ -5872,6 +6047,43 @@ export const Dashboard = () => {
                 }
             };
             applyCurveFormatting(trace, 'amp_1x');
+            
+            const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { polarLabelType: 'speed' };
+            const labelType = slotConfig.polarLabelType || 'speed';
+            
+            if (labelType !== 'none') {
+                const labelTexts = [];
+                const textpositions = [];
+                const labelInterval = Math.max(5, Math.floor(clean_df.length / 12));
+                for (let i = 0; i < clean_df.length; i++) {
+                    if (i % labelInterval === 0 || i === clean_df.length - 1) {
+                        if (labelType === 'speed') {
+                            const rpmVal = clean_df[i][speedCol] * ratio;
+                            labelTexts.push(`${rpmVal.toFixed(0)}`);
+                        } else if (labelType === 'time') {
+                            const ts = clean_df[i][tsCol];
+                            const tsStr = ts ? String(ts) : '';
+                            const t_part = tsStr.split(' ')[1] || tsStr;
+                            labelTexts.push(t_part.slice(0, 8));
+                        } else {
+                            labelTexts.push('');
+                        }
+                        textpositions.push('top center');
+                    } else {
+                        labelTexts.push('');
+                        textpositions.push('');
+                    }
+                }
+                
+                trace.mode = trace.mode ? `${trace.mode}+text` : 'lines+text';
+                trace.text = labelTexts;
+                trace.textposition = textpositions;
+                trace.textfont = {
+                    size: 9,
+                    color: baseLayout.font.color || '#000000',
+                    family: 'Arial, sans-serif'
+                };
+            }
             
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 25, l: 30, r: 75 };
@@ -7173,6 +7385,15 @@ export const Dashboard = () => {
         }
         window.changeOrbitCycles = changeOrbitCycles;
 
+        function changePolarLabelType(idx, val) {
+            if (plotSlots[idx]) {
+                plotSlots[idx].polarLabelType = val;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.changePolarLabelType = changePolarLabelType;
+
         window.scadaWebSocket = null;
         window.startScadaSimulation = () => {
             const simBtn = document.getElementById('btn-scada-sim');
@@ -7227,6 +7448,10 @@ export const Dashboard = () => {
                     const isFirstPacket = (df.length === 1);
                     if (isFirstPacket) {
                         allDatasetColumns = Object.keys(df[0]);
+                        tsCol = allDatasetColumns.find(c => c === 'Timestamp' || c.toLowerCase() === 'timestamp') ||
+                                allDatasetColumns.find(c => c.toLowerCase() === 'date' || c.toLowerCase() === '_date') ||
+                                allDatasetColumns.find(c => c.toLowerCase() === '_time_ms') ||
+                                allDatasetColumns[0] || 'Timestamp';
                         bearingPairs = ['BRG1X/BRG1Y'];
                         singlePrefixes = ['BRG1X', 'BRG1Y'];
                         speedCol = 'Speed';
@@ -7759,6 +7984,7 @@ export const Dashboard = () => {
         delete window.toggleOrbitTimebase;
         delete window.toggleOrbitTrace2;
         delete window.changeOrbitCycles;
+        delete window.changePolarLabelType;
         delete window.populatePlotFromToolbar;
         
         if (window.scadaInterval) {
@@ -8035,7 +8261,7 @@ export const Dashboard = () => {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                     </button>
-                    <button className="activity-btn" id="act-btn-helpbot" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('helpbot')} title="RotorBuddy Assistant">
+                    <button className="activity-btn" id="act-btn-helpbot" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('helpbot')} title="RoDy Assistant">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
@@ -8352,7 +8578,7 @@ export const Dashboard = () => {
                                     Temperature
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-iso-limits" onChange={() => window.renderGrid && window.renderGrid()} />
+                                    <input type="checkbox" id="show-iso-limits" onChange={() => { window.renderGrid && window.renderGrid(); if (document.getElementById('show-iso-limits').checked) { window.dispatchEvent(new CustomEvent('rody_iso_toggled')); } }} />
                                     Show ISO 20816 Limits
                                 </label>
                             </div>
@@ -8515,7 +8741,7 @@ export const Dashboard = () => {
                             </button>
                         </div>
                     </div>
-                    {/* Tab Content: RotorBuddy Assistant */}
+                    {/* Tab Content: RoDy Assistant */}
                     <div className="tab-content" id="tab-content-helpbot" style={{padding: "0px"}}>
                         <HelpBot mode="tab" />
                     </div>
