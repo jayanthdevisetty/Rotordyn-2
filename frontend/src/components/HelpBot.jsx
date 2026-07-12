@@ -573,7 +573,8 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             color: 'white',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between'
+                            justifyContent: 'space-between',
+                            flexShrink: 0
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 {/* Glowing robot avatar */}
@@ -697,7 +698,8 @@ export const HelpBot = ({ mode = 'floating' }) => {
                         gap: '6px',
                         overflowX: 'auto',
                         whiteSpace: 'nowrap',
-                        scrollbarWidth: 'none'
+                        scrollbarWidth: 'none',
+                        flexShrink: 0
                     }}>
                         {PREDEFINED_QUESTIONS.map((q, idx) => (
                             <button
@@ -748,7 +750,8 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             display: 'flex',
                             gap: '8px',
                             alignItems: 'center',
-                            backgroundColor: '#ffffff'
+                            backgroundColor: '#ffffff',
+                            flexShrink: 0
                         }}
                     >
                         <input
