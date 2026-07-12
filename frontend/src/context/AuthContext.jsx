@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext(null);
@@ -15,14 +15,23 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
+    const verifyingTokenRef = useRef(null);
 
     const verifySession = async (currentToken) => {
-        console.log("verifySession: Verifying session with token...");
         if (!currentToken) {
+            verifyingTokenRef.current = null;
             setUser(null);
             setLoading(false);
             return;
         }
+
+        if (verifyingTokenRef.current === currentToken) {
+            console.log("verifySession: Token already verifying/verified, skipping duplicate.");
+            return;
+        }
+        verifyingTokenRef.current = currentToken;
+
+        console.log("verifySession: Verifying session with token...");
 
         try {
             // Get user session directly from Supabase
@@ -84,6 +93,7 @@ export const AuthProvider = ({ children }) => {
                 setToken(currentToken);
                 await verifySession(currentToken);
             } else {
+                verifyingTokenRef.current = null;
                 localStorage.removeItem('token');
                 setToken(null);
                 setUser(null);
@@ -143,6 +153,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        verifyingTokenRef.current = null;
         await supabase.auth.signOut();
         localStorage.removeItem('token');
         setToken(null);
