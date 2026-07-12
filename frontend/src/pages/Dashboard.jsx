@@ -6189,38 +6189,148 @@ export const Dashboard = () => {
             const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { polarLabelType: 'speed' };
             const labelType = slotConfig.polarLabelType || 'speed';
             
+            const rawLabelIndices = [];
             if (labelType !== 'none') {
-                const labelTexts = [];
-                const textpositions = [];
-                const labelInterval = Math.max(5, Math.floor(clean_df.length / 12));
-                for (let i = 0; i < clean_df.length; i++) {
-                    if (i % labelInterval === 0 || i === clean_df.length - 1) {
-                        if (labelType === 'speed') {
-                            const rpmVal = clean_df[i][speedCol] * ratio;
-                            labelTexts.push(`${rpmVal.toFixed(0)}`);
-                        } else if (labelType === 'time') {
-                            const ts = clean_df[i][tsCol];
-                            const tsStr = ts ? String(ts) : '';
-                            const t_part = tsStr.split(' ')[1] || tsStr;
-                            labelTexts.push(t_part.slice(0, 8));
-                        } else {
-                            labelTexts.push('');
+                const minPointsDistance = Math.max(5, Math.floor(clean_df.length / 25));
+                let lastLabeledIndex = -minPointsDistance;
+
+                if (speeds.length > 0) {
+                    const minSpeed = Math.min(...speeds);
+                    const maxSpeed = Math.max(...speeds);
+                    const speedRange = maxSpeed - minSpeed;
+
+                    if (speedRange > 100) {
+                        let stepSize = 100;
+                        const potentialSteps = [10, 25, 50, 100, 200, 500, 1000];
+                        for (const s of potentialSteps) {
+                            if (speedRange / s <= 20) {
+                                stepSize = s;
+                                break;
+                            }
                         }
-                        textpositions.push('top center');
+
+                        rawLabelIndices.push(0);
+                        lastLabeledIndex = 0;
+
+                        for (let i = 1; i < clean_df.length - 1; i++) {
+                            const currentSpeed = speeds[i];
+                            const crossedStep = Math.floor(currentSpeed / stepSize) !== Math.floor(speeds[i - 1] / stepSize);
+                            const farEnough = (i - lastLabeledIndex) >= minPointsDistance;
+
+                            if (crossedStep && farEnough) {
+                                rawLabelIndices.push(i);
+                                lastLabeledIndex = i;
+                            }
+                        }
+
+                        if (clean_df.length > 1 && (clean_df.length - 1 - lastLabeledIndex) >= (minPointsDistance / 2)) {
+                            rawLabelIndices.push(clean_df.length - 1);
+                        }
                     } else {
-                        labelTexts.push('');
-                        textpositions.push('');
+                        const interval = Math.max(5, Math.floor(clean_df.length / 12));
+                        for (let i = 0; i < clean_df.length; i += interval) {
+                            rawLabelIndices.push(i);
+                        }
+                        if (rawLabelIndices.length > 0 && rawLabelIndices[rawLabelIndices.length - 1] !== clean_df.length - 1) {
+                            rawLabelIndices.push(clean_df.length - 1);
+                        }
                     }
                 }
-                
-                trace.mode = trace.mode ? `${trace.mode}+text` : 'lines+text';
-                trace.text = labelTexts;
-                trace.textposition = textpositions;
-                trace.textfont = {
-                    size: 9,
-                    color: baseLayout.font.color || '#000000',
-                    family: 'Arial, sans-serif'
+            }
+
+            // Apply physical distance threshold to prevent label stacking/overlapping
+            const labelIndices = [];
+            if (rawLabelIndices.length > 0) {
+                const rMax = amps.length > 0 ? Math.max(...amps) : 1.0;
+                const minAllowedDistance = rMax * 0.08; // 8% of max amplitude for clear separation
+
+                for (const idx of rawLabelIndices) {
+                    if (labelIndices.length === 0) {
+                        labelIndices.push(idx);
+                        continue;
+                    }
+                    
+                    const lastIdx = labelIndices[labelIndices.length - 1];
+                    const r1 = amps[lastIdx];
+                    const t1 = phases[lastIdx] * Math.PI / 180;
+                    const r2 = amps[idx];
+                    const t2 = phases[idx] * Math.PI / 180;
+                    
+                    const dx = r1 * Math.cos(t1) - r2 * Math.cos(t2);
+                    const dy = r1 * Math.sin(t1) - r2 * Math.sin(t2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist >= minAllowedDistance) {
+                        labelIndices.push(idx);
+                    }
+                }
+
+                // Always append final index if not close to previous labeled marker
+                if (clean_df.length > 1 && !labelIndices.includes(clean_df.length - 1)) {
+                    const lastIdx = labelIndices[labelIndices.length - 1];
+                    const r1 = amps[lastIdx];
+                    const t1 = phases[lastIdx] * Math.PI / 180;
+                    const r2 = amps[clean_df.length - 1];
+                    const t2 = phases[clean_df.length - 1] * Math.PI / 180;
+                    const dx = r1 * Math.cos(t1) - r2 * Math.cos(t2);
+                    const dy = r1 * Math.sin(t1) - r2 * Math.sin(t2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist >= minAllowedDistance * 0.4) {
+                        labelIndices.push(clean_df.length - 1);
+                    }
+                }
+            }
+
+            const traces = [trace];
+
+            if (labelType !== 'none' && labelIndices.length > 0) {
+                const labelTexts = labelIndices.map(idx => {
+                    if (labelType === 'speed') {
+                        return `${speeds[idx].toFixed(0)}`;
+                    } else if (labelType === 'time') {
+                        const ts = clean_df[idx][tsCol];
+                        const tsStr = ts ? String(ts) : '';
+                        const t_part = tsStr.split(' ')[1] || tsStr;
+                        return t_part.slice(0, 8);
+                    }
+                    return '';
+                });
+
+                // Dynamically offset labels outward based on quadrant angle
+                const textpositions = labelIndices.map(idx => {
+                    const angle = (phases[idx] % 360 + 360) % 360;
+                    if (angle >= 0 && angle < 90) return 'top right';
+                    if (angle >= 90 && angle < 180) return 'bottom right';
+                    if (angle >= 180 && angle < 270) return 'bottom left';
+                    return 'top left';
+                });
+
+                const labelTrace = {
+                    type: 'scatterpolar',
+                    r: labelIndices.map(idx => amps[idx]),
+                    theta: labelIndices.map(idx => phases[idx]),
+                    mode: 'markers+text',
+                    text: labelTexts,
+                    textposition: textpositions,
+                    hoverinfo: 'skip',
+                    marker: {
+                        size: 6,
+                        color: labelIndices.map(idx => speeds[idx]),
+                        colorscale: 'Viridis',
+                        showscale: false,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    textfont: {
+                        size: 9,
+                        color: baseLayout.font.color || '#000000',
+                        family: 'Arial, sans-serif',
+                        weight: 'bold'
+                    }
                 };
+                traces.push(labelTrace);
             }
             
             const layout = { ...baseLayout };
@@ -6231,6 +6341,7 @@ export const Dashboard = () => {
                 angularaxis: {
                     direction: 'clockwise',
                     period: 360,
+                    rotation: 90,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
                     tickfont: { color: baseLayout.font.color }
@@ -6253,8 +6364,9 @@ export const Dashboard = () => {
             container.plotData = clean_df;
             container.unwrappedPhases = phases;
             container.dataset.slotIndex = slotIdx;
+            container.unwrappedPhases = phases;
+            container.dataset.slotIndex = slotIdx;
 
-            const traces = [trace];
             addCursorToSlot(slotIdx, traces, layout, clean_df);
 
             Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
