@@ -6206,39 +6206,33 @@ export const Dashboard = () => {
             const labelIndices = [];
             if (labelType !== 'none' && clean_df.length > 0) {
                 const rMax = amps.length > 0 ? Math.max(...amps) : 1.0;
-                // Place a label roughly every 5% of max radius along the path
-                const minAllowedDistance = rMax * 0.05; 
+                // Use 8% of max amplitude for clear physical separation on 2D space (collision prevention)
+                const minAllowedDistance = rMax * 0.08; 
                 
-                labelIndices.push(0);
-                let lastLabeledIdx = 0;
+                labelIndices.push(0); // Always label the first point
                 
                 for (let i = 1; i < clean_df.length; i++) {
-                    const r1 = amps[lastLabeledIdx];
-                    const t1 = phases[lastLabeledIdx] * Math.PI / 180;
                     const r2 = amps[i];
                     const t2 = phases[i] * Math.PI / 180;
+                    const x2 = r2 * Math.cos(t2);
+                    const y2 = r2 * Math.sin(t2);
                     
-                    const dx = r2 * Math.cos(t2) - r1 * Math.cos(t1);
-                    const dy = r2 * Math.sin(t2) - r1 * Math.sin(t1);
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist >= minAllowedDistance) {
-                        labelIndices.push(i);
-                        lastLabeledIdx = i;
+                    let tooClose = false;
+                    for (const idx of labelIndices) {
+                        const r1 = amps[idx];
+                        const t1 = phases[idx] * Math.PI / 180;
+                        const x1 = r1 * Math.cos(t1);
+                        const y1 = r1 * Math.sin(t1);
+                        
+                        const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                        if (dist < minAllowedDistance) {
+                            tooClose = true;
+                            break;
+                        }
                     }
-                }
-                
-                if (clean_df.length > 1 && !labelIndices.includes(clean_df.length - 1)) {
-                    const lastIdx = labelIndices[labelIndices.length - 1];
-                    const r1 = amps[lastIdx];
-                    const t1 = phases[lastIdx] * Math.PI / 180;
-                    const r2 = amps[clean_df.length - 1];
-                    const t2 = phases[clean_df.length - 1] * Math.PI / 180;
-                    const dx = r2 * Math.cos(t2) - r1 * Math.cos(t1);
-                    const dy = r2 * Math.sin(t2) - r1 * Math.sin(t1);
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist >= minAllowedDistance * 0.4) {
-                        labelIndices.push(clean_df.length - 1);
+                    
+                    if (!tooClose) {
+                        labelIndices.push(i);
                     }
                 }
             }
