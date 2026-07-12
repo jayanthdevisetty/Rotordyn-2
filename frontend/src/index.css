@@ -10,6 +10,9 @@
             --plot-bg-color: #ffffff;
             --paper-bg-color: #ffffff;
             --contrast-grid-color: #e2e8f0;
+            --neu-shadow-dark: #cbd5e1;
+            --neu-shadow-light: #ffffff;
+            --neu-hover-bg: #f8fafc;
         }
 
         * {
@@ -1298,14 +1301,14 @@ input:focus, textarea:focus {
 .neu-card {
     background: var(--card-color);
     border-radius: 16px;
-    box-shadow: 6px 6px 16px #cbd5e1, -6px -6px 16px #ffffff;
+    box-shadow: 6px 6px 16px var(--neu-shadow-dark), -6px -6px 16px var(--neu-shadow-light);
     border: none !important;
 }
 
 .neu-card-flat {
     background: var(--bg-color);
     border-radius: 16px;
-    box-shadow: inset 4px 4px 8px #cbd5e1, inset -4px -4px 8px #ffffff;
+    box-shadow: inset 4px 4px 8px var(--neu-shadow-dark), inset -4px -4px 8px var(--neu-shadow-light);
     border: none !important;
 }
 
@@ -1317,7 +1320,7 @@ input:focus, textarea:focus {
     padding: 12px 24px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff;
+    box-shadow: 5px 5px 12px var(--neu-shadow-dark), -5px -5px 12px var(--neu-shadow-light);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
@@ -1326,13 +1329,13 @@ input:focus, textarea:focus {
 }
 
 .neu-button:hover {
-    box-shadow: 2px 2px 6px #cbd5e1, -2px -2px 6px #ffffff;
+    box-shadow: 2px 2px 6px var(--neu-shadow-dark), -2px -2px 6px var(--neu-shadow-light);
     transform: translateY(0.5px);
-    background: #f8fafc;
+    background: var(--neu-hover-bg);
 }
 
 .neu-button:active {
-    box-shadow: inset 3px 3px 8px #cbd5e1, inset -3px -3px 8px #ffffff;
+    box-shadow: inset 3px 3px 8px var(--neu-shadow-dark), inset -3px -3px 8px var(--neu-shadow-light);
     transform: translateY(1px);
 }
 
@@ -1340,14 +1343,14 @@ input:focus, textarea:focus {
     background: var(--card-color) !important;
     border: none !important;
     border-radius: 8px;
-    box-shadow: inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff;
+    box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
     color: var(--text-color);
     outline: none;
     transition: box-shadow 0.3s;
 }
 
 .neu-input:focus {
-    box-shadow: inset 1px 1px 3px #cbd5e1, inset -1px -1px 3px #ffffff, 0 0 8px rgba(37, 99, 235, 0.15);
+    box-shadow: inset 1px 1px 3px var(--neu-shadow-dark), inset -1px -1px 3px var(--neu-shadow-light), 0 0 8px rgba(37, 99, 235, 0.15);
 }
 
 /* --- Dashboard Neumorphism Overrides --- */
@@ -1358,7 +1361,7 @@ input:focus, textarea:focus {
 }
 
 .activity-btn {
-    box-shadow: 2px 2px 5px #cbd5e1, -2px -2px 5px #ffffff !important;
+    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light) !important;
     border: none !important;
     background-color: var(--card-color) !important;
     color: var(--text-muted) !important;
@@ -1366,15 +1369,15 @@ input:focus, textarea:focus {
 }
 
 .activity-btn:hover {
-    box-shadow: 1px 1px 3px #cbd5e1, -1px -1px 3px #ffffff !important;
-    background-color: #f8fafc !important;
+    box-shadow: 1px 1px 3px var(--neu-shadow-dark), -1px -1px 3px var(--neu-shadow-light) !important;
+    background-color: var(--neu-hover-bg) !important;
     color: var(--text-color) !important;
 }
 
 .activity-btn.active {
     color: var(--accent-color) !important;
     background-color: var(--bg-color) !important;
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .drawer-panel {
@@ -1390,7 +1393,7 @@ input:focus, textarea:focus {
     background-color: var(--bg-color) !important;
     border: none !important;
     border-radius: 6px !important;
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
     color: var(--text-color) !important;
     padding: 6px 10px !important;
     outline: none !important;
@@ -1429,18 +1432,18 @@ input:focus, textarea:focus {
     border-radius: 6px !important;
     font-size: 0.75rem !important;
     cursor: pointer !important;
-    box-shadow: 3px 3px 6px #cbd5e1, -3px -3px 6px #ffffff !important;
+    box-shadow: 3px 3px 6px var(--neu-shadow-dark), -3px -3px 6px var(--neu-shadow-light) !important;
     transition: all 0.2s !important;
 }
 
 .sidebar-file-btn:hover {
-    box-shadow: 1px 1px 3px #cbd5e1, -1px -1px 3px #ffffff !important;
+    box-shadow: 1px 1px 3px var(--neu-shadow-dark), -1px -1px 3px var(--neu-shadow-light) !important;
     transform: translateY(0.5px) !important;
-    background-color: #f8fafc !important;
+    background-color: var(--neu-hover-bg) !important;
 }
 
 .sidebar-file-btn:active {
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .telemetry-bar {
@@ -1453,7 +1456,7 @@ input:focus, textarea:focus {
 .timeline-player-bar {
     background-color: var(--card-color) !important;
     border-bottom: none !important;
-    box-shadow: 6px 6px 16px #cbd5e1, -6px -6px 16px #ffffff !important;
+    box-shadow: 6px 6px 16px var(--neu-shadow-dark), -6px -6px 16px var(--neu-shadow-light) !important;
     margin: 15px 15px 5px 15px !important;
     border-radius: 12px !important;
     border: none !important;
@@ -1466,24 +1469,24 @@ input:focus, textarea:focus {
     border-radius: 6px !important;
     color: var(--text-color) !important;
     cursor: pointer !important;
-    box-shadow: 2px 2px 5px #cbd5e1, -2px -2px 5px #ffffff !important;
+    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light) !important;
     transition: all 0.2s !important;
 }
 
 .timeline-ctrl-btn:hover {
-    box-shadow: 1px 1px 3px #cbd5e1, -1px -1px 3px #ffffff !important;
-    background-color: #f8fafc !important;
+    box-shadow: 1px 1px 3px var(--neu-shadow-dark), -1px -1px 3px var(--neu-shadow-light) !important;
+    background-color: var(--neu-hover-bg) !important;
     color: var(--accent-color) !important;
 }
 
 .timeline-ctrl-btn:active {
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .timeline-ctrl-btn.playing {
     background-color: var(--bg-color) !important;
     color: var(--accent-color) !important;
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .right-toolbar {
@@ -1497,36 +1500,36 @@ input:focus, textarea:focus {
     border: none !important;
     background-color: var(--card-color) !important;
     color: var(--text-muted) !important;
-    box-shadow: 2px 2px 5px #cbd5e1, -2px -2px 5px #ffffff !important;
+    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .toolbar-btn:hover {
-    box-shadow: 1px 1px 3px #cbd5e1, -1px -1px 3px #ffffff !important;
-    background-color: #f8fafc !important;
+    box-shadow: 1px 1px 3px var(--neu-shadow-dark), -1px -1px 3px var(--neu-shadow-light) !important;
+    background-color: var(--neu-hover-bg) !important;
     color: var(--accent-color) !important;
 }
 
 .toolbar-btn:active {
-    box-shadow: inset 2px 2px 4px #cbd5e1, inset -2px -2px 4px #ffffff !important;
+    box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light) !important;
 }
 
 .toolbar-btn.active {
     background-color: var(--bg-color) !important;
     color: var(--accent-color) !important;
-    box-shadow: inset 2px 2px 5px #cbd5e1, inset -2px -2px 5px #ffffff !important;
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), inset -2px -2px 5px var(--neu-shadow-light) !important;
 }
 
 .grid-card {
     background-color: var(--card-color) !important;
     border-radius: 12px !important;
-    box-shadow: 6px 6px 16px #cbd5e1, -6px -6px 16px #ffffff !important;
+    box-shadow: 6px 6px 16px var(--neu-shadow-dark), -6px -6px 16px var(--neu-shadow-light) !important;
     border: none !important;
     margin: 8px !important;
 }
 
 .grid-card.active {
     border: none !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 6px 6px 16px #cbd5e1, -6px -6px 16px #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 6px 6px 16px var(--neu-shadow-dark), -6px -6px 16px var(--neu-shadow-light) !important;
 }
 
 .grid-card-header {
@@ -1535,7 +1538,7 @@ input:focus, textarea:focus {
 }
 
 .grid-card-btn {
-    box-shadow: 2px 2px 5px #cbd5e1, -2px -2px 5px #ffffff !important;
+    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light) !important;
     border-radius: 4px !important;
     border: none !important;
     background-color: var(--card-color) !important;

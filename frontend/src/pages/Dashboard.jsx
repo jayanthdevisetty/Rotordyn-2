@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut, FiCopy } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 import { HelpBot } from '../components/HelpBot';
 
@@ -7580,6 +7580,9 @@ export const Dashboard = () => {
                 document.documentElement.style.setProperty('--text-muted', '#94a3b8');
                 document.documentElement.style.setProperty('--border-color', '#334155');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#1e293b');
+                document.documentElement.style.setProperty('--neu-shadow-dark', '#020408');
+                document.documentElement.style.setProperty('--neu-shadow-light', '#151e30');
+                document.documentElement.style.setProperty('--neu-hover-bg', '#1e293b');
                 
                 const outPicker = document.getElementById('bg-outside-picker');
                 if (outPicker) outPicker.value = '#090d16';
@@ -7595,6 +7598,9 @@ export const Dashboard = () => {
                 document.documentElement.style.setProperty('--text-muted', '#64748b');
                 document.documentElement.style.setProperty('--border-color', '#cbd5e1');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#e2e8f0');
+                document.documentElement.style.setProperty('--neu-shadow-dark', '#cbd5e1');
+                document.documentElement.style.setProperty('--neu-shadow-light', '#ffffff');
+                document.documentElement.style.setProperty('--neu-hover-bg', '#f8fafc');
                 
                 const outPicker = document.getElementById('bg-outside-picker');
                 if (outPicker) outPicker.value = '#f8fafc';
@@ -8056,6 +8062,20 @@ export const Dashboard = () => {
             }
         };
         
+        window.copyReportToClipboard = () => {
+            const body = document.getElementById('report-modal-body');
+            if (body) {
+                navigator.clipboard.writeText(body.innerText)
+                    .then(() => {
+                        alert("Report text copied to clipboard successfully!");
+                    })
+                    .catch((err) => {
+                        console.error("Failed to copy report:", err);
+                        alert("Failed to copy report to clipboard.");
+                    });
+            }
+        };
+
         window.printReport = () => {
             if (user && user.subscription_status !== 'premium') {
                 setShowUpgradeModal(true);
@@ -8231,6 +8251,7 @@ export const Dashboard = () => {
             delete window.handleGenerateReport;
             delete window.printReport;
             delete window.exportDocxReport;
+            delete window.copyReportToClipboard;
             
         // Cleanup window bindings on unmount
         delete window.selectActivityTab;
@@ -9330,6 +9351,9 @@ export const Dashboard = () => {
                 <div style={{padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "var(--card-color)"}}>
                     <h3 style={{margin: 0, fontFamily: "'Outfit'", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-color)"}}>AI Diagnostics & Maintenance Report</h3>
                     <div style={{display: "flex", gap: "10px"}}>
+                        <button className="neu-button" onClick={() => window.copyReportToClipboard && window.copyReportToClipboard()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
+                            <FiCopy /> Copy Text
+                        </button>
                         <button className="neu-button" onClick={() => window.printReport && window.printReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
                             <FiPrinter /> Print / Save PDF
                         </button>
