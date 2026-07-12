@@ -215,6 +215,20 @@ async def register(user_in: UserRegister):
                 detail="Failed to create user profile record in database."
             )
             
+        try:
+            from services.email_service import send_access_request_email
+            asyncio.create_task(
+                send_access_request_email(
+                    user_name=user_in.name,
+                    user_email=user_in.email,
+                    company=user_in.company,
+                    plant=user_in.plant,
+                    purpose=user_in.purpose or ""
+                )
+            )
+        except Exception as e:
+            print(f"Error triggering access request email: {e}")
+            
         return serialize_user(db_res.data[0])
     except Exception as e:
         if isinstance(e, HTTPException):

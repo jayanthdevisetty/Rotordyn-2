@@ -615,6 +615,46 @@ export const Dashboard = () => {
         let activeCursorIndex = 0; 
         let x_gap_rest_global = {}; 
         let y_gap_rest_global = {}; 
+
+        function getProbeRestAndScale(brg) {
+            const scaleInput = document.getElementById('probe-scale-factor-input');
+            const scaleFactor = scaleInput ? parseFloat(scaleInput.value) || 5.0 : 5.0;
+            
+            const manualRestEnabled = document.getElementById('manual-rest-enabled') ? document.getElementById('manual-rest-enabled').checked : false;
+            let restX, restY;
+            
+            if (manualRestEnabled) {
+                const manualRestXInput = document.getElementById('manual-rest-x-input');
+                const manualRestYInput = document.getElementById('manual-rest-y-input');
+                restX = manualRestXInput ? parseFloat(manualRestXInput.value) || 0.0 : 0.0;
+                restY = manualRestYInput ? parseFloat(manualRestYInput.value) || 0.0 : 0.0;
+            } else {
+                restX = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : 0.0;
+                restY = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : 0.0;
+            }
+            
+            return { scaleFactor, restX, restY };
+        }
+
+        function convertProbesToPhysical(Sx, Sy) {
+            const angleXInput = document.getElementById('probe-angle-x-input');
+            const angleYInput = document.getElementById('probe-angle-y-input');
+            const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+            
+            const radX = probeXAngle * Math.PI / 180;
+            const radY = probeYAngle * Math.PI / 180;
+            const denom = Math.sin(radY - radX);
+            
+            if (Math.abs(denom) < 0.01) {
+                return { x: (Sx - Sy) / Math.sqrt(2), y: (Sx + Sy) / Math.sqrt(2) };
+            }
+            
+            const x = -((Sx * Math.sin(radY) - Sy * Math.sin(radX)) / denom);
+            const y = (-Sx * Math.cos(radY) + Sy * Math.cos(radX)) / denom;
+            return { x, y };
+        }
+
         let channelUnits = {}; 
         let defaultUnits = {
             speed: 'RPM',
@@ -4759,13 +4799,12 @@ export const Dashboard = () => {
                 cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                 const cols = getBearingPairColumns(config.bearingOrChannel);
-                const C = 12.0;
-                const restX = x_gap_rest_global[config.bearingOrChannel] !== undefined ? x_gap_rest_global[config.bearingOrChannel] : (cursorRow[cols.x.gap] || 0);
-                const restY = y_gap_rest_global[config.bearingOrChannel] !== undefined ? y_gap_rest_global[config.bearingOrChannel] : (cursorRow[cols.y.gap] || 0);
-                const dx = ((cursorRow[cols.x.gap] || 0) - restX) * 5.0;
-                const dy = ((cursorRow[cols.y.gap] || 0) - restY) * 5.0;
-                cursorX = (dx - dy) / Math.sqrt(2);
-                cursorY = (dx + dy) / Math.sqrt(2);
+                const { scaleFactor, restX, restY } = getProbeRestAndScale(config.bearingOrChannel);
+                const dx = ((cursorRow[cols.x.gap] || 0) - restX) * scaleFactor;
+                const dy = ((cursorRow[cols.y.gap] || 0) - restY) * scaleFactor;
+                const pt = convertProbesToPhysical(dx, dy);
+                cursorX = pt.x;
+                cursorY = pt.y;
             }
             
             const isPolar = config.category === 'polar';
@@ -5431,13 +5470,12 @@ export const Dashboard = () => {
                         if (localIdx !== -1) {
                             const localRow = container.plotData[localIdx];
                             const cols = getBearingPairColumns(config.bearingOrChannel);
-                            const C = 12.0;
-                            const restX = x_gap_rest_global[config.bearingOrChannel] !== undefined ? x_gap_rest_global[config.bearingOrChannel] : (localRow[cols.x.gap] || 0);
-                            const restY = y_gap_rest_global[config.bearingOrChannel] !== undefined ? y_gap_rest_global[config.bearingOrChannel] : (localRow[cols.y.gap] || 0);
-                            const dx = ((localRow[cols.x.gap] || 0) - restX) * 5.0;
-                            const dy = ((localRow[cols.y.gap] || 0) - restY) * 5.0;
-                            cursorX = (dx - dy) / Math.sqrt(2);
-                            cursorY = (dx + dy) / Math.sqrt(2);
+                            const { scaleFactor, restX, restY } = getProbeRestAndScale(config.bearingOrChannel);
+                            const dx = ((localRow[cols.x.gap] || 0) - restX) * scaleFactor;
+                            const dy = ((localRow[cols.y.gap] || 0) - restY) * scaleFactor;
+                            const pt = convertProbesToPhysical(dx, dy);
+                            cursorX = pt.x;
+                            cursorY = pt.y;
                         }
                     }
                 }
@@ -6395,16 +6433,16 @@ export const Dashboard = () => {
             const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
             const speeds = clean_df.map(r => r[speedCol] * ratio);
             
-            const x_gap_rest = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : x_gap_raw[0];
-            const y_gap_rest = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : y_gap_raw[0];
+            const { scaleFactor, restX, restY } = getProbeRestAndScale(brg);
             
             const x_vals = [];
             const y_vals = [];
             for (let i = 0; i < clean_df.length; i++) {
-                const dx = (x_gap_raw[i] - x_gap_rest) * 5.0;
-                const dy = (y_gap_raw[i] - y_gap_rest) * 5.0;
-                x_vals.push((dx - dy) / Math.sqrt(2));
-                y_vals.push((dx + dy) / Math.sqrt(2));
+                const dx = (x_gap_raw[i] - restX) * scaleFactor;
+                const dy = (y_gap_raw[i] - restY) * scaleFactor;
+                const pt = convertProbesToPhysical(dx, dy);
+                x_vals.push(pt.x);
+                y_vals.push(pt.y);
             }
             
             const trace = {
@@ -6497,16 +6535,16 @@ export const Dashboard = () => {
             const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
             const speeds = clean_df.map(r => r[speedCol] * ratio);
             
-            const x_gap_rest = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : x_gap_raw[0];
-            const y_gap_rest = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : y_gap_raw[0];
+            const { scaleFactor, restX, restY } = getProbeRestAndScale(brg);
             
             const cl_x = [];
             const cl_y = [];
             for (let i = 0; i < clean_df.length; i++) {
-                const dx = (x_gap_raw[i] - x_gap_rest) * 5.0;
-                const dy = (y_gap_raw[i] - y_gap_rest) * 5.0;
-                cl_x.push((dx - dy) / Math.sqrt(2));
-                cl_y.push((dx + dy) / Math.sqrt(2));
+                const dx = (x_gap_raw[i] - restX) * scaleFactor;
+                const dy = (y_gap_raw[i] - restY) * scaleFactor;
+                const pt = convertProbesToPhysical(dx, dy);
+                cl_x.push(pt.x);
+                cl_y.push(pt.y);
             }
             
             const traces = [];
@@ -6546,13 +6584,20 @@ export const Dashboard = () => {
                 const py = closest_row[cols.y.phase_1x] * Math.PI / 180;
                 const speed = closest_row[speedCol];
                 
-                const dx_row = (gx - x_gap_rest) * 5.0;
-                const dy_row = (gy - y_gap_rest) * 5.0;
-                const gx_phys = (dx_row - dy_row) / Math.sqrt(2);
-                const gy_phys = (dx_row + dy_row) / Math.sqrt(2);
+                const dx_row = (gx - restX) * scaleFactor;
+                const dy_row = (gy - restY) * scaleFactor;
+                const pt_row = convertProbesToPhysical(dx_row, dy_row);
+                const gx_phys = pt_row.x;
+                const gy_phys = pt_row.y;
                 
-                const ox = theta.map(t => gx_phys + (ax * Math.cos(t - px) - ay * Math.sin(t - py)) / Math.sqrt(2));
-                const oy = theta.map(t => gy_phys + (ax * Math.cos(t - px) + ay * Math.sin(t - py)) / Math.sqrt(2));
+                const ox = theta.map(t => {
+                    const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
+                    return gx_phys + pt_orb.x;
+                });
+                const oy = theta.map(t => {
+                    const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
+                    return gy_phys + pt_orb.y;
+                });
                 
                 traces.push({
                     x: ox, y: oy,
@@ -6773,21 +6818,22 @@ export const Dashboard = () => {
             const px_i = first_row[cols.x.phase_1x] * Math.PI / 180;
             const py_i = first_row[cols.y.phase_1x] * Math.PI / 180;
             
-            const x_init = theta.map(t => (ax_i * Math.cos(t - px_i) - ay_i * Math.sin(t - py_i)) / Math.sqrt(2));
-            const y_init = theta.map(t => (ax_i * Math.cos(t - px_i) + ay_i * Math.sin(t - py_i)) / Math.sqrt(2));
+            const x_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x);
+            const y_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y);
 
             // Timebase waveforms
             const tb_steps = 100 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
-            const tb_x_init_val = theta_tb.map(t => (ax_i * Math.cos(t - px_i)) / Math.sqrt(2));
+            const tb_x_init_val = theta_tb.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), 0).x);
             const tb_x_init_time = theta_tb.map(t => t / (2 * Math.PI));
-            const tb_y_init_val = theta_tb.map(t => (ay_i * Math.cos(t - py_i)) / Math.sqrt(2));
+            const tb_y_init_val = theta_tb.map(t => convertProbesToPhysical(0, ay_i * Math.cos(t - py_i)).y);
             const tb_y_init_time = tb_x_init_time;
 
             // Keyphasor dots (once per cycle)
             const kp_times = Array.from({length: cycles}, (_, i) => i);
-            const kp_x_init_val = Array.from({length: cycles}, () => (ax_i * Math.cos(-px_i)) / Math.sqrt(2));
-            const kp_y_init_val = Array.from({length: cycles}, () => (ay_i * Math.cos(-py_i)) / Math.sqrt(2));
+            const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
+            const kp_x_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(ax_i * Math.cos(-px_i), 0).x);
+            const kp_y_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay_i * Math.cos(-py_i)).y);
 
             const traces = [];
 
@@ -6810,8 +6856,8 @@ export const Dashboard = () => {
 
             // Trace 2: Keyphasor Dot on Orbit
             traces.push({
-                x: [(ax_i * Math.cos(-px_i)) / Math.sqrt(2)],
-                y: [(ay_i * Math.cos(-py_i)) / Math.sqrt(2)],
+                x: [pt_kp_init.x],
+                y: [pt_kp_init.y],
                 mode: 'markers', name: 'Keyphasor Dot',
                 marker: { size: 8, color: '#f59e0b', symbol: 'circle' },
                 hoverinfo: 'none', xaxis: 'x', yaxis: 'y'
@@ -6856,27 +6902,29 @@ export const Dashboard = () => {
                 const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
                 const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
 
-                const ox = theta.map(t => (ax * Math.cos(t - px) - ay * Math.sin(t - py)) / Math.sqrt(2));
-                const oy = theta.map(t => (ax * Math.cos(t - px) + ay * Math.sin(t - py)) / Math.sqrt(2));
+                const ox = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x);
+                const oy = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y);
+
+                const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
 
                 const f_data = [
                     { x: ox, y: oy },
                     {}, // Trace 1 (static)
-                    { x: [(ax * Math.cos(-px)) / Math.sqrt(2)], y: [(ay * Math.cos(-py)) / Math.sqrt(2)] }
+                    { x: [pt_kp.x], y: [pt_kp.y] }
                 ];
 
                 const f_traces = [0, 1, 2];
 
                 if (showTimebase) {
-                    const tb_x = theta_tb.map(t => (ax * Math.cos(t - px)) / Math.sqrt(2));
-                    const kp_x = Array.from({length: cycles}, () => (ax * Math.cos(-px)) / Math.sqrt(2));
+                    const tb_x = theta_tb.map(t => convertProbesToPhysical(ax * Math.cos(t - px), 0).x);
+                    const kp_x = Array.from({length: cycles}, () => convertProbesToPhysical(ax * Math.cos(-px), 0).x);
                     f_data.push({ y: tb_x });
                     f_data.push({ y: kp_x });
                     f_traces.push(3, 4);
 
                     if (showTrace2) {
-                        const tb_y = theta_tb.map(t => (ay * Math.cos(t - py)) / Math.sqrt(2));
-                        const kp_y = Array.from({length: cycles}, () => (ay * Math.cos(-py)) / Math.sqrt(2));
+                        const tb_y = theta_tb.map(t => convertProbesToPhysical(0, ay * Math.cos(t - py)).y);
+                        const kp_y = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay * Math.cos(-py)).y);
                         f_data.push({ y: tb_y });
                         f_data.push({ y: kp_y });
                         f_traces.push(5, 6);
@@ -7086,13 +7134,12 @@ export const Dashboard = () => {
                     const px = (frameRow[cols.x.phase_1x] || 0) * Math.PI / 180;
                     const py = (frameRow[cols.y.phase_1x] || 0) * Math.PI / 180;
                     
-                    const x_gap_rest = x_gap_rest_global[brg] !== undefined ? x_gap_rest_global[brg] : gx;
-                    const y_gap_rest = y_gap_rest_global[brg] !== undefined ? y_gap_rest_global[brg] : gy;
-                    
-                    const dx = (gx - x_gap_rest) * 5.0;
-                    const dy = (gy - y_gap_rest) * 5.0;
-                    const gx_phys = (dx - dy) / Math.sqrt(2);
-                    const gy_phys = (dx + dy) / Math.sqrt(2);
+                    const { scaleFactor: sf, restX, restY } = getProbeRestAndScale(brg);
+                    const dx = (gx - restX) * sf;
+                    const dy = (gy - restY) * sf;
+                    const pt = convertProbesToPhysical(dx, dy);
+                    const gx_phys = pt.x;
+                    const gy_phys = pt.y;
 
                     diag.push({
                         brg,
@@ -7121,8 +7168,9 @@ export const Dashboard = () => {
                     const thetaSteps = 64;
                     for (let i = 0; i <= thetaSteps; i++) {
                         const t = (i / thetaSteps) * 2 * Math.PI;
-                        const ox = data.gx_phys + (data.ax * Math.cos(t - data.px) - data.ay * Math.sin(t - data.py)) / Math.sqrt(2);
-                        const oy = data.gy_phys + (data.ax * Math.cos(t - data.px) + data.ay * Math.sin(t - data.py)) / Math.sqrt(2);
+                        const pt_orb = convertProbesToPhysical(data.ax * Math.cos(t - data.px), data.ay * Math.sin(t - data.py));
+                        const ox = data.gx_phys + pt_orb.x;
+                        const oy = data.gy_phys + pt_orb.y;
                         points.push(new THREE.Vector3(ox * scaleFactor, oy * scaleFactor, z_pos));
                     }
                     orbitLines[b_idx].geometry.dispose();
@@ -7160,9 +7208,9 @@ export const Dashboard = () => {
                         const cleanBrg = cleanPrefixForDisplay(data.brg);
                         const z_pos = bearing_z[cleanBrg];
                         
-                        // Instantaneous center position (steady offset + dynamic 1X whirl)
-                        const inst_x = data.gx_phys + (data.ax * Math.cos(timePhase - data.px) - data.ay * Math.sin(timePhase - data.py)) / Math.sqrt(2);
-                        const inst_y = data.gy_phys + (data.ax * Math.cos(timePhase - data.px) + data.ay * Math.sin(timePhase - data.py)) / Math.sqrt(2);
+                        const pt_orb = convertProbesToPhysical(data.ax * Math.cos(timePhase - data.px), data.ay * Math.sin(timePhase - data.py));
+                        const inst_x = data.gx_phys + pt_orb.x;
+                        const inst_y = data.gy_phys + pt_orb.y;
                         
                         const scaled_x = inst_x * scaleFactor;
                         const scaled_y = inst_y * scaleFactor;
@@ -8521,6 +8569,42 @@ export const Dashboard = () => {
                                     <span id="bearing-clearance-val">12.0</span>
                                 </label>
                                 <input type="number" id="bearing-clearance-input" min="1" max="100" step="0.5" defaultValue="12.0" onChange={(e) => window.handleClearanceChange && window.handleClearanceChange(e.target.value)} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                            </div>
+                        </div>
+
+                        {/* Proximity Probe Configuration */}
+                        <div className="controls-block" style={{background: "none", padding: 0, marginTop: "12px"}}>
+                            <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Probe Angles & Offsets</h4>
+                            <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px"}}>
+                                <div>
+                                    <label htmlFor="probe-angle-x-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Probe X Angle (°)</label>
+                                    <input type="number" id="probe-angle-x-input" min="-360" max="360" step="5" defaultValue="135" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="probe-angle-y-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Probe Y Angle (°)</label>
+                                    <input type="number" id="probe-angle-y-input" min="-360" max="360" step="5" defaultValue="45" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                                </div>
+                            </div>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <label htmlFor="probe-scale-factor-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>
+                                    Probe Scale Factor (mils/V)
+                                </label>
+                                <input type="number" id="probe-scale-factor-input" min="0.1" max="100.0" step="0.1" defaultValue="5.0" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                            </div>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <label style={{fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="manual-rest-enabled" onChange={() => window.renderGrid && window.renderGrid()} style={{margin: 0}} /> Manual DC Rest Voltages
+                                </label>
+                            </div>
+                            <div id="manual-rest-inputs" style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px"}}>
+                                <div>
+                                    <label htmlFor="manual-rest-x-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Rest X (V)</label>
+                                    <input type="number" id="manual-rest-x-input" step="0.1" defaultValue="0.0" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                                </div>
+                                <div>
+                                    <label htmlFor="manual-rest-y-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Rest Y (V)</label>
+                                    <input type="number" id="manual-rest-y-input" step="0.1" defaultValue="0.0" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                                </div>
                             </div>
                         </div>
 

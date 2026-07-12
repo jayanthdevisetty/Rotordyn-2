@@ -113,3 +113,116 @@ async def send_upload_email(
         file_size_bytes,
         file_path
     )
+
+def send_access_request_email_sync(
+    user_name: str,
+    user_email: str,
+    company: str,
+    plant: str,
+    purpose: str
+):
+    """Synchronous function to connect to Gmail SMTP and send the email for access request notification."""
+    if not settings.GMAIL_USERNAME or not settings.GMAIL_APP_PASSWORD:
+        print("WARNING: SMTP credentials not set (GMAIL_USERNAME / GMAIL_APP_PASSWORD). Access request email skipped.")
+        return
+        
+    msg = MIMEMultipart()
+    msg['From'] = settings.GMAIL_USERNAME
+    msg['To'] = settings.ADMIN_EMAIL or settings.ADMIN_UPLOAD_EMAIL or settings.GMAIL_USERNAME
+    msg['Subject'] = f"New Access Request - {user_name} ({company})"
+    
+    body = f"""Hello Administrator,
+
+A new user has registered on Rotordyn.ai and is awaiting access approval.
+
+User Details:
+--------------------------------------------
+Name: {user_name}
+Email: {user_email}
+Company: {company}
+Plant: {plant}
+Purpose: {purpose}
+
+To approve or deny this request, please log in to the Rotordyn Admin Dashboard:
+https://rotordyn-ai-v2.vercel.app/admin
+
+Best regards,
+Rotordyn.ai System
+"""
+    msg.attach(MIMEText(body, 'plain'))
+    
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(settings.GMAIL_USERNAME, settings.GMAIL_APP_PASSWORD)
+            server.send_message(msg)
+            print(f"INFO: Access request notification email sent to {msg['To']} successfully.")
+    except Exception as e:
+        print(f"ERROR: Failed to send access request email via SMTP: {e}")
+
+async def send_access_request_email(
+    user_name: str,
+    user_email: str,
+    company: str,
+    plant: str,
+    purpose: str
+):
+    """Asynchronous wrapper that runs the blocking smtplib email send in a separate thread pool."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        send_access_request_email_sync,
+        user_name,
+        user_email,
+        company,
+        plant,
+        purpose
+    )
+
+def send_pending_approvals_reminder_email_sync(pending_users: list):
+    """Synchronous function to send a digest email of all users awaiting approval."""
+    if not settings.GMAIL_USERNAME or not settings.GMAIL_APP_PASSWORD:
+        print("WARNING: SMTP credentials not set (GMAIL_USERNAME / GMAIL_APP_PASSWORD). Reminder email skipped.")
+        return
+        
+    msg = MIMEMultipart()
+    msg['From'] = settings.GMAIL_USERNAME
+    msg['To'] = settings.ADMIN_EMAIL or settings.ADMIN_UPLOAD_EMAIL or settings.GMAIL_USERNAME
+    msg['Subject'] = f"Reminder: {len(pending_users)} Access Requests Pending Approval"
+    
+    users_text = ""
+    for idx, user in enumerate(pending_users, 1):
+        users_text += f"{idx}. {user.get('name')} ({user.get('email')}) - Company: {user.get('company')}, Plant: {user.get('plant')}\n"
+        
+    body = f"""Hello Administrator,
+
+This is a recurring 48-hour reminder that there are {len(pending_users)} users awaiting access approval for Rotordyn.ai.
+
+Pending Registrations:
+--------------------------------------------
+{users_text}
+Please log in to the Rotordyn Admin Dashboard to approve or deny these requests:
+https://rotordyn-ai-v2.vercel.app/admin
+
+Best regards,
+Rotordyn.ai System
+"""
+    msg.attach(MIMEText(body, 'plain'))
+    
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(settings.GMAIL_USERNAME, settings.GMAIL_APP_PASSWORD)
+            server.send_message(msg)
+            print(f"INFO: Pending approvals reminder email sent to {msg['To']} successfully.")
+    except Exception as e:
+        print(f"ERROR: Failed to send reminder email via SMTP: {e}")
+
+async def send_pending_approvals_reminder_email(pending_users: list):
+    """Asynchronous wrapper to send reminder email."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        send_pending_approvals_reminder_email_sync,
+        pending_users
+    )

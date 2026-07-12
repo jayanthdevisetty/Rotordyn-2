@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { FiAward, FiArrowLeft, FiPrinter, FiFileText, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 
 export const Subscription = () => {
-    const { user, setUser, token, API_BASE_URL } = useAuth();
+    const { user, setUser, token, loading, API_BASE_URL } = useAuth();
     const navigate = useNavigate();
 
     // Mock checkout states
@@ -16,6 +16,21 @@ export const Subscription = () => {
     const [cardName, setCardName] = useState('');
     const [checkoutError, setCheckoutError] = useState('');
     const [isCardFlipped, setIsCardFlipped] = useState(false);
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f1f5f9', flexDirection: 'column', gap: '12px' }}>
+                <FiLoader size={32} style={{ color: '#2563eb', animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Verifying session...</span>
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
 
     const isGuest = !token || !user;
     const isPremium = !isGuest && user.subscription_status === 'premium';
