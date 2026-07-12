@@ -3188,19 +3188,25 @@ export const Dashboard = () => {
         function detectStates(rpm, times) {
             let states = Array(rpm.length).fill('steady');
             
-            // Find first and last steady index (steady is when speed >= 3500 RPM)
+            if (rpm.length === 0) return states;
+            
+            const maxSpeed = Math.max(...rpm);
+            // Steady state is defined as speeds within 5% of maximum speed,
+            // but at least 100 RPM to avoid classifying zero speed as steady state.
+            const steadyThreshold = Math.max(100, maxSpeed * 0.95);
+            
             let first_steady = -1;
             let last_steady = -1;
             
             for (let i = 0; i < rpm.length; i++) {
-                if (rpm[i] >= 3500) {
+                if (rpm[i] >= steadyThreshold) {
                     if (first_steady === -1) first_steady = i;
                     last_steady = i;
                 }
             }
             
             if (first_steady === -1) {
-                // If speed never reaches 3500, check overall trend
+                // If speed never reaches the threshold, check overall trend
                 const first_val = rpm[0];
                 const last_val = rpm[rpm.length - 1];
                 const state = last_val > first_val ? 'startup' : 'coastdown';
