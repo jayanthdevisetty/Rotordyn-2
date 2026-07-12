@@ -4603,9 +4603,24 @@ export const Dashboard = () => {
                     if (isPolar) {
                         if (config.polarLabelType === undefined) config.polarLabelType = 'speed';
                     }
+                    let titleSuffix = '';
+                    if (isPolar) {
+                        const angleXInput = document.getElementById('probe-angle-x-input');
+                        const angleYInput = document.getElementById('probe-angle-y-input');
+                        const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                        const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                        
+                        if (config.bearingOrChannel.toUpperCase().endsWith('X') || config.bearingOrChannel.toUpperCase().includes('X')) {
+                            const offset = probeXAngle - 90;
+                            titleSuffix = ` (∠${Math.abs(offset)}° ${offset >= 0 ? 'Left' : 'Right'})`;
+                        } else if (config.bearingOrChannel.toUpperCase().endsWith('Y') || config.bearingOrChannel.toUpperCase().includes('Y')) {
+                            const offset = 90 - probeYAngle;
+                            titleSuffix = ` (∠${Math.abs(offset)}° ${offset >= 0 ? 'Right' : 'Left'})`;
+                        }
+                    }
                     slotCard.innerHTML = `
                         <div class="grid-card-header" style="cursor: grab;">
-                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}</span>
+                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}</span>
                             <div class="grid-card-actions">
                                 ${isOrbit ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
@@ -6333,6 +6348,18 @@ export const Dashboard = () => {
                 traces.push(labelTrace);
             }
             
+            const angleXInput = document.getElementById('probe-angle-x-input');
+            const angleYInput = document.getElementById('probe-angle-y-input');
+            const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+
+            let probeAngle = 90;
+            if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                probeAngle = probeXAngle;
+            } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                probeAngle = probeYAngle;
+            }
+
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 25, l: 30, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
@@ -6341,19 +6368,39 @@ export const Dashboard = () => {
                 angularaxis: {
                     direction: 'clockwise',
                     period: 360,
-                    rotation: 90,
+                    rotation: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
                     tickfont: { color: baseLayout.font.color }
                 },
                 radialaxis: {
-                    angle: 90,
+                    angle: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
                     tickfont: { color: baseLayout.font.color },
                     title: { text: `Amp (${ampUnit})`, font: { size: 10 } }
                 }
             };
+            
+            layout.annotations = [
+                ...(baseLayout.annotations || []),
+                {
+                    text: 'CW ROTATION',
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: 0.98,
+                    y: 0.02,
+                    xanchor: 'right',
+                    yanchor: 'bottom',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#64748b',
+                        weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                }
+            ];
             
             if (!limits.autoScale) {
                 let rMin = limits.min !== null ? limits.min : 0.0;
