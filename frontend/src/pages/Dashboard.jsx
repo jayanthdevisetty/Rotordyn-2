@@ -6203,91 +6203,39 @@ export const Dashboard = () => {
             const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { polarLabelType: 'speed' };
             const labelType = slotConfig.polarLabelType || 'speed';
             
-            const rawLabelIndices = [];
-            if (labelType !== 'none') {
-                const minPointsDistance = Math.max(5, Math.floor(clean_df.length / 25));
-                let lastLabeledIndex = -minPointsDistance;
-
-                if (speeds.length > 0) {
-                    const minSpeed = Math.min(...speeds);
-                    const maxSpeed = Math.max(...speeds);
-                    const speedRange = maxSpeed - minSpeed;
-
-                    if (speedRange > 100) {
-                        let stepSize = 100;
-                        const potentialSteps = [10, 25, 50, 100, 200, 500, 1000];
-                        for (const s of potentialSteps) {
-                            if (speedRange / s <= 20) {
-                                stepSize = s;
-                                break;
-                            }
-                        }
-
-                        rawLabelIndices.push(0);
-                        lastLabeledIndex = 0;
-
-                        for (let i = 1; i < clean_df.length - 1; i++) {
-                            const currentSpeed = speeds[i];
-                            const crossedStep = Math.floor(currentSpeed / stepSize) !== Math.floor(speeds[i - 1] / stepSize);
-                            const farEnough = (i - lastLabeledIndex) >= minPointsDistance;
-
-                            if (crossedStep && farEnough) {
-                                rawLabelIndices.push(i);
-                                lastLabeledIndex = i;
-                            }
-                        }
-
-                        if (clean_df.length > 1 && (clean_df.length - 1 - lastLabeledIndex) >= (minPointsDistance / 2)) {
-                            rawLabelIndices.push(clean_df.length - 1);
-                        }
-                    } else {
-                        const interval = Math.max(5, Math.floor(clean_df.length / 12));
-                        for (let i = 0; i < clean_df.length; i += interval) {
-                            rawLabelIndices.push(i);
-                        }
-                        if (rawLabelIndices.length > 0 && rawLabelIndices[rawLabelIndices.length - 1] !== clean_df.length - 1) {
-                            rawLabelIndices.push(clean_df.length - 1);
-                        }
-                    }
-                }
-            }
-
-            // Apply physical distance threshold to prevent label stacking/overlapping
             const labelIndices = [];
-            if (rawLabelIndices.length > 0) {
+            if (labelType !== 'none' && clean_df.length > 0) {
                 const rMax = amps.length > 0 ? Math.max(...amps) : 1.0;
-                const minAllowedDistance = rMax * 0.08; // 8% of max amplitude for clear separation
-
-                for (const idx of rawLabelIndices) {
-                    if (labelIndices.length === 0) {
-                        labelIndices.push(idx);
-                        continue;
-                    }
+                // Place a label roughly every 5% of max radius along the path
+                const minAllowedDistance = rMax * 0.05; 
+                
+                labelIndices.push(0);
+                let lastLabeledIdx = 0;
+                
+                for (let i = 1; i < clean_df.length; i++) {
+                    const r1 = amps[lastLabeledIdx];
+                    const t1 = phases[lastLabeledIdx] * Math.PI / 180;
+                    const r2 = amps[i];
+                    const t2 = phases[i] * Math.PI / 180;
                     
-                    const lastIdx = labelIndices[labelIndices.length - 1];
-                    const r1 = amps[lastIdx];
-                    const t1 = phases[lastIdx] * Math.PI / 180;
-                    const r2 = amps[idx];
-                    const t2 = phases[idx] * Math.PI / 180;
-                    
-                    const dx = r1 * Math.cos(t1) - r2 * Math.cos(t2);
-                    const dy = r1 * Math.sin(t1) - r2 * Math.sin(t2);
+                    const dx = r2 * Math.cos(t2) - r1 * Math.cos(t1);
+                    const dy = r2 * Math.sin(t2) - r1 * Math.sin(t1);
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist >= minAllowedDistance) {
-                        labelIndices.push(idx);
+                        labelIndices.push(i);
+                        lastLabeledIdx = i;
                     }
                 }
-
-                // Always append final index if not close to previous labeled marker
+                
                 if (clean_df.length > 1 && !labelIndices.includes(clean_df.length - 1)) {
                     const lastIdx = labelIndices[labelIndices.length - 1];
                     const r1 = amps[lastIdx];
                     const t1 = phases[lastIdx] * Math.PI / 180;
                     const r2 = amps[clean_df.length - 1];
                     const t2 = phases[clean_df.length - 1] * Math.PI / 180;
-                    const dx = r1 * Math.cos(t1) - r2 * Math.cos(t2);
-                    const dy = r1 * Math.sin(t1) - r2 * Math.sin(t2);
+                    const dx = r2 * Math.cos(t2) - r1 * Math.cos(t1);
+                    const dy = r2 * Math.sin(t2) - r1 * Math.sin(t1);
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist >= minAllowedDistance * 0.4) {
                         labelIndices.push(clean_df.length - 1);
