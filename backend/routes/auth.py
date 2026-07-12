@@ -4,11 +4,14 @@ from typing import List
 from datetime import datetime
 import httpx
 from jose import jwt, JWTError
+import stripe
+import os
 from models.user import UserRegister, UserLogin, UserResponse, Token
 from database import supabase, log_audit_action
 from config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -386,4 +389,88 @@ async def upgrade_subscription(current_user: dict = Depends(get_current_approved
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Subscription upgrade failed: {str(e)}"
+        )
+
+@router.post("/create_checkout_session")
+async def create_checkout_session(origin: str, current_user: dict = Depends(get_current_approved_user)):
+    """Creates a real Stripe Checkout Session for Premium Analyst license."""
+    stripe_key = os.getenv("STRIPE_SECRET_KEY")
+    if not stripe_key:
+        return {"stripe_active": False, "msg": "Stripe is not configured in environment variables. Sandbox mode will be used."}
+        
+    try:
+        stripe.api_key = stripe_key
+        # Create checkout session
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'Premium Analyst Plan',
+                        'description': 'Unlimited telemetry uploads, WebGL 3D waterfall analysis, and PDF/Word evidence exports.',
+                    },
+                    'unit_amount': 19900,  # $199.00 USD
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{origin}/subscription?session_id={{CHECKOUT_SESSION_ID}}&success=true",
+            cancel_url=f"{origin}/subscription?canceled=true",
+            metadata={
+                'user_id': current_user['id']
+            }
+        )
+        return {"stripe_active": True, "url": session.url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create Stripe Checkout session: {str(e)}"
+        )
+
+@router.post("/verify_checkout_session")
+async def verify_checkout_session(session_id: str, current_user: dict = Depends(get_current_approved_user)):
+    """Verifies a Stripe Checkout Session status and upgrades the user to premium if successful."""
+    stripe_key = os.getenv("STRIPE_SECRET_KEY")
+    if not stripe_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stripe is not configured. Cannot verify payment."
+        )
+        
+    try:
+        stripe.api_key = stripe_key
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status == 'paid':
+            # Upgrade user in supabase profiles
+            try:
+                supabase.table("profiles").update({"subscription_status": "premium"}).eq("id", current_user["id"]).execute()
+            except Exception as e:
+                print(f"Skipping profiles table status update in verify: {e}")
+                pass
+                
+            # Upgrade user metadata
+            try:
+                supabase.auth.admin.update_user_by_id(
+                    current_user["id"],
+                    {"user_metadata": {"subscription_status": "premium"}}
+                )
+            except Exception as e:
+                print(f"Auth metadata update failed in verify: {e}")
+                pass
+                
+            db_res = supabase.table("profiles").select("*").eq("id", current_user["id"]).execute()
+            if db_res.data and len(db_res.data) > 0:
+                user_info = serialize_user(db_res.data[0])
+                user_info["subscription_status"] = "premium"
+                return {"status": "success", "user": user_info}
+                
+            current_user["subscription_status"] = "premium"
+            return {"status": "success", "user": current_user}
+        else:
+            return {"status": "pending", "payment_status": session.payment_status}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Verification failed: {str(e)}"
         )

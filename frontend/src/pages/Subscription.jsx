@@ -17,11 +17,108 @@ export const Subscription = () => {
     const [checkoutError, setCheckoutError] = useState('');
     const [isCardFlipped, setIsCardFlipped] = useState(false);
 
-    if (loading) {
+    // Stripe checkout states
+    const [verifyingPayment, setVerifyingPayment] = useState(false);
+    const [verifyingError, setVerifyingError] = useState('');
+    const [initiatingStripe, setInitiatingStripe] = useState(false);
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const sessionId = queryParams.get('session_id');
+        const success = queryParams.get('success');
+        const canceled = queryParams.get('canceled');
+
+        if (canceled) {
+            alert('Payment checkout canceled.');
+            navigate('/subscription', { replace: true });
+        } else if (sessionId && success === 'true') {
+            const verifyStripePayment = async () => {
+                setVerifyingPayment(true);
+                setVerifyingError('');
+                try {
+                    const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+                    const response = await fetch(`${apiBase}/auth/verify_checkout_session?session_id=${sessionId}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.detail || "Payment verification failed.");
+                    }
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        if (setUser) {
+                            setUser(data.user);
+                        }
+                        alert("Payment Confirmed! Your account is upgraded to Premium Analyst license.");
+                        navigate('/dashboard', { replace: true });
+                    } else {
+                        throw new Error("Payment is still pending verification.");
+                    }
+                } catch (err) {
+                    setVerifyingError(err.message || 'Verification failed. Please contact support.');
+                } finally {
+                    setVerifyingPayment(false);
+                }
+            };
+            verifyStripePayment();
+        }
+    }, [token, API_BASE_URL, setUser, navigate]);
+
+    const handleUpgradeClick = async () => {
+        setCheckoutError('');
+        setInitiatingStripe(true);
+        try {
+            const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+            const response = await fetch(`${apiBase}/auth/create_checkout_session?origin=${window.location.origin}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to contact payment system.");
+            }
+
+            const data = await response.json();
+            if (data.stripe_active && data.url) {
+                window.location.href = data.url;
+            } else {
+                setCardNumber('');
+                setExpiry('');
+                setCvc('');
+                setCardName('');
+                setShowCheckout(true);
+            }
+        } catch (err) {
+            console.error("Stripe initiation failed, using sandbox fallback:", err);
+            setCardNumber('');
+            setExpiry('');
+            setCvc('');
+            setCardName('');
+            setShowCheckout(true);
+        } finally {
+            setInitiatingStripe(false);
+        }
+    };
+
+    if (loading || verifyingPayment) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f1f5f9', flexDirection: 'column', gap: '12px' }}>
                 <FiLoader size={32} style={{ color: '#2563eb', animation: 'spin 1s linear infinite' }} />
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Verifying session...</span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {verifyingPayment ? "Confirming payment with Stripe..." : "Verifying session..."}
+                </span>
+                {verifyingError && (
+                    <span style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '10px' }}>{verifyingError}</span>
+                )}
                 <style>{`
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
@@ -244,18 +341,12 @@ export const Subscription = () => {
                             </button>
                         ) : (
                             <button 
-                                onClick={() => {
-                                    setCardNumber('');
-                                    setExpiry('');
-                                    setCvc('');
-                                    setCardName('');
-                                    setCheckoutError('');
-                                    setShowCheckout(true);
-                                }}
+                                onClick={handleUpgradeClick}
+                                disabled={initiatingStripe}
                                 className="neu-button" 
-                                style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff, 0 4px 12px rgba(37, 99, 235, 0.15)', cursor: 'pointer' }}
+                                style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff, 0 4px 12px rgba(37, 99, 235, 0.15)', cursor: initiatingStripe ? 'not-allowed' : 'pointer', opacity: initiatingStripe ? 0.8 : 1 }}
                             >
-                                Upgrade Account
+                                {initiatingStripe ? 'Initiating Checkout...' : 'Upgrade Account'}
                             </button>
                         )}
                     </div>
