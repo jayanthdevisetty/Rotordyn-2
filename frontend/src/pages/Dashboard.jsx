@@ -4912,18 +4912,17 @@ export const Dashboard = () => {
             
             const isPolar = config.category === 'polar';
             if (isPolar) {
-                const rMax = (layout && layout.polar && layout.polar.radialaxis && layout.polar.radialaxis.range) ? layout.polar.radialaxis.range[1] : cursorY * 1.1;
-                const delta_r = Math.min(0.15 * cursorY, 0.08 * (rMax || 1.0));
-                const delta_theta = 12;
                 traces.push({
                     type: 'scatterpolar',
-                    r: [0, cursorY, cursorY - delta_r, null, cursorY, cursorY - delta_r],
-                    theta: [cursorX, cursorX, cursorX - delta_theta, null, cursorX, cursorX + delta_theta],
-                    mode: 'lines',
-                    name: 'Active Vector',
-                    line: {
+                    r: [cursorY],
+                    theta: [cursorX],
+                    mode: 'markers',
+                    name: 'Cursor Marker',
+                    marker: {
+                        symbol: 'cross',
+                        size: 9,
                         color: '#ef4444',
-                        width: 2.5
+                        line: { width: 1.5, color: '#ef4444' }
                     },
                     showlegend: false,
                     hoverinfo: 'skip'
