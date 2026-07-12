@@ -40,18 +40,22 @@ async def generate_report(
             )
         
         # Increment generation counter in profiles and user_metadata
+        new_count = gen_count + 1
+        
+        # 1. Update user_metadata (Auth System)
         try:
-            new_count = gen_count + 1
+            supabase.auth.admin.update_user_by_id(
+                current_user["id"],
+                {"user_metadata": {"report_generation_count": new_count}}
+            )
+        except Exception as auth_err:
+            print(f"Failed to increment report_generation_count in user_metadata: {auth_err}")
+            
+        # 2. Update profiles table (DB System, ignore error if column is missing)
+        try:
             supabase.table("profiles").update({"report_generation_count": new_count}).eq("id", current_user["id"]).execute()
-            try:
-                supabase.auth.admin.update_user_by_id(
-                    current_user["id"],
-                    {"user_metadata": {"report_generation_count": new_count}}
-                )
-            except Exception:
-                pass
-        except Exception as e:
-            print(f"Failed to increment user report generation count: {e}")
+        except Exception as db_err:
+            print(f"Failed to update profiles table column (expected if column is missing): {db_err}")
 
     if not settings.GEMINI_API_KEY:
         raise HTTPException(

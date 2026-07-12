@@ -8,7 +8,7 @@ import { HelpBot } from '../components/HelpBot';
 
 
 export const Dashboard = () => {
-    const {user, token, logout, API_BASE_URL} = useAuth();
+    const {user, setUser, token, logout, API_BASE_URL} = useAuth();
     const navigate = useNavigate();
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -7964,17 +7964,34 @@ export const Dashboard = () => {
             
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
             try {
+                let freshToken = token;
+                try {
+                    const sessionRes = await supabase.auth.getSession();
+                    if (sessionRes.data.session?.access_token) {
+                        freshToken = sessionRes.data.session.access_token;
+                    }
+                } catch (tokenErr) {
+                    console.warn("Could not retrieve fresh token from Supabase client:", tokenErr);
+                }
+
                 const response = await fetch(`${apiBase}/reports/generate`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
+                        "Authorization": `Bearer ${freshToken}`
                     },
                     body: JSON.stringify(payload)
                 });
                 
                 if (!response.ok) {
                     const errText = await response.text();
+                    // Intercept free-tier limit exhaustions to show the pricing upgrade modal immediately
+                    if (response.status === 403 || errText.includes("limit") || errText.includes("exhausted")) {
+                        const reportModal = document.getElementById("report-modal");
+                        if (reportModal) reportModal.style.display = "none";
+                        setShowUpgradeModal(true);
+                        return;
+                    }
                     throw new Error(`Report generation failed: ${errText}`);
                 }
                 
@@ -8020,6 +8037,15 @@ export const Dashboard = () => {
                         }
                     }
                 }
+
+                // Increment generation counter in local user state upon successful generation
+                if (user && user.subscription_status !== 'premium') {
+                    setUser(prev => ({
+                        ...prev,
+                        report_generation_count: (prev.report_generation_count || 0) + 1
+                    }));
+                }
+
             } catch (error) {
                 console.error("Error generating report:", error);
                 if (body) {

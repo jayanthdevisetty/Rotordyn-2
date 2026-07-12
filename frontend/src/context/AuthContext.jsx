@@ -57,7 +57,14 @@ export const AuthProvider = ({ children }) => {
             }
 
             console.log("verifySession: Profile loaded successfully:", profile);
-            setUser(profile);
+            
+            // Merge metadata properties from Supabase Auth user record (which handles report_generation_count)
+            const mergedProfile = {
+                ...profile,
+                subscription_status: authUser.user_metadata?.subscription_status || profile.subscription_status || 'free-tier',
+                report_generation_count: parseInt(authUser.user_metadata?.report_generation_count || profile.report_generation_count || 0, 10)
+            };
+            setUser(mergedProfile);
         } catch (err) {
             console.error('verifySession: Error checking session:', err);
         } finally {
