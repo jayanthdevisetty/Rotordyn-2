@@ -14,6 +14,7 @@ export const Dashboard = () => {
     const [scriptsLoaded, setScriptsLoaded] = useState(false);
     const [scriptsLoadingError, setScriptsLoadingError] = useState('');
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [isDark, setIsDark] = useState(document.documentElement.style.getPropertyValue('--paper-bg-color').trim() === '#0f172a');
 
     // Hook 1: Dynamic Parallel Script Loader
     useEffect(() => {
@@ -3835,7 +3836,7 @@ export const Dashboard = () => {
             
             // 1. Filter by State
             if (activeStateFilter !== 'all') {
-                filtered = filtered.filter(r => r['state'] === activeStateFilter);
+                filtered = filtered.filter(r => r['state'] && String(r['state']).toLowerCase() === activeStateFilter.toLowerCase());
             }
             
             // 2. Filter by RPM
@@ -3907,7 +3908,7 @@ export const Dashboard = () => {
             activeStateFilter = event.target.value;
             
             if (activeStateFilter !== 'all') {
-                const stateData = df.filter(r => r['state'] === activeStateFilter);
+                const stateData = df.filter(r => r['state'] && String(r['state']).toLowerCase() === activeStateFilter.toLowerCase());
                 if (stateData.length > 0) {
                     const firstTs = stateData[0][tsCol];
                     const lastTs = stateData[stateData.length - 1][tsCol];
@@ -4233,6 +4234,62 @@ export const Dashboard = () => {
                 btn.classList.add('active');
             } else {
                 btn.classList.remove('active');
+            }
+        }
+
+        function zoomSlotPlotIn(idx) {
+            const container = document.getElementById(`plotly-container-${idx}`);
+            if (!container || !container.layout) return;
+            const layout = container.layout;
+            const update = {};
+            
+            if (layout.xaxis && layout.xaxis.range) {
+                const r = layout.xaxis.range;
+                if (typeof r[0] === 'number' && typeof r[1] === 'number') {
+                    const center = (r[0] + r[1]) / 2;
+                    const halfSpan = (r[1] - r[0]) / 2 * 0.75;
+                    update['xaxis.range'] = [center - halfSpan, center + halfSpan];
+                }
+            }
+            if (layout.yaxis && layout.yaxis.range) {
+                const r = layout.yaxis.range;
+                if (typeof r[0] === 'number' && typeof r[1] === 'number') {
+                    const center = (r[0] + r[1]) / 2;
+                    const halfSpan = (r[1] - r[0]) / 2 * 0.75;
+                    update['yaxis.range'] = [center - halfSpan, center + halfSpan];
+                }
+            }
+            
+            if (Object.keys(update).length > 0) {
+                Plotly.relayout(container, update);
+            }
+        }
+
+        function zoomSlotPlotOut(idx) {
+            const container = document.getElementById(`plotly-container-${idx}`);
+            if (!container || !container.layout) return;
+            const layout = container.layout;
+            const update = {};
+            
+            if (layout.xaxis && layout.xaxis.range) {
+                const r = layout.xaxis.range;
+                if (typeof r[0] === 'number' && typeof r[1] === 'number') {
+                    const center = (r[0] + r[1]) / 2;
+                    const halfSpan = (r[1] - r[0]) / 2 * 1.35;
+                    update['xaxis.range'] = [center - halfSpan, center + halfSpan];
+                }
+            }
+            if (layout.yaxis && layout.yaxis.range) {
+                const r = layout.yaxis.range;
+                if (typeof r[0] === 'number' && typeof r[1] === 'number') {
+                    const center = (r[0] + r[1]) / 2;
+                    const halfSpan = (r[1] - r[0]) / 2 * 1.35;
+                    update['yaxis.range'] = [center - halfSpan, center + halfSpan];
+                }
+            }
+            
+            if (Object.keys(update).length > 0) {
+                Plotly.relayout(container, update);
             }
         }
 
@@ -4574,6 +4631,8 @@ export const Dashboard = () => {
                                 <button class="grid-card-btn" type="button" onclick="toggleAutoScale(${i})" title="Toggle Y-Axis Scale">
                                     ${config.layoutLimits.autoScale ? 'Auto-scale' : 'Manual-scale'}
                                 </button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotIn(${i})" title="Zoom In" style="margin-left: 2px;">🔍+</button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotOut(${i})" title="Zoom Out" style="margin-left: 2px;">🔍-</button>
                                 ${!config.layoutLimits.autoScale ? `
                                     <input type="number" step="any" placeholder="Min" class="grid-scale-input" value="${config.layoutLimits.min !== null ? config.layoutLimits.min : ''}" onchange="setSlotMinLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                                     <input type="number" step="any" placeholder="Max" class="grid-scale-input" value="${config.layoutLimits.max !== null ? config.layoutLimits.max : ''}" onchange="setSlotMaxLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
@@ -4636,6 +4695,8 @@ export const Dashboard = () => {
                 plot_bgcolor: plotBg,
                 font: { color: textColor, family: 'Outfit, Inter, sans-serif' },
                 margin: { t: 45, b: 35, l: 45, r: 40 },
+                autosize: true,
+                height: container.offsetHeight || container.clientHeight || 300,
                 legend: {
                     bgcolor: plotBg,
                     bordercolor: style.getPropertyValue('--border-color').trim(),
@@ -4920,7 +4981,7 @@ export const Dashboard = () => {
             if (df.length === 0) return [];
             let filtered = df;
             if (activeStateFilter !== 'all') {
-                filtered = filtered.filter(r => r['state'] === activeStateFilter);
+                filtered = filtered.filter(r => r['state'] && String(r['state']).toLowerCase() === activeStateFilter.toLowerCase());
             }
             if (activeMinRPM !== null) {
                 filtered = filtered.filter(r => (r[speedCol] || 0) >= activeMinRPM);
@@ -7365,6 +7426,7 @@ export const Dashboard = () => {
                 if (outPicker) outPicker.value = '#090d16';
                 const inPicker = document.getElementById('bg-inside-picker');
                 if (inPicker) inPicker.value = '#0f172a';
+                setIsDark(true);
             } else {
                 document.documentElement.style.setProperty('--bg-color', '#f8fafc');
                 document.documentElement.style.setProperty('--card-color', '#ffffff');
@@ -7379,6 +7441,7 @@ export const Dashboard = () => {
                 if (outPicker) outPicker.value = '#f8fafc';
                 const inPicker = document.getElementById('bg-inside-picker');
                 if (inPicker) inPicker.value = '#ffffff';
+                setIsDark(false);
             }
             renderGrid();
         }
@@ -7604,6 +7667,8 @@ export const Dashboard = () => {
 
         window.setLayout = setLayout;
         window.toggleTimeSync = toggleTimeSync;
+        window.zoomSlotPlotIn = zoomSlotPlotIn;
+        window.zoomSlotPlotOut = zoomSlotPlotOut;
         window.toggleTimelineBar = () => {
             const bar = document.getElementById('global-timeline-bar');
             const btn = document.getElementById('btn-toggle-timeline');
@@ -8091,6 +8156,8 @@ export const Dashboard = () => {
         delete window.populateSlowRollDropdown;
         delete window.setLayout;
         delete window.toggleTimeSync;
+        delete window.zoomSlotPlotIn;
+        delete window.zoomSlotPlotOut;
         delete window.toggleTimelineBar;
         delete window.prevGridPage;
         delete window.nextGridPage;
@@ -8301,7 +8368,7 @@ export const Dashboard = () => {
                             width: '26px',
                             height: '26px',
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
+                            background: isDark ? 'var(--border-color)' : 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
@@ -8367,6 +8434,12 @@ export const Dashboard = () => {
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                     </button>
+                    <button className="activity-btn" id="act-btn-pricing" type="button" onClick={() => navigate('/subscription')} title="Pricing & Subscription" style={{ color: '#0284c7' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </button>
                 </div>
                 
                 {/* Bottom Collapse Chevron Toggle */}
@@ -8404,7 +8477,7 @@ export const Dashboard = () => {
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '50%',
-                                background: 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
+                                background: isDark ? 'var(--border-color)' : 'linear-gradient(135deg, var(--accent-color) 0%, #1d4ed8 100%)',
                                 color: '#ffffff',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -8797,7 +8870,20 @@ export const Dashboard = () => {
                         </div>
                     </div>
                     {/* Tab Content: AI Diagnostics & Reports */}
-                    <div className="tab-content" id="tab-content-diagnostics" style={{padding: "0px"}}>
+                    <div 
+                        className="tab-content" 
+                        id="tab-content-diagnostics" 
+                        style={{
+                            padding: "0px",
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            msUserSelect: 'none',
+                            MozUserSelect: 'none'
+                        }}
+                        onCopy={(e) => { e.preventDefault(); alert('Copying diagnostics reports is disabled under your current tier.'); }}
+                        onCut={(e) => { e.preventDefault(); }}
+                        onContextMenu={(e) => { e.preventDefault(); }}
+                    >
                         <div style={{padding: "15px", color: "var(--text-muted)", fontSize: "0.8rem", textAlign: "center"}}>
                             No dataset loaded. Upload or select a CSV dataset to execute AI diagnostics.
                         </div>
@@ -9029,7 +9115,6 @@ export const Dashboard = () => {
 
                 {/* Plot populator icons */}
                 <button className="toolbar-btn" type="button" 
-                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('trend')}
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('trend')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
@@ -9037,7 +9122,6 @@ export const Dashboard = () => {
                     <span className="tooltip">Trend Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
-                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('polar')}
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('polar')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -9049,7 +9133,6 @@ export const Dashboard = () => {
                     <span className="tooltip">1X Polar Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
-                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('bode2d')}
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('bode2d')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 3v18h18"></path>
@@ -9061,7 +9144,6 @@ export const Dashboard = () => {
                     <span className="tooltip">Bode Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
-                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('centerline')}
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('centerline')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" strokeDasharray="3,3"></circle>
@@ -9071,7 +9153,6 @@ export const Dashboard = () => {
                     <span className="tooltip">Shaft Centerline</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
-                        onMouseEnter={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="3" y1="20" x2="3" y2="4"></line>

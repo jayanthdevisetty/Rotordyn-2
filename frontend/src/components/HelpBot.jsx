@@ -718,7 +718,8 @@ export const HelpBot = ({ mode = 'floating' }) => {
                                     fontSize: '0.7rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
-                                    transition: 'all 0.15s ease'
+                                    transition: 'all 0.15s ease',
+                                    flexShrink: 0
                                 }}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.borderColor = '#2563eb';

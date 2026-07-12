@@ -28,6 +28,25 @@ export const Auth = () => {
     const [regPurpose, setRegPurpose] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const getPasswordStrength = (pass) => {
+        if (!pass) return { label: '', color: '', width: '0%' };
+        let score = 0;
+        if (pass.length >= 6) score++;
+        if (pass.length >= 8) score++;
+        if (/[A-Z]/.test(pass)) score++;
+        if (/[a-z]/.test(pass)) score++;
+        if (/[0-9]/.test(pass)) score++;
+        if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+        if (score <= 2) {
+            return { label: 'Weak', color: '#ef4444', width: '33%' };
+        } else if (score <= 4) {
+            return { label: 'Medium', color: '#f59e0b', width: '66%' };
+        } else {
+            return { label: 'Strong', color: '#10b981', width: '100%' };
+        }
+    };
+
     // Terms & Conditions state
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -261,6 +280,20 @@ export const Auth = () => {
                                 value={regPassword}
                                 onChange={(e) => setRegPassword(e.target.value)}
                             />
+                            {regPassword && (() => {
+                                const strength = getPasswordStrength(regPassword);
+                                return (
+                                    <div style={{ marginTop: '6px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Password Strength:</span>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: strength.color }}>{strength.label}</span>
+                                        </div>
+                                        <div style={{ width: '100%', height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                            <div style={{ width: strength.width, height: '100%', backgroundColor: strength.color, transition: 'all 0.3s' }} />
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="form-group">
