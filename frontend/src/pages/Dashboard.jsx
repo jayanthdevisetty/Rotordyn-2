@@ -8716,18 +8716,7 @@ export const Dashboard = () => {
                     {/* Tab Content: Data Source */}
                     <div className="tab-content" id="tab-content-data" style={{padding: "15px"}}>
                         <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "12px"}}>Active Dataset</h4>
-                        <div style={{
-                            background: 'rgba(245, 158, 11, 0.08)',
-                            border: '1px solid rgba(245, 158, 11, 0.2)',
-                            borderRadius: '6px',
-                            padding: '8px 10px',
-                            marginBottom: '15px',
-                            fontSize: '0.7rem',
-                            color: '#fbbf24',
-                            lineHeight: '1.4'
-                        }}>
-                            <FiAlertTriangle style={{ verticalAlign: 'middle', marginRight: '5px' }} /> <b>MVP Storage Notice:</b> Uploads are cached locally on this Render node. Re-deployments will reset active datasets. Use S3 or Supabase Storage for persistent production releases.
-                        </div>
+
                         <div className="sidebar-file-section" style={{padding: 0, border: "none", marginBottom: "15px"}}>
                             <div style={{fontSize: "0.75rem", color: "var(--text-color)", marginBottom: "8px", fontWeight: 500, wordBreak: "break-all"}} id="sidebar-active-filename">
                                 output/merged_machine_data.csv

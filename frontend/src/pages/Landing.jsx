@@ -186,24 +186,7 @@ export const Landing = () => {
                 position: 'relative',
                 zIndex: 10
             }}>
-                <div className="badge-pulse" style={{
-                    background: '#f1f5f9',
-                    color: '#2563eb',
-                    padding: '8px 18px',
-                    borderRadius: '50px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    marginBottom: '28px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1.5px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: 'inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff'
-                }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb', display: 'inline-block' }}></span>
-                    Phase II Automated Diagnostics
-                </div>
+
                 
                 <h1 style={{
                     fontFamily: "'Outfit', sans-serif",
