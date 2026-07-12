@@ -8,10 +8,9 @@ import { HelpBot } from '../components/HelpBot';
 export const Landing = () => {
     const { token, user, loading } = useAuth();
     const navigate = useNavigate();
-    const [showIntro, setShowIntro] = useState(!localStorage.getItem('token') && !localStorage.getItem('hasWatchedIntro'));
+    const [showIntro, setShowIntro] = useState(false);
 
     const dismissIntro = () => {
-        localStorage.setItem('hasWatchedIntro', 'true');
         setShowIntro(false);
     };
 
