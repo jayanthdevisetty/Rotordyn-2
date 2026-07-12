@@ -191,7 +191,7 @@ export const Subscription = () => {
                         </ul>
                         {isGuest ? (
                             <button 
-                                onClick={() => navigate('/auth')}
+                                onClick={() => navigate('/auth?redirect=/subscription')}
                                 className="neu-button" 
                                 style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}
                             >
@@ -236,7 +236,7 @@ export const Subscription = () => {
                             </button>
                         ) : isGuest ? (
                             <button 
-                                onClick={() => navigate('/auth')}
+                                onClick={() => navigate('/auth?redirect=/subscription')}
                                 className="neu-button" 
                                 style={{ width: '100%', padding: '12px', fontSize: '0.85rem', background: '#2563eb', color: 'white', border: 'none', boxShadow: '5px 5px 12px #cbd5e1, -5px -5px 12px #ffffff, 0 4px 12px rgba(37, 99, 235, 0.15)', cursor: 'pointer' }}
                             >

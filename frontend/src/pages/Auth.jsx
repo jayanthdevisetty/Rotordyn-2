@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiArrowLeft } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
@@ -7,6 +7,7 @@ import { supabase } from '../supabaseClient';
 export const Auth = () => {
     const { user, token, login, register, saveToken } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // UI state
     const [isRightActive, setIsRightActive] = useState(false);
@@ -71,15 +72,23 @@ export const Auth = () => {
     React.useEffect(() => {
         if (token && user) {
             console.log("Auth Page Redirect Effect: Token and User are present.", { email: user.email, role: user.role, status: user.status });
+            
+            const queryParams = new URLSearchParams(location.search);
+            const redirectUrl = queryParams.get('redirect');
+
             if (user.role === 'admin') {
                 navigate('/admin');
             } else if (user.status === 'approved') {
-                navigate('/dashboard');
+                if (redirectUrl) {
+                    navigate(redirectUrl);
+                } else {
+                    navigate('/dashboard');
+                }
             } else {
                 navigate(`/pending?status=${user.status}`);
             }
         }
-    }, [token, user, navigate]);
+    }, [token, user, navigate, location.search]);
 
     const openModal = (e, type) => {
         e.preventDefault();
