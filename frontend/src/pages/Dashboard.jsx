@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut, FiCopy } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 import { HelpBot } from '../components/HelpBot';
 
@@ -8062,19 +8062,6 @@ export const Dashboard = () => {
             }
         };
         
-        window.copyReportToClipboard = () => {
-            const body = document.getElementById('report-modal-body');
-            if (body) {
-                navigator.clipboard.writeText(body.innerText)
-                    .then(() => {
-                        alert("Report text copied to clipboard successfully!");
-                    })
-                    .catch((err) => {
-                        console.error("Failed to copy report:", err);
-                        alert("Failed to copy report to clipboard.");
-                    });
-            }
-        };
 
         window.printReport = () => {
             if (user && user.subscription_status !== 'premium') {
@@ -8251,7 +8238,6 @@ export const Dashboard = () => {
             delete window.handleGenerateReport;
             delete window.printReport;
             delete window.exportDocxReport;
-            delete window.copyReportToClipboard;
             
         // Cleanup window bindings on unmount
         delete window.selectActivityTab;
@@ -9351,9 +9337,6 @@ export const Dashboard = () => {
                 <div style={{padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "var(--card-color)"}}>
                     <h3 style={{margin: 0, fontFamily: "'Outfit'", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-color)"}}>AI Diagnostics & Maintenance Report</h3>
                     <div style={{display: "flex", gap: "10px"}}>
-                        <button className="neu-button" onClick={() => window.copyReportToClipboard && window.copyReportToClipboard()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
-                            <FiCopy /> Copy Text
-                        </button>
                         <button className="neu-button" onClick={() => window.printReport && window.printReport()} style={{padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer"}}>
                             <FiPrinter /> Print / Save PDF
                         </button>
@@ -9366,7 +9349,31 @@ export const Dashboard = () => {
                     </div>
                 </div>
                 {/* Modal Content */}
-                <div id="report-modal-body" className="report-print-area" style={{padding: "24px 30px", overflowY: "auto", flexGrow: 1, color: "var(--text-color)", fontSize: "0.9rem", lineHeight: "1.6", fontFamily: "system-ui, -apple-system, sans-serif"}}>
+                <div 
+                    id="report-modal-body" 
+                    className="report-print-area" 
+                    onCopy={(e) => { e.preventDefault(); alert("Copying report content is disabled under the Starter Plan. Please download the PDF or Word report."); }}
+                    onCut={(e) => { e.preventDefault(); }}
+                    onContextMenu={(e) => { e.preventDefault(); }}
+                    onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'a')) {
+                            e.preventDefault();
+                        }
+                    }}
+                    style={{
+                        padding: "24px 30px", 
+                        overflowY: "auto", 
+                        flexGrow: 1, 
+                        color: "var(--text-color)", 
+                        fontSize: "0.9rem", 
+                        lineHeight: "1.6", 
+                        fontFamily: "system-ui, -apple-system, sans-serif",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        msUserSelect: "none",
+                        MozUserSelect: "none"
+                    }}
+                >
                     {/* Content loaded dynamically */}
                 </div>
             </div>
