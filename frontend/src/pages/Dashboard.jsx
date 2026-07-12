@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
@@ -15,6 +15,15 @@ export const Dashboard = () => {
     const [scriptsLoadingError, setScriptsLoadingError] = useState('');
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isDark, setIsDark] = useState(document.documentElement.style.getPropertyValue('--paper-bg-color').trim() === '#0f172a');
+    const [currentLayoutState, setCurrentLayoutState] = useState(() => {
+        try {
+            const saved = localStorage.getItem('rotordyn_custom_layout');
+            return saved || '2V';
+        } catch (e) {
+            return '2V';
+        }
+    });
+    const currentLayoutRef = useRef('2V');
 
     // Hook 1: Dynamic Parallel Script Loader
     useEffect(() => {
@@ -619,15 +628,8 @@ export const Dashboard = () => {
         }
 
         let activeSlotIndex = 0; 
-        let currentLayout = '2V'; 
-        try {
-            const savedLayout = localStorage.getItem('rotordyn_custom_layout');
-            if (savedLayout) {
-                currentLayout = savedLayout;
-            }
-        } catch (e) {
-            console.warn("Failed to load saved grid layout:", e);
-        } 
+        currentLayoutRef.current = currentLayoutState;
+        let currentLayout = currentLayoutRef.current;
         let currentGridPage = 0; 
         let customizeLayoutMode = false; 
         let timeSyncCursor = true; 
@@ -2538,7 +2540,9 @@ export const Dashboard = () => {
                             }
                         ];
                         activeSlotIndex = 0;
+                        currentLayoutRef.current = '2V';
                         currentLayout = '2V';
+                        setCurrentLayoutState('2V');
                         currentGridPage = 0;
 
                         if (timelineIntervalId) {
@@ -2561,6 +2565,7 @@ export const Dashboard = () => {
                         updateSavedSlowRollList();
 
                         renderGrid();
+                        saveWorkspaceConfig();
                         showLoader(false);
                         
                         // Run AI critical speed detection and malfunction auto-diagnostics
@@ -3523,6 +3528,21 @@ export const Dashboard = () => {
             }
             if (!targetBc) return; // No dataset loaded yet
             
+            // Auto-correct channel/bearing compatibility for toolbar plot selection
+            const singleChannelCategories = ['polar', 'bode2d', 'bode3d', 'spectrum', 'cascade'];
+            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
+            
+            if (singleChannelCategories.includes(category) && bearingPairs.includes(targetBc)) {
+                // Auto-target the X-channel of the bearing pair (e.g., BRG1 -> BRG1X)
+                targetBc = targetBc + 'X';
+            } else if (bearingPairCategories.includes(category) && !bearingPairs.includes(targetBc)) {
+                // Auto-target the bearing pair itself (e.g., BRG1X -> BRG1)
+                const match = bearingPairs.find(bp => targetBc.startsWith(bp));
+                if (match) {
+                    targetBc = match;
+                }
+            }
+            
             if (category === 'centerline' && !bearingPairs.includes(targetBc)) {
                 const match = bearingPairs.find(bp => targetBc.startsWith(bp));
                 if (match) {
@@ -4205,7 +4225,9 @@ export const Dashboard = () => {
 
         // Layout selection buttons
         function setLayout(layout) {
+            currentLayoutRef.current = layout;
             currentLayout = layout;
+            setCurrentLayoutState(layout);
             
             document.querySelectorAll('.toolbar-btn').forEach(btn => {
                 if (btn.id !== 'btn-time-sync') btn.classList.remove('active');
@@ -4296,7 +4318,7 @@ export const Dashboard = () => {
         function saveWorkspaceConfig() {
             try {
                 localStorage.setItem('rotordyn_custom_slots', JSON.stringify(plotSlots));
-                localStorage.setItem('rotordyn_custom_layout', currentLayout);
+                localStorage.setItem('rotordyn_custom_layout', currentLayoutRef.current);
             } catch (err) {
                 console.error("Failed to save workspace config:", err);
             }
@@ -9171,27 +9193,27 @@ export const Dashboard = () => {
             
             {/* Right-side Toolbar (Extensible Layout & Cursor controls) */}
             <div className="right-toolbar">
-                <button className="toolbar-btn active" id="btn-layout-1" type="button" onClick={() => window.setLayout && window.setLayout('1')}>
+                <button className={`toolbar-btn ${currentLayoutState === '1' ? 'active' : ''}`} id="btn-layout-1" type="button" onClick={() => window.setLayout && window.setLayout('1')}>
                     1
                     <span className="tooltip">1 Plot</span>
                 </button>
-                <button className="toolbar-btn" id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
+                <button className={`toolbar-btn ${currentLayoutState === '2V' ? 'active' : ''}`} id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
                     2V
                     <span className="tooltip">2 Plots Vertical</span>
                 </button>
-                <button className="toolbar-btn" id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
+                <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
                     2H
                     <span className="tooltip">2 Plots Horizontal</span>
                 </button>
-                <button className="toolbar-btn" id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
+                <button className={`toolbar-btn ${currentLayoutState === '4' ? 'active' : ''}`} id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
                     4
                     <span className="tooltip">4 Plots (2x2)</span>
                 </button>
-                <button className="toolbar-btn" id="btn-layout-6" type="button" onClick={() => window.setLayout && window.setLayout('6')}>
+                <button className={`toolbar-btn ${currentLayoutState === '6' ? 'active' : ''}`} id="btn-layout-6" type="button" onClick={() => window.setLayout && window.setLayout('6')}>
                     6
                     <span className="tooltip">6 Plots (3x2)</span>
                 </button>
-                <button className="toolbar-btn" id="btn-layout-8" type="button" onClick={() => window.setLayout && window.setLayout('8')}>
+                <button className={`toolbar-btn ${currentLayoutState === '8' ? 'active' : ''}`} id="btn-layout-8" type="button" onClick={() => window.setLayout && window.setLayout('8')}>
                     8
                     <span className="tooltip">8 Plots (4x2)</span>
                 </button>
