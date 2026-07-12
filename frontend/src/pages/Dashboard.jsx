@@ -22,7 +22,7 @@ export const Dashboard = () => {
             '/jszip.min.js',
             '/xlsx.full.min.js',
             '/plotly-2.32.0.min.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+            '/three.min.js'
         ];
 
         let active = true;
@@ -32,30 +32,48 @@ export const Dashboard = () => {
                 // 1. Load primary scripts in parallel
                 await Promise.all(primaryScripts.map(src => {
                     return new Promise((resolve, reject) => {
-                        if (document.querySelector('script[src="' + src + '"]')) {
-                            resolve();
+                        const existingScript = document.querySelector('script[src="' + src + '"]');
+                        if (existingScript) {
+                            if (existingScript.dataset.loaded === 'true') {
+                                resolve();
+                            } else {
+                                existingScript.addEventListener('load', () => resolve());
+                                existingScript.addEventListener('error', (e) => reject(e));
+                            }
                             return;
                         }
                         const script = document.createElement('script');
                         script.src = src;
                         script.async = true;
-                        script.onload = () => resolve();
+                        script.onload = () => {
+                            script.dataset.loaded = 'true';
+                            resolve();
+                        };
                         script.onerror = () => reject(new Error('Failed to load script: ' + src));
                         document.head.appendChild(script);
                     });
                 }));
 
                 // 2. Load OrbitControls sequentially after THREE is globally defined
-                const controlsSrc = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
+                const controlsSrc = '/OrbitControls.js';
                 await new Promise((resolve, reject) => {
-                    if (document.querySelector('script[src="' + controlsSrc + '"]')) {
-                        resolve();
+                    const existingScript = document.querySelector('script[src="' + controlsSrc + '"]');
+                    if (existingScript) {
+                        if (existingScript.dataset.loaded === 'true') {
+                            resolve();
+                        } else {
+                            existingScript.addEventListener('load', () => resolve());
+                            existingScript.addEventListener('error', (e) => reject(e));
+                        }
                         return;
                     }
                     const script = document.createElement('script');
                     script.src = controlsSrc;
-                    script.async = true;
-                    script.onload = () => resolve();
+                    script.async = false; // Run synchronously in main thread to ensure THREE is mapped first
+                    script.onload = () => {
+                        script.dataset.loaded = 'true';
+                        resolve();
+                    };
                     script.onerror = () => reject(new Error('Failed to load OrbitControls: ' + controlsSrc));
                     document.head.appendChild(script);
                 });
@@ -4087,7 +4105,7 @@ export const Dashboard = () => {
             const items = [
                 { label: 'Time', val: ts },
                 { label: 'Machine Speed', val: `${rpm.toFixed(0)} RPM` },
-                { label: 'State', val: row['state'].toUpperCase() }
+                { label: 'State', val: (row['state'] || '-').toUpperCase() }
             ];
             
             if (anomalyDetected) {
@@ -4627,26 +4645,35 @@ export const Dashboard = () => {
                 yaxis: { gridcolor: gridColor, linecolor: gridColor, zerolinecolor: gridColor }
             };
             
+            const clonedLayout = {
+                ...baseLayout,
+                font: { ...baseLayout.font },
+                margin: { ...baseLayout.margin },
+                legend: { ...baseLayout.legend },
+                xaxis: { ...baseLayout.xaxis },
+                yaxis: { ...baseLayout.yaxis }
+            };
+            
             if (category === 'trend') {
-                renderTrendPlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderTrendPlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'polar') {
-                renderPolarPlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderPolarPlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'bode2d') {
-                renderBode2DInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderBode2DInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'bode3d') {
-                renderBode3DInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderBode3DInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'centerline') {
-                renderCenterlineInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderCenterlineInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'centerline_orbit') {
-                renderCenterlineOrbitInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderCenterlineOrbitInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'orbit') {
-                renderOrbitInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderOrbitInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'mode_shape') {
-                renderModeShapeInSlot(slotIdx, container, filteredDf, baseLayout, limits);
+                renderModeShapeInSlot(slotIdx, container, filteredDf, clonedLayout, limits);
             } else if (category === 'spectrum') {
-                renderSpectrumInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderSpectrumInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             } else if (category === 'cascade') {
-                renderCascadePlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, baseLayout, limits);
+                renderCascadePlotInSlot(slotIdx, container, bearingOrChannel, filteredDf, clonedLayout, limits);
             }
         }
 
@@ -6193,7 +6220,13 @@ export const Dashboard = () => {
             if (!cols.amp_1x || !cols.phase_1x) {
                 throw new Error("2D Bode Plot requires Amplitude and Phase columns.");
             }
+            console.log("renderBode2DInSlot DEBUG: ch=" + ch + " cols.amp_1x=" + cols.amp_1x + " cols.phase_1x=" + cols.phase_1x + " speedCol=" + speedCol + " filteredDf.length=" + filteredDf.length);
+            if (filteredDf.length > 0) {
+                const firstRow = filteredDf[0];
+                console.log("renderBode2DInSlot DEBUG values: amp_1x=" + firstRow[cols.amp_1x] + " (type " + typeof firstRow[cols.amp_1x] + "), phase_1x=" + firstRow[cols.phase_1x] + " (type " + typeof firstRow[cols.phase_1x] + "), speedCol=" + firstRow[speedCol] + " (type " + typeof firstRow[speedCol] + ")");
+            }
             const clean_df = filteredDf.filter(r => isNumber(r[cols.amp_1x]) && isNumber(r[cols.phase_1x]) && isNumber(r[speedCol])).sort((a,b) => a._time_ms - b._time_ms);
+            console.log("renderBode2DInSlot DEBUG final clean_df.length=" + clean_df.length);
             if (checkEmptyData(container, clean_df)) return;
             
             const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
