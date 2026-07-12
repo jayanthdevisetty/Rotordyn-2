@@ -12,8 +12,14 @@ export const OAuthCallback = ({ provider }) => {
         // 1. If already logged in, redirect immediately based on status
         if (token && user) {
             console.log("OAuthCallback: Session active, redirecting to appropriate workspace.");
+            const redirectUrl = localStorage.getItem('auth_redirect_target');
             if (user.status === 'approved') {
-                navigate('/dashboard');
+                if (redirectUrl) {
+                    localStorage.removeItem('auth_redirect_target');
+                    navigate(redirectUrl);
+                } else {
+                    navigate('/dashboard');
+                }
             } else {
                 navigate('/pending');
             }
@@ -63,8 +69,14 @@ export const OAuthCallback = ({ provider }) => {
                 saveToken(data.access_token, profile);
 
                 // Redirect based on user approval status
+                const redirectUrl = localStorage.getItem('auth_redirect_target');
                 if (profile.status === 'approved') {
-                    navigate('/dashboard');
+                    if (redirectUrl) {
+                        localStorage.removeItem('auth_redirect_target');
+                        navigate(redirectUrl);
+                    } else {
+                        navigate('/dashboard');
+                    }
                 } else {
                     navigate('/pending');
                 }

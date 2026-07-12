@@ -52,7 +52,14 @@ function App() {
         />
 
         {/* Billing & Subscription Page */}
-        <Route path="/subscription" element={<Subscription />} />
+        <Route 
+          path="/subscription" 
+          element={
+            <ProtectedRoute requireAdmin={false}>
+              <Subscription />
+            </ProtectedRoute>
+          } 
+        />
 
         {/* Protected Admin Portal */}
         <Route 

@@ -7960,6 +7960,12 @@ export const Dashboard = () => {
             if (modal && body) {
                 body.innerHTML = '<div style="color: var(--text-muted); font-style: italic; font-weight: 500;" id="stream-loading-msg">Connecting to Gemini AI server and generating analysis...</div>';
                 modal.style.display = "flex";
+                
+                // Show print and docx buttons in modal header by default
+                const printBtn = document.querySelector('#report-modal button[onclick*="printReport"]');
+                const docxBtn = document.getElementById("btn-export-docx");
+                if (printBtn) printBtn.style.display = "inline-flex";
+                if (docxBtn) docxBtn.style.display = "inline-flex";
             }
             
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
@@ -7985,11 +7991,33 @@ export const Dashboard = () => {
                 
                 if (!response.ok) {
                     const errText = await response.text();
-                    // Intercept free-tier limit exhaustions to show the pricing upgrade modal immediately
+                    // Intercept free-tier limit exhaustions to show the pricing upgrade notice directly in the report modal
                     if (response.status === 403 || errText.includes("limit") || errText.includes("exhausted")) {
-                        const reportModal = document.getElementById("report-modal");
-                        if (reportModal) reportModal.style.display = "none";
-                        setShowUpgradeModal(true);
+                        // Hide print/docx buttons in modal header
+                        const printBtn = document.querySelector('#report-modal button[onclick*="printReport"]');
+                        const docxBtn = document.getElementById("btn-export-docx");
+                        if (printBtn) printBtn.style.display = "none";
+                        if (docxBtn) docxBtn.style.display = "none";
+
+                        if (body) {
+                            body.innerHTML = `
+                                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 50px 20px; text-align:center; height: 100%; color: var(--text-color); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    <div style="font-size: 3.5rem; color: #ef4444; margin-bottom: 20px;">🔒</div>
+                                    <h2 style="font-family: 'Outfit'; font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; color: var(--text-color);">Free Plan Completed</h2>
+                                    <p style="font-size: 0.95rem; color: var(--text-muted); max-width: 480px; line-height: 1.6; margin-bottom: 30px;">
+                                        Your free plan is completed (3 free generations). Update for more generations.
+                                    </p>
+                                    <div style="display:flex; gap: 15px; justify-content:center;">
+                                        <button onclick="window.location.href='/subscription'" style="padding: 12px 24px; font-size: 0.9rem; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
+                                            Go to Subscription Page
+                                        </button>
+                                        <button onclick="document.getElementById('report-modal').style.display='none';" style="padding: 12px 24px; font-size: 0.9rem; font-weight: 600; background: var(--paper-bg-color, #f1f5f9); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }
                         return;
                     }
                     throw new Error(`Report generation failed: ${errText}`);

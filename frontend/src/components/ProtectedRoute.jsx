@@ -1,9 +1,10 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const ProtectedRoute = ({ children, requireAdmin = false }) => {
     const { user, token, loading } = useAuth();
+    const location = useLocation();
 
     console.log("ProtectedRoute: Render. token:", token ? token.substring(0, 15) + "..." : "null", "user:", user ? { email: user.email, role: user.role, status: user.status } : "null", "loading:", loading);
 
@@ -45,6 +46,9 @@ export const ProtectedRoute = ({ children, requireAdmin = false }) => {
     // Guest redirection
     if (!token || !user) {
         console.warn("ProtectedRoute: Redirecting to auth page because token or user is missing. token:", !!token, "user:", !!user);
+        if (!requireAdmin && location.pathname !== '/auth' && location.pathname !== '/') {
+            localStorage.setItem('auth_redirect_target', location.pathname);
+        }
         return <Navigate to={requireAdmin ? "/admin-login" : "/auth"} replace />;
     }
 

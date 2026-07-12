@@ -74,8 +74,14 @@ export const Auth = () => {
             console.log("Auth Page Redirect Effect: Token and User are present.", { email: user.email, role: user.role, status: user.status });
             
             const queryParams = new URLSearchParams(location.search);
-            const redirectUrl = queryParams.get('redirect');
+            let redirectUrl = queryParams.get('redirect');
 
+            const savedRedirect = localStorage.getItem('auth_redirect_target');
+            if (!redirectUrl && savedRedirect) {
+                redirectUrl = savedRedirect;
+                localStorage.removeItem('auth_redirect_target');
+            }
+            
             if (user.role === 'admin') {
                 navigate('/admin');
             } else if (user.status === 'approved') {
