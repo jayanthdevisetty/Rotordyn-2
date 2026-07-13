@@ -161,6 +161,14 @@ export const HelpBot = ({ mode = 'floating' }) => {
         };
     }, []);
 
+    useEffect(() => {
+        return () => {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
+
     const toggleVoicePlayback = () => {
         const nextVal = !voiceEnabled;
         setVoiceEnabled(nextVal);
@@ -190,7 +198,10 @@ export const HelpBot = ({ mode = 'floating' }) => {
             utterance.rate = 1.0;
             utterance.pitch = 1.05;
             
-            window.speechSynthesis.speak(utterance);
+            // Use small timeout to guarantee cancel completes before speaking again (fixes Blink/Chrome speech glitch)
+            setTimeout(() => {
+                window.speechSynthesis.speak(utterance);
+            }, 50);
         } catch (e) {
             console.error("Speech Synthesis failed:", e);
         }
@@ -755,7 +766,12 @@ export const HelpBot = ({ mode = 'floating' }) => {
                                     {voiceEnabled ? <FiVolume2 size={16} /> : <FiVolumeX size={16} />}
                                 </button>
                                 <button
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        if (window.speechSynthesis) {
+                                            window.speechSynthesis.cancel();
+                                        }
+                                    }}
                                     style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
                                 >
                                     <FiX />

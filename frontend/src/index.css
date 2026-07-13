@@ -2180,7 +2180,8 @@ input:focus, textarea:focus {
 .interactive-card-wrapper {
     perspective: 1000px;
     width: 100%;
-    margin-bottom: 24px;
+    max-width: 340px;
+    margin: 0 auto 24px auto;
 }
 
 .interactive-card {

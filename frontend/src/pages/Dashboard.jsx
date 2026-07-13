@@ -3,7 +3,6 @@ import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
-import { HelpBot } from '../components/HelpBot';
 
 
 
@@ -257,7 +256,7 @@ export const Dashboard = () => {
             isDrawerOpen = true;
             
             // Highlight selected button, show tab content
-            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
+            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -275,8 +274,7 @@ export const Dashboard = () => {
                 filters: 'Timeline & RPM Filters',
                 styles: 'Styles & Formatting',
                 diagnostics: 'AI Diagnostics Report',
-                team: 'Team & Workspace',
-                helpbot: 'RoDy Co-pilot'
+                team: 'Team & Workspace'
             };
             document.getElementById('drawer-title').innerText = titleMap[tabName] || '';
             
@@ -311,7 +309,7 @@ export const Dashboard = () => {
             isDrawerOpen = false;
             
             // Unhighlight all buttons
-            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team', 'helpbot'];
+            const tabs = ['profile', 'data', 'tree', 'filters', 'styles', 'diagnostics', 'team'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`act-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
@@ -8622,11 +8620,6 @@ export const Dashboard = () => {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                     </button>
-                    <button className="activity-btn" id="act-btn-helpbot" type="button" onClick={() => window.selectActivityTab && window.selectActivityTab('helpbot')} title="RoDy Assistant">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                        </svg>
-                    </button>
                     <button className="activity-btn" id="act-btn-pricing" type="button" onClick={() => navigate('/subscription')} title="Pricing & Subscription" style={{ color: '#0284c7' }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -9145,10 +9138,6 @@ export const Dashboard = () => {
                                 Send Invitation
                             </button>
                         </div>
-                    </div>
-                    {/* Tab Content: RoDy Assistant */}
-                    <div className="tab-content" id="tab-content-helpbot" style={{padding: "0px"}}>
-                        <HelpBot mode="tab" />
                     </div>
                 </div>
             </div>
