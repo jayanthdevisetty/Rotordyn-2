@@ -1735,23 +1735,52 @@ input:focus, textarea:focus {
     .timeline-player-bar {
         padding: 10px !important;
     }
+
+    /* Responsive Overlay Sidebar Layout */
+    #main-container {
+        position: relative !important;
+    }
+
+    .sidebar {
+        position: absolute !important;
+        left: 0;
+        top: 0;
+        z-index: 1005;
+        height: 100% !important;
+        width: var(--sidebar-width) !important;
+        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.25);
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease !important;
+    }
+
+    /* Hide sidebar shadow when collapsed to keep layout clean */
+    .sidebar[style*="--sidebar-width: 60px"],
+    #main-container[style*="--sidebar-width: 60px"] .sidebar {
+        box-shadow: none !important;
+    }
+
+    /* Shift the main content area by 60px to make room for collapsed sidebar activity bar */
+    .main-view {
+        margin-left: 60px !important;
+        width: calc(100% - 60px) !important;
+        flex-grow: 1 !important;
+    }
+
+    /* Keep drawer panel full height and visible when active inside absolute sidebar */
+    .drawer-panel {
+        display: flex !important;
+        width: 260px !important;
+        height: 100% !important;
+    }
 }
 
 /* --- Mobile Devices (Max width: 768px) --- */
 @media (max-width: 768px) {
-    /* Hide the sidebar drawer automatically, leaving only the icons bar */
-    .sidebar {
-        width: 60px !important;
-    }
-    .drawer-panel {
-        display: none !important;
-    }
-    
-    /* Force plot grid into a single scrollable vertical column stack */
+    /* Force plot grid into a single vertical column stack without double scrollbars */
     #plotly-grid {
         grid-template-columns: 1fr !important;
         grid-auto-rows: 280px !important;
-        overflow-y: auto !important;
+        height: auto !important;
+        overflow: visible !important;
     }
     
     .chart-viewport {

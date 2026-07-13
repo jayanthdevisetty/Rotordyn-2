@@ -161,8 +161,10 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
         
         # CSP Header permitting self origins and necessary external asset CDNs
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.googleapis.com ws://*; "
-            "img-src 'self' data: https://*; "
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.googleapis.com https://*.onrender.com ws://* wss://*; "
+            "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com ws://* wss://*; "
+            "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; "
+            "img-src 'self' data: blob: https://*; "
             "media-src 'self' data: https://*;"
         )
         

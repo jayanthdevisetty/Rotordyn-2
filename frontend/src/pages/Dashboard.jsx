@@ -6889,7 +6889,7 @@ export const Dashboard = () => {
         }
 
         function renderOrbitInSlot(slotIdx, container, brg, filteredDf, baseLayout, limits) {
-            const config = plotSlots[slotIdx];
+            const config = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || {};
             const isOrbit = config.category === 'orbit';
             const showTimebase = isOrbit && config.showTimebase !== false;
             const showTrace2 = showTimebase && config.showTrace2 === true;
