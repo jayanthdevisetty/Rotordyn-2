@@ -143,7 +143,8 @@ async def health_check():
     return {
         "status": "healthy" if db_alive else "degraded",
         "database": "connected" if db_alive else "disconnected",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "sentry_enabled": bool(settings.SENTRY_DSN)
     }
 
 @app.get("/health/liveness")
