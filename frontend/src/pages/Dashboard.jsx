@@ -1403,24 +1403,28 @@ export const Dashboard = () => {
                     isDual: false,
                     filename: `${ch}_trend_plot.png`
                 });
-                queue.push({
-                    target: ch,
-                    category: 'polar',
-                    isDual: false,
-                    filename: `${ch}_polar_plot.png`
-                });
-                queue.push({
-                    target: ch,
-                    category: 'bode2d',
-                    isDual: false,
-                    filename: `${ch}_bode2d_plot.png`
-                });
-                queue.push({
-                    target: ch,
-                    category: 'bode3d',
-                    isDual: false,
-                    filename: `${ch}_bode3d_plot.png`
-                });
+                
+                const cols = getChannelColumns(ch);
+                if (cols && cols.amp_1x && cols.phase_1x) {
+                    queue.push({
+                        target: ch,
+                        category: 'polar',
+                        isDual: false,
+                        filename: `${ch}_polar_plot.png`
+                    });
+                    queue.push({
+                        target: ch,
+                        category: 'bode2d',
+                        isDual: false,
+                        filename: `${ch}_bode2d_plot.png`
+                    });
+                    queue.push({
+                        target: ch,
+                        category: 'bode3d',
+                        isDual: false,
+                        filename: `${ch}_bode3d_plot.png`
+                    });
+                }
             });
 
             let savedCount = 0;

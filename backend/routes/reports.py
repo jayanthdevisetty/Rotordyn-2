@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from routes.auth import get_current_approved_user
 from config import settings
-from database import log_audit_action
+from database import log_audit_action, supabase
 from services.task_service import task_queue
 
 router = APIRouter(prefix="/reports", tags=["reports"])

@@ -115,6 +115,18 @@ BUDDY_KNOWLEDGE.forEach(entry => {
     });
 });
 
+const renderMessageText = (text) => {
+    if (!text) return "";
+    const parts = text.split(/\*\*([^*]+)\*\*/g);
+    if (parts.length === 1) return text;
+    return parts.map((part, i) => {
+        if (i % 2 === 1) {
+            return <strong key={i}>{part}</strong>;
+        }
+        return part;
+    });
+};
+
 export const HelpBot = ({ mode = 'floating' }) => {
     const { token, API_BASE_URL } = useAuth();
     const [isOpen, setIsOpen] = useState(mode === 'tab');
@@ -540,7 +552,18 @@ export const HelpBot = ({ mode = 'floating' }) => {
     };
 
     const getBuddyResponse = (query, currentMemory) => {
-        const cleanQuery = query.toLowerCase();
+        const cleanQuery = query.toLowerCase().trim();
+
+        // Intercept simple greetings
+        const greetings = ["hi", "hello", "hey", "greetings", "howdy", "yo", "sup", "good morning", "good afternoon"];
+        const isGreeting = greetings.some(g => cleanQuery === g || cleanQuery.startsWith(g + " ") || cleanQuery.startsWith("hello "));
+        if (isGreeting) {
+            const namePart = currentMemory.userName ? `, ${currentMemory.userName}` : "";
+            return {
+                answer: `Hey there${namePart}! I'm RoDy, your machinery diagnostics co-pilot. How can I help you analyze your rotating machinery today?`,
+                topicKey: ""
+            };
+        }
 
         // Confidentiality checks
         const confidentialKeywords = ["postgres", "password", "secret", "apikey", "jwt", "database connection", "credentials list", "config", "port"];
@@ -778,7 +801,7 @@ export const HelpBot = ({ mode = 'floating' }) => {
                                         border: msg.sender === 'user' ? 'none' : '1px solid #e2e8f0'
                                     }}
                                 >
-                                    {msg.text}
+                                    {renderMessageText(msg.text)}
                                     {msg.isSentryTest && (
                                         <button
                                             onClick={() => {
@@ -854,17 +877,24 @@ export const HelpBot = ({ mode = 'floating' }) => {
                     </div>
 
                     {/* Predefined suggestion list */}
-                    <div style={{
-                        padding: '10px 12px',
-                        borderTop: '1px solid #edf2f7',
-                        backgroundColor: '#f8fafc',
-                        display: 'flex',
-                        gap: '6px',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap',
-                        scrollbarWidth: 'none',
-                        flexShrink: 0
-                    }}>
+                    <div 
+                        onWheel={(e) => {
+                            if (e.deltaY !== 0) {
+                                e.currentTarget.scrollLeft += e.deltaY;
+                            }
+                        }}
+                        style={{
+                            padding: '10px 12px',
+                            borderTop: '1px solid #edf2f7',
+                            backgroundColor: '#f8fafc',
+                            display: 'flex',
+                            gap: '6px',
+                            overflowX: 'auto',
+                            whiteSpace: 'nowrap',
+                            scrollbarWidth: 'none',
+                            flexShrink: 0
+                        }}
+                    >
                         {PREDEFINED_QUESTIONS.map((q, idx) => (
                             <button
                                 key={idx}
