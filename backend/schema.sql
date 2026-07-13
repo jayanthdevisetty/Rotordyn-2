@@ -2,6 +2,12 @@
 -- Target: Supabase Postgres (Public Schema)
 -- Execute this script in the Supabase SQL Editor to synchronize your schema state.
 
+-- 0. Create alembic_version table and seed initial version status
+CREATE TABLE IF NOT EXISTS public.alembic_version (
+    version_num VARCHAR(32) PRIMARY KEY
+);
+INSERT INTO public.alembic_version (version_num) VALUES ('001') ON CONFLICT DO NOTHING;
+
 -- 1. Create audit_logs Table for enterprise logging & compliance
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
