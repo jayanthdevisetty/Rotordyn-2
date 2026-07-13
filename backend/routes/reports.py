@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional, List
 from routes.auth import get_current_approved_user
 from config import settings
 from database import log_audit_action
+from services.task_service import task_queue
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -292,3 +293,99 @@ async def download_docx(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate Word document: {str(e)}"
         )
+
+async def compile_gemini_report_task(payload_dict: dict, user_id: str):
+    """Background worker task compilation handler that calls Gemini API non-blocking."""
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        raise ValueError("Gemini API Key is not configured.")
+        
+    prompt = f"""
+    You are an expert rotating machinery engineer and senior vibration analyst.
+    Please generate a professional turbomachinery engineering maintenance report based on the following diagnostic metadata:
+
+    - Probe Location: {payload_dict.get('bearing_name')}
+    - Primary Diagnosed Issue: {payload_dict.get('primary_diagnosis')}
+    - Diagnostic Confidence Score: {payload_dict.get('confidence_score')}%
+    - Standard Heuristic Recommendations: {payload_dict.get('recommendations')}
+    
+    Identified Critical Speeds (Resonance):
+    {payload_dict.get('critical_speeds')}
+
+    Telemetry and Operation Bounds:
+    {payload_dict.get('telemetry_summary')}
+
+    Please write a comprehensive, highly technical machinery health report.
+    """
+    
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        res = await client.post(url, headers=headers, json=data)
+        if res.status_code != 200:
+            raise Exception(f"Gemini API returned error code {res.status_code}")
+        
+        result_json = res.json()
+        candidates = result_json.get("candidates", [])
+        if not candidates:
+            raise Exception("No text candidates returned from Gemini model response.")
+            
+        text_val = candidates[0]["content"]["parts"][0]["text"]
+        
+        log_audit_action(user_id, "GENERATE_AI_REPORT_BACKGROUND", {
+            "bearing_name": payload_dict.get('bearing_name'),
+            "primary_diagnosis": payload_dict.get('primary_diagnosis')
+        })
+        return text_val
+
+@router.post("/generate_async", status_code=status.HTTP_202_ACCEPTED)
+async def generate_report_async(
+    payload: ReportRequest,
+    current_user: dict = Depends(get_current_approved_user)
+):
+    """Enqueues generative report compilation dynamically using swappable task queue."""
+    sub_status = current_user.get("subscription_status", "free-tier")
+    if sub_status != "premium":
+        gen_count = current_user.get("report_generation_count", 0)
+        if gen_count >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Free-tier report generation limit of 3 reports exhausted. Upgrade to a Premium subscription for unlimited reports."
+            )
+        
+        new_count = gen_count + 1
+        # Update user metadata & profiles count
+        try:
+            supabase.auth.admin.update_user_by_id(
+                current_user["id"],
+                {"user_metadata": {"report_generation_count": new_count}}
+            )
+            supabase.table("profiles").update({"report_generation_count": new_count}).eq("id", current_user["id"]).execute()
+        except Exception:
+            pass
+
+    job_id = await task_queue.enqueue(
+        compile_gemini_report_task,
+        payload.dict(),
+        current_user["id"]
+    )
+    return {"status": "queued", "job_id": job_id}
+
+@router.get("/status/{job_id}")
+async def get_report_job_status(
+    job_id: str,
+    current_user: dict = Depends(get_current_approved_user)
+):
+    """Retrieve state/result of enqueued background report compilation jobs."""
+    status_info = await task_queue.get_status(job_id)
+    if not status_info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job ID not found or expired."
+        )
+    return status_info
+

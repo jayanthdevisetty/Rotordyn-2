@@ -6,12 +6,14 @@ from datetime import datetime, timezone, timedelta
 # Ensure backend directory is in python search path dynamically
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from database import ping_database, supabase, log_audit_action
-from routes import auth, admin, uploads, reports, scada
+from database import ping_database, supabase, log_audit_action, verify_schema_version
+from utils.metrics import metrics_collector
+from routes import auth, admin, uploads, reports, scada, chat, alarms
 from services.email_service import send_pending_approvals_reminder_email
+from middleware import SecurityAndLoggingMiddleware
 
 async def pending_approvals_reminder_loop():
     """Background loop that runs periodically to check and send reminders to the admin about pending registrations."""
@@ -63,6 +65,22 @@ async def pending_approvals_reminder_loop():
         # Poll every 4 hours
         await asyncio.sleep(4 * 3600)
 
+# Initialize Sentry SDK dynamically if SENTRY_DSN is configured
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FastApiIntegration()],
+            traces_sample_rate=1.0,
+            send_default_pii=False,
+        )
+        print("INFO: Sentry monitoring enabled successfully.")
+    except Exception as sentry_err:
+        print(f"WARNING: Could not initialize Sentry SDK: {sentry_err}")
+
 app = FastAPI(
     title="Rotordyn.ai SaaS API",
     description="Backend API for Rotordyn.ai Vibration Analysis SaaS",
@@ -87,10 +105,16 @@ if settings.FRONTEND_URL:
     if frontend_origin not in origins:
         origins.append(frontend_origin)
 
+app.add_middleware(SecurityAndLoggingMiddleware)
+
+# Enforce strict origin matching in production; enable development subnets regex only in dev/test ENV
+is_prod = os.getenv("ENV") == "production"
+allow_regex = None if is_prod else r"(https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+|http://10\.\d+\.\d+\.\d+:\d+|http://192\.168\.\d+\.\d+:\d+|http://172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+)"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"(https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+|http://10\.\d+\.\d+\.\d+:\d+|http://192\.168\.\d+\.\d+:\d+|http://172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+)",
+    allow_origin_regex=allow_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,20 +126,45 @@ app.include_router(admin.router)
 app.include_router(uploads.router)
 app.include_router(reports.router)
 app.include_router(scada.router)
+app.include_router(chat.router)
+app.include_router(alarms.router)
 
 @app.on_event("startup")
 async def startup_event():
+    # Only verify migrations status if not bypassed in settings/testing
+    if os.getenv("BYPASS_SCHEMA_VERIFICATION") != "true":
+        verify_schema_version()
     asyncio.create_task(pending_approvals_reminder_loop())
 
 @app.get("/health")
 async def health_check():
-    """Health check route that also verifies MongoDB connectivity."""
+    """Health check route that also verifies database connectivity."""
     db_alive = await ping_database()
     return {
         "status": "healthy" if db_alive else "degraded",
         "database": "connected" if db_alive else "disconnected",
         "timestamp": datetime.utcnow().isoformat()
     }
+
+@app.get("/health/liveness")
+async def liveness_check():
+    """K8s Liveness check verifying if application is running."""
+    return {"status": "ok"}
+
+@app.get("/health/readiness")
+async def readiness_check(response: Response):
+    """K8s Readiness check verifying active database downstream dependencies."""
+    db_alive = await ping_database()
+    if not db_alive:
+        response.status_code = 503
+        return {"status": "unready", "detail": "PostgreSQL database connection is offline"}
+    return {"status": "ready"}
+
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus-compatible monitoring metrics endpoint."""
+    metrics_data = metrics_collector.get_prometheus_metrics()
+    return Response(content=metrics_data, media_type="text/plain; version=0.0.4")
 
 if __name__ == "__main__":
     import uvicorn

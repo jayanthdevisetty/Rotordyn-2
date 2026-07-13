@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiMessageSquare, FiMic, FiSend, FiX, FiActivity, FiLoader, FiUser, FiHelpCircle } from 'react-icons/fi';
+import { FiMessageSquare, FiMic, FiSend, FiX, FiActivity, FiLoader, FiUser, FiHelpCircle, FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 // Predefined quick questions
 const PREDEFINED_QUESTIONS = [
@@ -114,11 +116,73 @@ BUDDY_KNOWLEDGE.forEach(entry => {
 });
 
 export const HelpBot = ({ mode = 'floating' }) => {
+    const { token, API_BASE_URL } = useAuth();
     const [isOpen, setIsOpen] = useState(mode === 'tab');
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+
+    // Voice playback configurations
+    const [voiceEnabled, setVoiceEnabled] = useState(() => {
+        try {
+            return localStorage.getItem('rody_voice_enabled') === 'true';
+        } catch (e) {
+            return false;
+        }
+    });
+
+    // Sync voices changes in browser speechSynthesis engine
+    useEffect(() => {
+        const handleVoicesChanged = () => {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.getVoices();
+            }
+        };
+        if (window.speechSynthesis) {
+            window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+        }
+        return () => {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            }
+        };
+    }, []);
+
+    const toggleVoicePlayback = () => {
+        const nextVal = !voiceEnabled;
+        setVoiceEnabled(nextVal);
+        localStorage.setItem('rody_voice_enabled', String(nextVal));
+        if (!nextVal && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    };
+
+    const speakText = (text) => {
+        if (!window.speechSynthesis) return;
+        try {
+            window.speechSynthesis.cancel();
+            
+            // Clean markdown syntax before speaking
+            const cleanText = text
+                .replace(/[*_#`~>]/g, '')
+                .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+                
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+                                    voices.find(v => v.lang.startsWith('en'));
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+            utterance.rate = 1.0;
+            utterance.pitch = 1.05;
+            
+            window.speechSynthesis.speak(utterance);
+        } catch (e) {
+            console.error("Speech Synthesis failed:", e);
+        }
+    };
 
     const [tourStep, setTourStep] = useState(() => {
         try {
@@ -355,13 +419,16 @@ export const HelpBot = ({ mode = 'floating' }) => {
         }));
     };
 
-    const handleSend = (textToSend) => {
+    const handleSend = async (textToSend) => {
         const queryText = textToSend || input;
         if (!queryText.trim()) return;
 
         // Save message
         const userMsg = { sender: 'user', text: queryText, timestamp: new Date() };
-        setMessages(prev => [...prev, userMsg]);
+        
+        // Cache messages state array with current message appended
+        const currentMessagesList = [...messages, userMsg];
+        setMessages(currentMessagesList);
         setInput('');
 
         // Update interaction counts and affinity score
@@ -381,7 +448,6 @@ export const HelpBot = ({ mode = 'floating' }) => {
         }
 
         if (nameExtracted) {
-            // Capitalize name
             nameExtracted = nameExtracted.charAt(0).toUpperCase() + nameExtracted.slice(1);
             nextMemory.userName = nameExtracted;
         }
@@ -389,20 +455,75 @@ export const HelpBot = ({ mode = 'floating' }) => {
         setMemory(nextMemory);
         setIsTyping(true);
 
-        setTimeout(() => {
+        // Retrieve fresh token from supabase to avoid session expiration issues
+        let freshToken = token;
+        try {
+            const sessionRes = await supabase.auth.getSession();
+            if (sessionRes.data.session?.access_token) {
+                freshToken = sessionRes.data.session.access_token;
+            }
+        } catch (tokenErr) {
+            console.warn("Could not retrieve fresh token in HelpBot:", tokenErr);
+        }
+
+        const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+        
+        // Build chat history of last 10 messages for conversational context
+        const chatHistory = currentMessagesList
+            .filter(msg => msg.text)
+            .slice(-10)
+            .map(msg => ({
+                role: msg.sender === 'user' ? 'user' : 'assistant',
+                content: msg.text
+            }));
+
+        try {
+            const response = await fetch(`${apiBase}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${freshToken}`
+                },
+                body: JSON.stringify({
+                    message: queryText,
+                    history: chatHistory.slice(0, -1) // slice out the last message which we pass in "message" body field
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Chat API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const replyText = data.reply;
+
+            setMessages(prev => [...prev, { sender: 'bot', text: replyText, timestamp: new Date() }]);
+            
+            // Narrate answer out loud if speaker is unmuted
+            if (voiceEnabled) {
+                speakText(replyText);
+            }
+
+        } catch (chatErr) {
+            console.warn("Co-pilot chat request failed, falling back to local KB:", chatErr);
+            // Local fallback
             let replyText = "";
             let topicKey = "";
             if (nameExtracted) {
                 replyText = `Awesome! I'll remember that, ${nameExtracted}. Nice to partner up! Let me know if you need help uploading telemetry data or managing subscriptions.`;
             } else {
-                const response = getBuddyResponse(queryText, nextMemory);
-                replyText = response.answer;
-                topicKey = response.topicKey;
+                const localResponse = getBuddyResponse(queryText, nextMemory);
+                replyText = localResponse.answer;
+                topicKey = localResponse.topicKey;
             }
 
             setMessages(prev => [...prev, { sender: 'bot', text: replyText, topicKey: topicKey, timestamp: new Date() }]);
+            if (voiceEnabled) {
+                speakText(replyText);
+            }
+        } finally {
             setIsTyping(false);
-        }, 800);
+        }
     };
 
     const getBuddyResponse = (query, currentMemory) => {
@@ -589,12 +710,21 @@ export const HelpBot = ({ mode = 'floating' }) => {
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
-                            >
-                                <FiX />
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <button
+                                    onClick={toggleVoicePlayback}
+                                    style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', padding: '4px', opacity: 0.9 }}
+                                    title={voiceEnabled ? "Mute voice response" : "Unmute voice response"}
+                                >
+                                    {voiceEnabled ? <FiVolume2 size={16} /> : <FiVolumeX size={16} />}
+                                </button>
+                                <button
+                                    onClick={() => setIsOpen(false)}
+                                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex' }}
+                                >
+                                    <FiX />
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -754,23 +884,48 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             flexShrink: 0
                         }}
                     >
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder={isListening ? "Listening..." : "Ask RoDy co-pilot..."}
-                            disabled={isListening}
-                            className="helpbot-input"
-                            style={{
+                        {isListening ? (
+                            <div style={{
                                 flexGrow: 1,
-                                border: '1px solid #cbd5e1',
+                                height: '34px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                backgroundColor: 'rgba(239, 68, 68, 0.05)',
                                 borderRadius: '30px',
-                                padding: '8px 14px',
-                                fontSize: '0.8rem',
-                                outline: 'none',
-                                fontFamily: 'inherit'
-                            }}
-                        />
+                                border: '1px dashed #ef4444'
+                            }}>
+                                <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, marginRight: '6px', fontFamily: 'inherit' }}>Listening</span>
+                                <div style={{ width: '3px', height: '10px', backgroundColor: '#ef4444', borderRadius: '3px', animation: 'waveGrow 0.5s ease-in-out infinite alternate' }}></div>
+                                <div style={{ width: '3px', height: '16px', backgroundColor: '#ef4444', borderRadius: '3px', animation: 'waveGrow 0.5s ease-in-out infinite alternate 0.15s' }}></div>
+                                <div style={{ width: '3px', height: '8px', backgroundColor: '#ef4444', borderRadius: '3px', animation: 'waveGrow 0.5s ease-in-out infinite alternate 0.3s' }}></div>
+                                <div style={{ width: '3px', height: '14px', backgroundColor: '#ef4444', borderRadius: '3px', animation: 'waveGrow 0.5s ease-in-out infinite alternate 0.45s' }}></div>
+                                <style>{`
+                                    @keyframes waveGrow {
+                                        0% { transform: scaleY(0.4); }
+                                        100% { transform: scaleY(1.2); }
+                                    }
+                                `}</style>
+                            </div>
+                        ) : (
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Ask RoDy co-pilot..."
+                                className="helpbot-input"
+                                style={{
+                                    flexGrow: 1,
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '30px',
+                                    padding: '8px 14px',
+                                    fontSize: '0.8rem',
+                                    outline: 'none',
+                                    fontFamily: 'inherit'
+                                }}
+                            />
+                        )}
                         
                         {/* Voice Mic inside the row */}
                         <button
@@ -793,6 +948,29 @@ export const HelpBot = ({ mode = 'floating' }) => {
                             title={isListening ? "Stop listening" : "Start voice input"}
                         >
                             <FiMic size={14} />
+                        </button>
+                        
+                        {/* Voice Playback Toggle inside the row */}
+                        <button
+                            type="button"
+                            onClick={toggleVoicePlayback}
+                            style={{
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '50%',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: voiceEnabled ? '#2563eb' : '#f1f5f9',
+                                color: voiceEnabled ? 'white' : '#475569',
+                                transition: 'all 0.2s ease',
+                                flexShrink: 0
+                            }}
+                            title={voiceEnabled ? "Mute voice playback" : "Unmute voice playback"}
+                        >
+                            {voiceEnabled ? <FiVolume2 size={14} /> : <FiVolumeX size={14} />}
                         </button>
                         
                         {/* Send button inside the row */}

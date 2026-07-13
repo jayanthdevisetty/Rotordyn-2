@@ -53,6 +53,21 @@ if (import.meta.env.PROD) {
     }, 1000);
 }
 
+// Dynamic Sentry setup for React frontend
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  import('@sentry/react').then((Sentry) => {
+    Sentry.init({
+      dsn: sentryDsn,
+      integrations: [],
+      tracesSampleRate: 1.0,
+    });
+    console.info("Sentry initialization: Enabled in frontend.");
+  }).catch((err) => {
+    console.warn("Sentry frontend integration module failed to load:", err);
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

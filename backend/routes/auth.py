@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from datetime import datetime
@@ -163,6 +163,25 @@ async def get_current_admin(current_user: dict = Depends(get_current_user)) -> d
             detail="Admin privileges required."
         )
     return current_user
+
+def check_role(allowed_roles: List[str]):
+    """Dependency to check if the current approved user's role is in the allowed list."""
+    async def role_dependency(current_user: dict = Depends(get_current_approved_user)):
+        # Enterprise Roles: Owner, Admin, Manager, Engineer, Viewer, Billing, Support
+        # Handle case-insensitive comparison
+        user_role = current_user.get("role", "Viewer")
+        # Treat role as case-insensitive to avoid string match failures
+        matched = any(user_role.lower() == role.lower() for role in allowed_roles)
+        # Treat admin as owner-equivalent
+        if user_role.lower() == "admin":
+            matched = True
+        if not matched:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. User role '{user_role}' lacks permissions for this operation."
+            )
+        return current_user
+    return role_dependency
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserRegister):
@@ -441,6 +460,21 @@ async def verify_checkout_session(session_id: str, current_user: dict = Depends(
     try:
         stripe.api_key = stripe_key
         session = stripe.checkout.Session.retrieve(session_id)
+        
+        # Security Hardening: Ensure session user metadata matches logged-in user to prevent replay sharing
+        session_user_id = session.metadata.get('user_id')
+        if not session_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkout session metadata is missing user identification."
+            )
+            
+        if session_user_id != current_user["id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Stripe Checkout Session owner mismatch. Upgrade request denied."
+            )
+
         if session.payment_status == 'paid':
             # Upgrade user in supabase profiles
             try:
@@ -459,6 +493,13 @@ async def verify_checkout_session(session_id: str, current_user: dict = Depends(
                 print(f"Auth metadata update failed in verify: {e}")
                 pass
                 
+            # Log audit trail
+            log_audit_action(
+                user_id=current_user["id"],
+                action="SUBSCRIPTION_UPGRADED_DIRECT",
+                details={"session_id": session_id, "status": "premium"}
+            )
+
             db_res = supabase.table("profiles").select("*").eq("id", current_user["id"]).execute()
             if db_res.data and len(db_res.data) > 0:
                 user_info = serialize_user(db_res.data[0])
@@ -474,3 +515,64 @@ async def verify_checkout_session(session_id: str, current_user: dict = Depends(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Verification failed: {str(e)}"
         )
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request):
+    """Secure Stripe webhook listener verifying signatures to process async checkout completions."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    if not sig_header or not webhook_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stripe webhook configuration or signature is missing."
+        )
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError as e:
+        # Invalid payload
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Stripe payload."
+        )
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stripe signature verification failed."
+        )
+
+    # Handle the checkout.session.completed event
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session.metadata.get("user_id")
+        
+        if user_id:
+            print(f"INFO: Processing Stripe webhook upgrade for user_id: {user_id}")
+            try:
+                # 1. Update Database Profile status
+                supabase.table("profiles").update({"subscription_status": "premium"}).eq("id", user_id).execute()
+            except Exception as e:
+                print(f"ERROR: Webhook DB profile status update failed: {e}")
+
+            try:
+                # 2. Update Supabase User Auth Metadata
+                supabase.auth.admin.update_user_by_id(
+                    user_id,
+                    {"user_metadata": {"subscription_status": "premium"}}
+                )
+            except Exception as e:
+                print(f"ERROR: Webhook Auth metadata update failed: {e}")
+
+            # Log audit action
+            log_audit_action(
+                user_id=user_id,
+                action="SUBSCRIPTION_UPGRADED_WEBHOOK",
+                details={"session_id": session.get("id")}
+            )
+
+    return {"status": "success"}
