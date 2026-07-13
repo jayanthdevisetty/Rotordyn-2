@@ -166,6 +166,11 @@ async def get_metrics():
     metrics_data = metrics_collector.get_prometheus_metrics()
     return Response(content=metrics_data, media_type="text/plain; version=0.0.4")
 
+@app.get("/sentry-debug")
+async def trigger_error():
+    """Trigger a division-by-zero exception to verify Sentry event capture reporting."""
+    division_by_zero = 1 / 0
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
