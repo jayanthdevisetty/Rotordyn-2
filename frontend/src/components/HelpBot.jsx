@@ -423,6 +423,19 @@ export const HelpBot = ({ mode = 'floating' }) => {
         const queryText = textToSend || input;
         if (!queryText.trim()) return;
 
+        if (queryText.trim().toLowerCase() === '/sentry' || queryText.trim().toLowerCase() === '/sentry-debug') {
+            const userMsg = { sender: 'user', text: queryText, timestamp: new Date() };
+            const botResponse = {
+                sender: 'bot',
+                text: "Here is your test button to trigger a frontend Sentry exception. Click it to throw an unhandled Error:",
+                isSentryTest: true,
+                timestamp: new Date()
+            };
+            setMessages([...messages, userMsg, botResponse]);
+            setInput('');
+            return;
+        }
+
         // Save message
         const userMsg = { sender: 'user', text: queryText, timestamp: new Date() };
         
@@ -766,6 +779,27 @@ export const HelpBot = ({ mode = 'floating' }) => {
                                     }}
                                 >
                                     {msg.text}
+                                    {msg.isSentryTest && (
+                                        <button
+                                            onClick={() => {
+                                                throw new Error("Rotordyn Frontend Verification Error: Break the world!");
+                                            }}
+                                            style={{
+                                                display: 'block',
+                                                marginTop: '8px',
+                                                padding: '6px 12px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 'bold',
+                                                color: 'white',
+                                                backgroundColor: '#ef4444',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            💥 Break the world
+                                        </button>
+                                    )}
                                 </div>
                                 
                                 {msg.sender === 'bot' && msg.topicKey && (
