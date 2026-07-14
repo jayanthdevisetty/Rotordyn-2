@@ -876,28 +876,31 @@ export const Dashboard = () => {
         // File drag and drop logic
         const dropZone = document.getElementById('drop-zone');
         
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, e => {
-                e.preventDefault();
-                dropZone.classList.add('hover');
-            }, false);
-        });
+        if (dropZone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, e => {
+                    e.preventDefault();
+                    dropZone.classList.add('hover');
+                }, false);
+            });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, e => {
-                e.preventDefault();
-                dropZone.classList.remove('hover');
-            }, false);
-        });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, e => {
+                    e.preventDefault();
+                    dropZone.classList.remove('hover');
+                }, false);
+            });
 
-        dropZone.addEventListener('drop', e => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                document.getElementById('file-input').files = files;
-                handleFileSelect({ target: { files } });
-            }
-        });
+            dropZone.addEventListener('drop', e => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    const fileInput = document.getElementById('file-input');
+                    if (fileInput) fileInput.files = files;
+                    handleFileSelect({ target: { files } });
+                }
+            });
+        }
 
         const SessionCache = {
             dbName: 'RotordynCacheDB',
