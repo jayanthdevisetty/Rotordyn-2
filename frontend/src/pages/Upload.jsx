@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiFolder, FiLogOut, FiLoader } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 export const Upload = () => {
     const { token, logout, API_BASE_URL } = useAuth();
@@ -147,34 +148,72 @@ export const Upload = () => {
                     isScadaSim: false
                 };
 
-                // Log metadata on backend database for upload history tracking
+                // Upload direct unified CSV to Supabase Storage and backend metadata log
+                return uploadDatasetToBackend(df, fileNames)
+                    .then(() => {
+                        setIsParsing(false);
+                        navigate('/dashboard');
+                    })
+                    .catch(err => {
+                        console.warn("Failed to log upload metadata:", err);
+                        setIsParsing(false);
+                        navigate('/dashboard');
+                    });
+            })
+            .catch(err => {
+                console.error(err);
+                setUploadError(err.message || "Failed to import files. Check console log for details.");
+                setIsParsing(false);
+            });
+    };
+
+    const uploadDatasetToBackend = (df, fileNames) => {
+        if (!token) {
+            console.warn("User is not authenticated. Skipping backend file upload.");
+            return Promise.resolve();
+        }
+
+        const Papa = window.Papa;
+        if (!Papa) return Promise.resolve();
+
+        // Replicate original dashboard unparse & upload
+        const csvText = Papa.unparse(df);
+        const uploadName = fileNames.length > 1 ? `merged_${fileNames.length}_files.csv` : fileNames[0];
+        
+        const blob = new Blob([csvText], { type: 'text/csv' });
+        const finalName = uploadName.toLowerCase().endsWith('.csv') ? uploadName : `${uploadName}.csv`;
+        const fileObj = new File([blob], finalName, { type: 'text/csv' });
+
+        const uniquePrefix = Math.random().toString(36).substring(2, 12) + '_' + Math.floor(Date.now() / 1000);
+        const storedFilename = `${uniquePrefix}_${finalName}`;
+
+        return supabase.storage.from('vibration-datasets').upload(storedFilename, fileObj)
+            .then(({ data: uploadData, error: uploadErr }) => {
+                if (uploadErr) {
+                    throw new Error(`Supabase Storage upload failed: ${uploadErr.message}`);
+                }
+
+                const { data: urlData } = supabase.storage.from('vibration-datasets').getPublicUrl(storedFilename);
+                const fileUrl = urlData.publicUrl;
+
                 const apiBase = API_BASE_URL || '';
-                fetch(`${apiBase}/uploads/metadata`, {
+                return fetch(`${apiBase}/uploads`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        filename: fileNames.join(" + "),
-                        columns: Object.keys(df[0] || {}),
-                        row_count: df.length
+                        original_filename: finalName,
+                        stored_filename: storedFilename,
+                        file_url: fileUrl,
+                        file_size: fileObj.size
                     })
-                })
-                .then(() => {
-                    setIsParsing(false);
-                    navigate('/dashboard');
-                })
-                .catch(err => {
-                    console.warn("Failed to log upload metadata:", err);
-                    setIsParsing(false);
-                    navigate('/dashboard');
                 });
             })
-            .catch(err => {
-                console.error(err);
-                setUploadError(err.message || "Failed to import files. Check console log for details.");
-                setIsParsing(false);
+            .then(res => {
+                if (!res.ok) throw new Error(`Backend metadata logging failed: ${res.status}`);
+                return res.json();
             });
     };
 

@@ -27,7 +27,7 @@ if (import.meta.env.PROD) {
     document.addEventListener('contextmenu', e => e.preventDefault());
     
     document.addEventListener('keydown', e => {
-        const key = e.key.toLowerCase();
+        const key = e.key ? e.key.toLowerCase() : '';
         if (
             key === 'f12' ||
             ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(key)) ||
