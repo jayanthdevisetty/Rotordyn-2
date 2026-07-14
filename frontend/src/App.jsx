@@ -16,7 +16,6 @@ const AdminLogin = React.lazy(() => import('./pages/AdminLogin').then(m => ({ de
 const Pending = React.lazy(() => import('./pages/Pending').then(m => ({ default: m.Pending })));
 const Admin = React.lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const Upload = React.lazy(() => import('./pages/Upload').then(m => ({ default: m.Upload })));
 const OAuthCallback = React.lazy(() => import('./pages/OAuthCallback').then(m => ({ default: m.OAuthCallback })));
 const Terms = React.lazy(() => import('./pages/Terms').then(m => ({ default: m.Terms })));
 const Privacy = React.lazy(() => import('./pages/Privacy').then(m => ({ default: m.Privacy })));
@@ -55,16 +54,6 @@ function App() {
             element={
               <ProtectedRoute requireAdmin={false}>
                 <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Protected Onboarding Upload Portal */}
-          <Route 
-            path="/upload" 
-            element={
-              <ProtectedRoute requireAdmin={false}>
-                <Upload />
               </ProtectedRoute>
             } 
           />
