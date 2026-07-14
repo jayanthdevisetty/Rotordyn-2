@@ -3744,14 +3744,16 @@ export const Dashboard = () => {
                 df.slice(0, 20).forEach(row => {
                     const option = document.createElement('option');
                     option.value = row._time_ms;
-                    option.text = `${row[speedCol] ? row[speedCol].toFixed(0) : '0'} RPM (${row[tsCol] ? String(row[tsCol]).split(' ')[1] || row[tsCol] : ''})`;
+                    const spd = row[speedCol] !== undefined && row[speedCol] !== null ? parseFloat(row[speedCol]) : 0;
+                    option.text = `${isNaN(spd) ? '0' : spd.toFixed(0)} RPM (${row[tsCol] ? String(row[tsCol]).split(' ')[1] || row[tsCol] : ''})`;
                     selectEl.appendChild(option);
                 });
             } else {
                 finalRows.forEach(row => {
                     const option = document.createElement('option');
                     option.value = row._time_ms;
-                    option.text = `${row[speedCol].toFixed(0)} RPM (${row[tsCol] ? String(row[tsCol]).split(' ')[1] || row[tsCol] : ''})`;
+                    const spd = row[speedCol] !== undefined && row[speedCol] !== null ? parseFloat(row[speedCol]) : 0;
+                    option.text = `${isNaN(spd) ? '0' : spd.toFixed(0)} RPM (${row[tsCol] ? String(row[tsCol]).split(' ')[1] || row[tsCol] : ''})`;
                     selectEl.appendChild(option);
                 });
             }
@@ -5408,7 +5410,8 @@ export const Dashboard = () => {
             }
             
             const ts = row[tsCol] || '-';
-            const rpm = row[speedCol] !== undefined ? row[speedCol].toFixed(0) : '-';
+            const rawRpm = row[speedCol] !== undefined && row[speedCol] !== null ? parseFloat(row[speedCol]) : NaN;
+            const rpm = !isNaN(rawRpm) ? rawRpm.toFixed(0) : '-';
             const state = row['state'] || '-';
             
             const tsStr = ts ? String(ts) : '';
