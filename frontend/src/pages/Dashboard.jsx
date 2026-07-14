@@ -1186,6 +1186,33 @@ export const Dashboard = ({ view }) => {
                 populateFilterControls();
                 populateSidebarTree();
                 renderGrid();
+                
+                // Repopulate dataset summary statistics (restores fields on navigation back)
+                try {
+                    const currentFilename = window.activeWorkspaceDataset || 'merged_machine_data.csv';
+                    const speeds = df.map(r => r[speedCol] || 0);
+                    const minSpeed = Math.min(...speeds);
+                    const maxSpeed = Math.max(...speeds);
+                    const firstTs = df[0][tsCol];
+                    const lastTs = df[df.length - 1][tsCol];
+                    const firstTsStr = firstTs ? String(firstTs) : '';
+                    const lastTsStr = lastTs ? String(lastTs) : '';
+                    const t_first = firstTsStr ? (firstTsStr.split(' ')[1] || firstTsStr).slice(0, 8) : '-';
+                    const t_last = lastTsStr ? (lastTsStr.split(' ')[1] || lastTsStr).slice(0, 8) : '-';
+
+                    const summaryPts = document.getElementById('data-summary-points');
+                    const summaryRpm = document.getElementById('data-summary-rpm');
+                    const summaryTime = document.getElementById('data-summary-time');
+                    const summaryFilename = document.getElementById('sidebar-active-filename');
+
+                    if (summaryPts) summaryPts.innerText = df.length.toLocaleString();
+                    if (summaryRpm) summaryRpm.innerText = `${Math.round(minSpeed)} - ${Math.round(maxSpeed)} RPM`;
+                    if (summaryTime) summaryTime.innerText = `${t_first} - ${t_last}`;
+                    if (summaryFilename) summaryFilename.innerText = currentFilename.split('/').pop().split('\\').pop();
+                } catch (e) {
+                    console.error("Failed to restore dataset summary:", e);
+                }
+
                 if (typeof runAIDiagnostics === 'function') {
                     runAIDiagnostics();
                 }
@@ -2540,6 +2567,7 @@ export const Dashboard = ({ view }) => {
                     }
                     
                     df = results.data;
+                    window.activeWorkspaceDataset = filename;
                     allDatasetColumns = results.meta.fields || [];
                     if (allDatasetColumns.length === 0 && df.length > 0) {
                         const keys = new Set();
