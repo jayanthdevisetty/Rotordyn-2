@@ -50,10 +50,18 @@ function App() {
 
           {/* Protected Diagnostics Workspace */}
           <Route 
+            path="/upload" 
+            element={
+              <ProtectedRoute requireAdmin={false}>
+                <Dashboard view="upload" />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/dashboard" 
             element={
               <ProtectedRoute requireAdmin={false}>
-                <Dashboard />
+                <Dashboard view="dashboard" />
               </ProtectedRoute>
             } 
           />

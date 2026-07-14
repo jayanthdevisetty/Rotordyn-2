@@ -1,105 +1,82 @@
-# Rotordyn.ai — Vibration Analysis SaaS MVP
+# Rotordyn.ai — Vibration Analysis & Diagnostics SaaS
 
-This project wraps the high-end, browser-side Plotly-based turbomachinery vibration diagnostic dashboard with a modular full-stack SaaS model. It includes secure JWT-based authentication, an administrator user approval queue, MongoDB database storage, file uploads logs, and SMTP notifications sending uploaded `.csv`/`.xlsx` files as email attachments.
-
----
-
-## Tech Stack Overview
-
-* **Backend**: Python FastAPI (modular layout: configuration, database, routes, background email services)
-* **Frontend**: Pure Static HTML/CSS/JS (no framework compilation required, fully compatible with Netlify)
-* **Database**: MongoDB (async communication via `motor`)
-* **Email notifications**: SMTP via Gmail App Passwords
-* **Sessions**: JSON Web Tokens (JWT) with password hashing via `bcrypt`
+Rotordyn.ai is a cloud-native vibration analysis and rotating machinery diagnostics SaaS platform. It ingests high-frequency telemetry data (centerline shaft orbit paths, time waveforms, FFT frequency spectrums, startup speed profiles) and generates engineering diagnostics reports.
 
 ---
 
-## Getting Started: Local Setup
+## Technical Stack
 
-### 1. Database (MongoDB) Setup
-Make sure MongoDB is running locally on your computer:
-* Default local URL: `mongodb://127.0.0.1:27017/rotordyn`
-* If using a remote cloud instance (MongoDB Atlas), see the **MongoDB Atlas Setup** section below.
+- **Frontend**: React (Vite SPA) utilizing dynamic WebGL/Canvas graphics (Plotly.js, D3.js) and local browser uploader data caches (IndexedDB).
+- **Backend**: FastAPI web server (Python 3.11) with global exception mappings and Prometheus metrics recorders.
+- **Database**: Supabase PostgreSQL with Row-Level Security (RLS) policies and Alembic schema versioning.
+- **Storage**: Supabase Storage buckets for secure telemetry uploads.
+- **Payments**: Stripe Checkout Sessions with verified webhook signature hooks.
+- **Monitoring**: Sentry exception capture integration and Prometheus metrics.
 
-### 2. Backend Setup
-1. Navigate to the code root directory.
-2. Install python dependencies:
+---
+
+## Local Development Setup
+
+### 1. Backend API Server Setup
+1. Navigate to the root directory and create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   ```
+2. Install Python dependencies:
    ```bash
    pip install -r backend/requirements.txt
    ```
-3. Create your `.env` configuration file inside the `backend/` directory by copying `.env.example`:
+3. Copy the environment variables template and configure your Supabase/Stripe/Sentry secret keys:
    ```bash
-   cp backend/.env.example backend/.env
+   cp .env.example backend/.env
    ```
-4. Update the values in `backend/.env` with your actual MongoDB URI, JWT Secret, and Gmail App Password.
-5. Run the **Admin Account Seed Script** to populate the system administrator account:
+4. Run migrations version checks and start the backend:
    ```bash
-   python backend/scripts/create_admin.py
+   python -m backend.main
    ```
-6. Start the FastAPI development server:
-   ```bash
-   uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-   The backend API will be running at `http://localhost:8000`. You can inspect the interactive OpenAPI docs at `http://localhost:8000/docs`.
+   The backend API will run on `http://localhost:8000`. Exposes OpenAPI Swagger docs at `/docs`.
 
-### 3. Frontend Setup
-The frontend is composed of static assets inside the `frontend/` directory. For local testing, serve the files from a static server to bypass browser origin blocks:
-1. In a new terminal, navigate to the `frontend/` directory:
+### 2. Frontend React Client Setup
+1. Navigate to the `frontend/` directory:
    ```bash
-   cd frontend/
+   cd frontend
    ```
-2. Serve the static pages using Python:
+2. Install Node dependencies:
    ```bash
-   python -m http.server 5000
+   npm install
    ```
-3. Open your browser and navigate to `http://localhost:5000` to access the landing page.
+3. Copy env details:
+   ```bash
+   cp .env.example .env
+   ```
+4. Run the Vite developer server:
+   ```bash
+   npm run dev
+   ```
+   The client will serve on `http://localhost:5000`.
 
 ---
 
-## Gmail App Password Setup (SMTP Attachments)
+## Verification & Testing
 
-To allow the FastAPI backend to send email notifications automatically upon file upload:
-1. Go to your Google Account Settings -> **Security**.
-2. Enable **2-Step Verification** if not already active.
-3. Search for or select **App Passwords** at the bottom of the section.
-4. Generate a new password by selecting **Other (Custom Name)** and type `Rotordyn SaaS`.
-5. Copy the generated 16-character code (e.g. `vgrtyjnrmxupecsa`).
-6. Place this code as `GMAIL_APP_PASSWORD` in your `backend/.env` configuration. Ensure `GMAIL_USERNAME` is set to your Gmail address.
+### 1. Run Backend Unit Tests
+Execute the unit and middleware RBAC test suite:
+```bash
+python backend/tests/run_tests.py
+```
 
----
-
-## MongoDB Atlas Cloud Setup
-
-For production database storage:
-1. Register/Login at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-2. Create a free M0 Shared Cluster.
-3. Under **Database Access**, create a user with read/write privileges (choose password authentication).
-4. Under **Network Access**, add an IP access rule. For production Web Service access (e.g., Render), add `0.0.0.0/0` (allow access from anywhere).
-5. Copy the connection string (under Connect -> Drivers) and place it as `MONGODB_URI` in your production environments.
+### 2. Run E2E Integration Tests
+Assert auth guards, registration triggers, and path redirections using Playwright:
+```bash
+python3 verify_ui.py
+```
 
 ---
 
-## Deployment Instructions
-
-### 1. Render Deployment (FastAPI Backend)
-1. Commit your codebase to a GitHub or GitLab repository.
-2. Sign in to [Render](https://render.com).
-3. Click **New +** and select **Web Service**.
-4. Link your code repository.
-5. Set the build environment settings:
-   * **Runtime**: `Python`
-   * **Root Directory**: (Keep empty, or point to your repository root)
-   * **Build Command**: `pip install -r backend/requirements.txt`
-   * **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-6. Add the required environment variables in the **Environment** settings tab (matching `.env.example`). Set `FRONTEND_URL` to your Netlify site URL to allow CORS.
-
-⚠️ **WARNING on Local Storage**: For this MVP, uploaded vibration files are stored in the local `backend/uploads/` directory. Files stored on Render's local disk are ephemeral and will be lost when the Web Service restarts. For production environments, the code should be updated to save upload streams to permanent cloud storage (such as **Supabase Storage** or **Amazon S3**).
-
-### 2. Netlify Deployment (Static Frontend)
-1. Sign in to [Netlify](https://www.netlify.com).
-2. Select **Add new site** -> **Deploy manually**.
-3. Drag and drop the `frontend/` directory directly into the Netlify upload box.
-4. Once deployed, note your Netlify URL (e.g., `https://rotordyn-saas.netlify.app`).
-5. Set this URL as the `FRONTEND_URL` variable in your Render backend settings to whitelist CORS.
-
-*Note: If your backend URL on Render changes, update the API address inside the JavaScript `<script>` blocks of `auth.html`, `admin.html`, `pending.html`, and `dashboard.html` to point to your live Render endpoint.*
+## Production Release Documents
+For full enterprise deployment details, consult the following manuals in the artifacts folder:
+- **Architecture**: [sad_software_architecture_document.md](file:///C:/Users/shaik/.gemini/antigravity/brain/9b21ea1a-8a6a-45ed-84ae-d8df784b2cd2/sad_software_architecture_document.md)
+- **Design Specifications**: [sdd_software_design_document.md](file:///C:/Users/shaik/.gemini/antigravity/brain/9b21ea1a-8a6a-45ed-84ae-d8df784b2cd2/sdd_software_design_document.md)
+- **Operations & Runbooks**: [operations_runbook.md](file:///C:/Users/shaik/.gemini/antigravity/brain/9b21ea1a-8a6a-45ed-84ae-d8df784b2cd2/operations_runbook.md)
+- **Security Guide**: [security_architecture_guide.md](file:///C:/Users/shaik/.gemini/antigravity/brain/9b21ea1a-8a6a-45ed-84ae-d8df784b2cd2/security_architecture_guide.md)

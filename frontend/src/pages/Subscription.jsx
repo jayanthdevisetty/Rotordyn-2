@@ -193,7 +193,7 @@ export const Subscription = () => {
             {/* Header / Nav */}
             <div style={{ maxWidth: '960px', margin: '0 auto 30px auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <button 
-                    onClick={() => navigate(isGuest ? '/' : '/dashboard')}
+                    onClick={() => navigate(isGuest ? '/' : (window.activeWorkspaceDataset ? '/dashboard' : '/upload'))}
                     className="neu-button"
                     style={{
                         padding: '10px 18px',
@@ -204,7 +204,7 @@ export const Subscription = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <FiArrowLeft size={14} /> {isGuest ? 'Back to Home' : 'Back to Dashboard'}
+                    <FiArrowLeft size={14} /> {isGuest ? 'Back to Home' : (window.activeWorkspaceDataset ? 'Back to Dashboard' : 'Back to Upload')}
                 </button>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.25rem' }}>
                     Rotordyn<span style={{ color: '#2563eb' }}>.ai</span>

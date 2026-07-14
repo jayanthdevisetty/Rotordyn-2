@@ -88,7 +88,7 @@ export const Auth = () => {
                 if (redirectUrl) {
                     navigate(redirectUrl);
                 } else {
-                    navigate('/dashboard');
+                    navigate('/upload');
                 }
             } else {
                 navigate(`/pending?status=${user.status}`);

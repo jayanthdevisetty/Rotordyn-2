@@ -6,7 +6,106 @@ import { supabase } from '../supabaseClient';
 
 
 
-export const Dashboard = () => {
+const SessionCache = {
+    dbName: 'RotordynCacheDB',
+    storeName: 'csvCache',
+
+    openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 2);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName);
+                }
+            };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = (e) => reject(e.target.error);
+        });
+    },
+
+    set(key, val) {
+        return this.openDB().then(db => {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                const store = tx.objectStore(this.storeName);
+                const request = store.put(val, key);
+                request.onsuccess = () => resolve();
+                request.onerror = (e) => reject(e.target.error);
+            });
+        });
+    },
+
+    get(key) {
+        return this.openDB().then(db => {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readonly');
+                const store = tx.objectStore(this.storeName);
+                const request = store.get(key);
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        });
+    },
+
+    delete(key) {
+        return this.openDB().then(db => {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                const store = tx.objectStore(this.storeName);
+                const request = store.delete(key);
+                request.onsuccess = () => resolve();
+                request.onerror = (e) => reject(e.target.error);
+            });
+        });
+    }
+};
+
+let df = []; // Parsed CSV Data
+let singlePrefixes = []; // Array of all channel prefixes (e.g. BRG1X, BRG1_Seis)
+let bearingPairs = []; // Array of proximity pairs (e.g. BRG1)
+let bearingPairsMapping = {}; // Maps bearing base name to X/Y channel prefixes
+let allDatasetColumns = []; // All columns present in the dataset
+let expandedTreeNodes = new Set();
+let baselineThresholds = {};
+let plotSlots = [
+    {
+        bearingOrChannel: 'BRG1X',
+        category: 'trend',
+        isDual: false,
+        layoutLimits: { min: null, max: null, autoScale: true }
+    },
+    {
+        bearingOrChannel: 'BRG1',
+        category: 'orbit',
+        isDual: false,
+        layoutLimits: { min: null, max: null, autoScale: true },
+        showTimebase: true,
+        showTrace2: false,
+        cycles: 8
+    }
+];
+let activeSlotIndex = 0;
+let currentLayout = '2V';
+let currentGridPage = 0;
+let customizeLayoutMode = false;
+let timeSyncCursor = true;
+let activeCursorIndex = 0;
+let x_gap_rest_global = {};
+let y_gap_rest_global = {};
+let activeActivityTab = 'tree';
+let isDrawerOpen = false;
+let cachedFilteredDf = null;
+let savedSlowRollSamples = [];
+let activeSlowRollSampleId = null;
+let slowRollCompensationEnabled = false;
+let timelineIntervalId = null;
+let isTimelinePlaying = false;
+let timelineStepSize = 1;
+let timelinePlaybackDelay = 200;
+let timelinePlotlyContainer = null;
+
+export const Dashboard = ({ view }) => {
     const {user, setUser, token, logout, API_BASE_URL} = useAuth();
     const navigate = useNavigate();
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -104,9 +203,20 @@ export const Dashboard = () => {
         };
     }, []);
 
-    // Hook 2: Main Dashboard Javascript Logic (Runs only when scripts are fully loaded!)
     useEffect(() => {
         if (!scriptsLoaded) return;
+
+        if (view === 'dashboard' && !window.activeWorkspaceDataset) {
+            SessionCache.get('csv_filename')
+                .then(cachedName => {
+                    if (!cachedName) {
+                        navigate('/upload');
+                    }
+                })
+                .catch(() => {
+                    navigate('/upload');
+                });
+        }
 
         // Expose credentials and logout function to global scripts scope
         window.API_BASE_URL = API_BASE_URL;
@@ -171,20 +281,20 @@ export const Dashboard = () => {
         window.updateSpeedSensorDropdown = updateSpeedSensorDropdown;
 
         // Sync input state on component mount
-        setTimeout(() => {
+        const clearanceTimeout = setTimeout(() => {
             const clearanceInput = document.getElementById('bearing-clearance-input');
-            if (clearanceInput) {
+            if (clearanceInput && window.bearingClearance !== undefined) {
                 clearanceInput.value = window.bearingClearance;
             }
             const clearanceVal = document.getElementById('bearing-clearance-val');
-            if (clearanceVal) {
+            if (clearanceVal && window.bearingClearance !== undefined) {
                 clearanceVal.innerText = window.bearingClearance.toFixed(1);
             }
         }, 100);
 
         // Main Dashboard Javascript Logic
-        let activeActivityTab = 'tree'; 
-        let isDrawerOpen = false; // Start collapsed by default
+        activeActivityTab = activeActivityTab || 'tree';
+        isDrawerOpen = isDrawerOpen !== undefined ? isDrawerOpen : false; // Start collapsed by default
 
         function fetchTeamMembers() {
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
@@ -365,14 +475,13 @@ export const Dashboard = () => {
         }
         window.addEventListener('resize', triggerResizeWithTimeout);
 
-        // State management
-        let df = []; // Parsed CSV Data
-        let singlePrefixes = []; // Array of all channel prefixes (e.g. BRG1X, BRG1_Seis)
-        let bearingPairs = []; // Array of proximity pairs (e.g. BRG1)
-        let bearingPairsMapping = {}; // Maps bearing base name to X/Y channel prefixes
-        let allDatasetColumns = []; // All columns present in the dataset
-        let expandedTreeNodes = new Set();
-        let baselineThresholds = {};
+        df = df || []; // Parsed CSV Data
+        singlePrefixes = singlePrefixes || []; // Array of all channel prefixes (e.g. BRG1X, BRG1_Seis)
+        bearingPairs = bearingPairs || []; // Array of proximity pairs (e.g. BRG1)
+        bearingPairsMapping = bearingPairsMapping || {}; // Maps bearing base name to X/Y channel prefixes
+        allDatasetColumns = allDatasetColumns || []; // All columns present in the dataset
+        expandedTreeNodes = expandedTreeNodes || new Set();
+        baselineThresholds = baselineThresholds || {};
         
         function calculateBaselineThresholds() {
             baselineThresholds = {};
@@ -595,7 +704,7 @@ export const Dashboard = () => {
         }
 
         // Multi-plot State management
-        let plotSlots = [
+        plotSlots = plotSlots || [
             {
                 bearingOrChannel: 'BRG1X',
                 category: 'trend',
@@ -625,15 +734,15 @@ export const Dashboard = () => {
             console.warn("Failed to load saved plot slots:", e);
         }
 
-        let activeSlotIndex = 0; 
+        activeSlotIndex = activeSlotIndex || 0; 
         currentLayoutRef.current = currentLayoutState;
-        let currentLayout = currentLayoutRef.current;
-        let currentGridPage = 0; 
-        let customizeLayoutMode = false; 
-        let timeSyncCursor = true; 
-        let activeCursorIndex = 0; 
-        let x_gap_rest_global = {}; 
-        let y_gap_rest_global = {}; 
+        currentLayout = currentLayoutRef.current;
+        currentGridPage = currentGridPage || 0; 
+        customizeLayoutMode = customizeLayoutMode !== undefined ? customizeLayoutMode : false; 
+        timeSyncCursor = timeSyncCursor !== undefined ? timeSyncCursor : true; 
+        activeCursorIndex = activeCursorIndex || 0; 
+        x_gap_rest_global = x_gap_rest_global || {}; 
+        y_gap_rest_global = y_gap_rest_global || {}; 
 
         function getProbeRestAndScale(brg) {
             const scaleInput = document.getElementById('probe-scale-factor-input');
@@ -880,49 +989,6 @@ export const Dashboard = () => {
             }
         });
 
-        const SessionCache = {
-            dbName: 'RotordynCacheDB',
-            storeName: 'csvCache',
-            
-            openDB() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, 1);
-                    request.onupgradeneeded = (e) => {
-                        const db = e.target.result;
-                        if (!db.objectStoreNames.contains(this.storeName)) {
-                            db.createObjectStore(this.storeName);
-                        }
-                    };
-                    request.onsuccess = (e) => resolve(e.target.result);
-                    request.onerror = (e) => reject(e.target.error);
-                });
-            },
-            
-            set(key, val) {
-                return this.openDB().then(db => {
-                    return new Promise((resolve, reject) => {
-                        const tx = db.transaction(this.storeName, 'readwrite');
-                        const store = tx.objectStore(this.storeName);
-                        const request = store.put(val, key);
-                        request.onsuccess = () => resolve();
-                        request.onerror = (e) => reject(e.target.error);
-                    });
-                });
-            },
-            
-            get(key) {
-                return this.openDB().then(db => {
-                    return new Promise((resolve, reject) => {
-                        const tx = db.transaction(this.storeName, 'readonly');
-                        const store = tx.objectStore(this.storeName);
-                        const request = store.get(key);
-                        request.onsuccess = (e) => resolve(e.target.result);
-                        request.onerror = (e) => reject(e.target.error);
-                    });
-                });
-            }
-        };
-
         function cacheCSVInSession(csvText, filename) {
             SessionCache.set('csv_text', csvText)
                 .then(() => SessionCache.set('csv_filename', filename))
@@ -1110,11 +1176,45 @@ export const Dashboard = () => {
             });
         }
 
-        // Local CSV Auto-fetch served scenario
-        window.addEventListener('DOMContentLoaded', () => {
-            if (typeof fetchSavedDatasets !== 'undefined') {
-                fetchSavedDatasets();
+                // Local CSV Auto-fetch served scenario / cache loader
+        if (typeof fetchSavedDatasets !== 'undefined') {
+            fetchSavedDatasets();
+        }
+
+        if (view === 'dashboard') {
+            if (df && df.length > 0) {
+                populateFilterControls();
+                populateSidebarTree();
+                renderGrid();
+                if (typeof runAIDiagnostics === 'function') {
+                    runAIDiagnostics();
+                }
+            } else {
+                SessionCache.get('csv_filename')
+                    .then(cachedName => {
+                        if (cachedName) {
+                            return SessionCache.get('csv_text').then(cachedText => {
+                                if (cachedText) {
+                                    parseCSVData(cachedText, cachedName);
+                                    return true;
+                                }
+                                return false;
+                            });
+                        }
+                        return false;
+                    })
+                    .then(loadedFromCache => {
+                        if (!loadedFromCache) {
+                            navigate('/upload');
+                        }
+                    })
+                    .catch(err => {
+                        console.warn("IndexedDB cache read failed:", err);
+                        navigate('/upload');
+                    });
             }
+        } else {
+            // view === 'upload'
             SessionCache.get('csv_filename')
                 .then(cachedName => {
                     if (cachedName) {
@@ -1134,7 +1234,7 @@ export const Dashboard = () => {
                 })
                 .then(loadedFromCache => {
                     if (loadedFromCache) return;
-
+                    
                     fetch('output/merged_machine_data.csv')
                         .then(response => {
                             if (!response.ok) throw new Error("Could not auto-fetch served file.");
@@ -1151,7 +1251,7 @@ export const Dashboard = () => {
                 .catch(err => {
                     console.warn("IndexedDB cache read failed:", err);
                 });
-        });
+        }
 
         function loadCachedDataset() {
             showLoader(true);
@@ -2463,6 +2563,7 @@ export const Dashboard = () => {
                     setTimeout(() => {
                         document.getElementById('welcome-screen').style.display = 'none';
                         document.getElementById('main-container').style.display = 'flex';
+                        navigate('/dashboard');
                         
                         // Cache rest gap values for centerline calibration
                         // Calibrate using the absolute bottom of the bearing clearance (extreme gap values)
@@ -3692,9 +3793,9 @@ export const Dashboard = () => {
         }
 
         // Slow Roll Compensation state & handlers
-        let savedSlowRollSamples = [];
-        let activeSlowRollSampleId = null;
-        let slowRollCompensationEnabled = false;
+        savedSlowRollSamples = savedSlowRollSamples || [];
+        activeSlowRollSampleId = activeSlowRollSampleId || null;
+        slowRollCompensationEnabled = slowRollCompensationEnabled !== undefined ? slowRollCompensationEnabled : false;
 
         function populateSlowRollDropdown() {
             const selectEl = document.getElementById('slow-roll-sample-select');
@@ -3851,7 +3952,7 @@ export const Dashboard = () => {
         window.toggleSlowRoll = toggleSlowRoll;
 
         // Active filters cache
-        let cachedFilteredDf = null;
+        cachedFilteredDf = null;
         function invalidateFilteredDataCache() {
             cachedFilteredDf = null;
         }
@@ -4995,11 +5096,11 @@ export const Dashboard = () => {
         }
 
         // Timeline Player state variables
-        let timelineIntervalId = null;
-        let isTimelinePlaying = false;
-        let timelineStepSize = 1;
-        let timelinePlaybackDelay = 200;
-        let timelinePlotlyContainer = null;
+        timelineIntervalId = timelineIntervalId || null;
+        isTimelinePlaying = isTimelinePlaying !== undefined ? isTimelinePlaying : false;
+        timelineStepSize = timelineStepSize || 1;
+        timelinePlaybackDelay = timelinePlaybackDelay || 200;
+        timelinePlotlyContainer = timelinePlotlyContainer || null;
 
         function updateStepSize(val) {
             timelineStepSize = parseInt(val);
@@ -7762,6 +7863,7 @@ export const Dashboard = () => {
                     
                     const mainContainer = document.getElementById('main-container');
                     if (mainContainer) mainContainer.style.display = 'flex';
+                    navigate('/dashboard');
                     
                     const timelineBar = document.getElementById('global-timeline-bar');
                     if (timelineBar) timelineBar.style.display = 'flex';
@@ -7802,6 +7904,32 @@ export const Dashboard = () => {
                 console.error("SCADA WebSocket error:", err);
                 ws.close();
             };
+        };
+
+        window.handleLoadNewFile = () => {
+            window.activeWorkspaceDataset = null;
+            df = [];
+            singlePrefixes = [];
+            bearingPairs = [];
+            bearingPairsMapping = {};
+            allDatasetColumns = [];
+            baselineThresholds = {};
+            savedSlowRollSamples = [];
+            activeSlowRollSampleId = null;
+            slowRollCompensationEnabled = false;
+            if (timelineIntervalId) {
+                clearInterval(timelineIntervalId);
+            }
+            timelineIntervalId = null;
+            isTimelinePlaying = false;
+            timelineStepSize = 1;
+            timelinePlaybackDelay = 200;
+            timelinePlotlyContainer = null;
+            SessionCache.delete('csv_filename')
+                .then(() => SessionCache.delete('csv_text'))
+                .then(() => {
+                    navigate('/upload');
+                });
         };
 
         window.setLayout = setLayout;
@@ -8402,6 +8530,10 @@ export const Dashboard = () => {
         delete window.moveSlotRight;
         delete window.saveWorkspaceConfig;
 
+            delete window.handleLoadNewFile;
+
+            clearTimeout(clearanceTimeout);
+
             delete window.API_BASE_URL;
             delete window.logout;
             delete window.bearingClearance;
@@ -8411,7 +8543,7 @@ export const Dashboard = () => {
             delete window.updateSpeedSensorDropdown;
             window.removeEventListener('resize', triggerResizeWithTimeout);
         };
-    }, [scriptsLoaded, token, logout, navigate, API_BASE_URL]);
+    }, [scriptsLoaded, token, logout, navigate, API_BASE_URL, view]);
 
     if (!scriptsLoaded) {
         return (
@@ -8479,7 +8611,7 @@ export const Dashboard = () => {
     return (
         <div id="app-root-container" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', backgroundColor: 'var(--bg-color)', overflow: 'hidden', zIndex: 1000 }}>
             {/* Global Top-Right Controls & Profile Dropdown */}
-            {user && (
+            {user && view === 'dashboard' && (
                 <div className="no-print" style={{
                     position: 'absolute',
                     top: '16px',
@@ -8494,11 +8626,13 @@ export const Dashboard = () => {
                     <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
                         Hide Speed Profile
                     </button>
-
+                    <button type="button" id="btn-load-new-file" onClick={() => window.handleLoadNewFile && window.handleLoadNewFile()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "#ef4444", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
+                        Load New File
+                    </button>
                 </div>
             )}
             {/* WELCOME / UPLOADER SCREEN */}
-    <div id="welcome-screen">
+    <div id="welcome-screen" style={{ display: view === 'upload' ? 'flex' : 'none' }}>
         <div style={{position: "absolute", top: "20px", right: "20px", zIndex: 100}}>
             <button className="btn-upload" type="button" onClick={() => logout()} style={{display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", borderRadius: "8px", margin: 0, width: "auto", fontSize: "0.85rem"}}>
                 <FiLogOut size={16} /> Sign Out
@@ -8537,7 +8671,7 @@ export const Dashboard = () => {
     </div>
 
     {/* MAIN DASHBOARD LAYOUT */}
-    <div id="main-container" style={{ '--sidebar-width': '60px' }}>
+    <div id="main-container" style={{ '--sidebar-width': '60px', display: view === 'dashboard' ? 'flex' : 'none' }}>
         
         {/* Sidebar Toggle Button */}
         <button id="sidebar-toggle-btn" className="sidebar-toggle" type="button" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Expand Sidebar">
