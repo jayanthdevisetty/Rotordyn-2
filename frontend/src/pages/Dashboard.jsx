@@ -34,6 +34,16 @@ export const Dashboard = () => {
             '/three.min.js'
         ];
 
+        const isLibraryLoaded = (s) => {
+            if (s.includes('papaparse')) return !!window.Papa;
+            if (s.includes('jszip')) return !!window.JSZip;
+            if (s.includes('xlsx')) return !!window.XLSX;
+            if (s.includes('plotly')) return !!window.Plotly;
+            if (s.includes('three')) return !!window.THREE;
+            if (s.includes('OrbitControls')) return !!(window.THREE && window.THREE.OrbitControls);
+            return false;
+        };
+
         let active = true;
 
         const loadAll = async () => {
@@ -43,7 +53,7 @@ export const Dashboard = () => {
                     return new Promise((resolve, reject) => {
                         const existingScript = document.querySelector('script[src="' + src + '"]');
                         if (existingScript) {
-                            if (existingScript.dataset.loaded === 'true') {
+                            if (existingScript.dataset.loaded === 'true' || isLibraryLoaded(src)) {
                                 resolve();
                             } else {
                                 existingScript.addEventListener('load', () => resolve());
@@ -68,7 +78,7 @@ export const Dashboard = () => {
                 await new Promise((resolve, reject) => {
                     const existingScript = document.querySelector('script[src="' + controlsSrc + '"]');
                     if (existingScript) {
-                        if (existingScript.dataset.loaded === 'true') {
+                        if (existingScript.dataset.loaded === 'true' || isLibraryLoaded(controlsSrc)) {
                             resolve();
                         } else {
                             existingScript.addEventListener('load', () => resolve());
