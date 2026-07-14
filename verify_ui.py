@@ -12,7 +12,7 @@ async def run():
         page = await browser.new_page()
         print("Navigating to local site...")
         try:
-            await page.goto("http://10.240.210.61:5000/")
+            await page.goto("http://localhost:5000/")
         except Exception as e:
             print(f"Failed to connect to dev server: {e}")
             await browser.close()
@@ -43,7 +43,7 @@ async def run():
         
         # Verify ProtectedRoute: navigate directly to /upload
         print("Navigating directly to /upload while unauthenticated...")
-        await page.goto("http://10.240.210.61:5000/upload")
+        await page.goto("http://localhost:5000/upload")
         await page.wait_for_url("**/auth")
         print(f"URL after accessing guarded /upload: {page.url} (Successfully redirected to auth!)")
         
@@ -54,7 +54,7 @@ async def run():
         
         # Verify ProtectedRoute: navigate directly to /dashboard
         print("Navigating directly to /dashboard while unauthenticated...")
-        await page.goto("http://10.240.210.61:5000/dashboard")
+        await page.goto("http://localhost:5000/dashboard")
         await page.wait_for_url("**/auth")
         print(f"URL after accessing guarded /dashboard: {page.url} (Successfully redirected to auth!)")
         

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiAward, FiArrowLeft, FiPrinter, FiFileText, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 
 export const Subscription = () => {
     const { user, setUser, token, loading, API_BASE_URL } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Mock checkout states
     const [showCheckout, setShowCheckout] = useState(false);
@@ -136,6 +137,22 @@ export const Subscription = () => {
     const remaining = Math.max(0, limit - genCount);
     const usagePercent = Math.min(100, (genCount / limit) * 100);
 
+    const fromPath = location.state?.from;
+
+    const getBackTarget = () => {
+        if (isGuest) return '/';
+        if (fromPath === '/dashboard') return '/dashboard';
+        if (fromPath === '/upload' || fromPath === '/landing') return '/upload';
+        return window.activeWorkspaceDataset ? '/dashboard' : '/upload';
+    };
+
+    const getBackLabel = () => {
+        if (isGuest) return 'Back to Home';
+        const target = getBackTarget();
+        if (target === '/dashboard') return 'Back to Dashboard';
+        return 'Back to Upload';
+    };
+
     const handleMockCheckout = async (e) => {
         e.preventDefault();
         setCheckoutError('');
@@ -193,7 +210,7 @@ export const Subscription = () => {
             {/* Header / Nav */}
             <div style={{ maxWidth: '960px', margin: '0 auto 30px auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <button 
-                    onClick={() => navigate(isGuest ? '/' : (window.activeWorkspaceDataset ? '/dashboard' : '/upload'))}
+                    onClick={() => navigate(getBackTarget())}
                     className="neu-button"
                     style={{
                         padding: '10px 18px',
@@ -204,7 +221,7 @@ export const Subscription = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <FiArrowLeft size={14} /> {isGuest ? 'Back to Home' : (window.activeWorkspaceDataset ? 'Back to Dashboard' : 'Back to Upload')}
+                    <FiArrowLeft size={14} /> {getBackLabel()}
                 </button>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.25rem' }}>
                     Rotordyn<span style={{ color: '#2563eb' }}>.ai</span>

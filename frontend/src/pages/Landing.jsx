@@ -157,7 +157,7 @@ export const Landing = () => {
                 <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
                     <a href="#features" className="nav-link-item nav-hide-mobile">Features</a>
                     <a href="#workflow" className="nav-link-item nav-hide-mobile">Workflow</a>
-                    <Link to="/subscription" className="nav-link-item nav-hide-mobile">Pricing</Link>
+                    <Link to="/subscription" state={{ from: '/landing' }} className="nav-link-item nav-hide-mobile">Pricing</Link>
                     <Link to="/security" className="nav-link-item nav-hide-mobile">Security</Link>
                     <Link to="/auth" className="nav-link-item" style={{ color: '#475569' }}>Sign In</Link>
                     <Link to="/auth" className="btn-glow-cta" style={{

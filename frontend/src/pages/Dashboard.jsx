@@ -7936,6 +7936,9 @@ export const Dashboard = ({ view }) => {
         window.toggleTimeSync = toggleTimeSync;
         window.zoomSlotPlotIn = zoomSlotPlotIn;
         window.zoomSlotPlotOut = zoomSlotPlotOut;
+        window.navigateToSubscription = () => {
+            navigate('/subscription', { state: { from: view === 'dashboard' ? '/dashboard' : '/upload' } });
+        };
         window.toggleTimelineBar = () => {
             const bar = document.getElementById('global-timeline-bar');
             const btn = document.getElementById('btn-toggle-timeline');
@@ -8056,7 +8059,7 @@ export const Dashboard = ({ view }) => {
 
             if (user && user.subscription_status === 'free-tier' && (user.report_generation_count || 0) >= 3) {
                 alert("You have reached the Starter Plan limit of 3 free AI diagnostics report generations. Please upgrade to a Premium subscription.");
-                navigate('/subscription');
+                navigate('/subscription', { state: { from: view === 'dashboard' ? '/dashboard' : '/upload' } });
                 return;
             }
 
@@ -8141,7 +8144,7 @@ export const Dashboard = ({ view }) => {
                                         Your free plan is completed (3 free generations). Update for more generations.
                                     </p>
                                     <div style="display:flex; gap: 15px; justify-content:center;">
-                                        <button onclick="window.location.href='/subscription'" style="padding: 12px 24px; font-size: 0.9rem; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
+                                        <button onclick="window.navigateToSubscription()" style="padding: 12px 24px; font-size: 0.9rem; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
                                             Go to Subscription Page
                                         </button>
                                         <button onclick="document.getElementById('report-modal').style.display='none';" style="padding: 12px 24px; font-size: 0.9rem; font-weight: 600; background: var(--paper-bg-color, #f1f5f9); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
@@ -8757,7 +8760,7 @@ export const Dashboard = ({ view }) => {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                     </button>
-                    <button className="activity-btn" id="act-btn-pricing" type="button" onClick={() => navigate('/subscription')} title="Pricing & Subscription" style={{ color: '#0284c7' }}>
+                    <button className="activity-btn" id="act-btn-pricing" type="button" onClick={() => navigate('/subscription', { state: { from: view === 'dashboard' ? '/dashboard' : '/upload' } })} title="Pricing & Subscription" style={{ color: '#0284c7' }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="12" y1="1" x2="12" y2="23"></line>
                             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -8841,7 +8844,7 @@ export const Dashboard = ({ view }) => {
                             <button 
                                 onClick={() => {
                                     window.closePanelDrawer && window.closePanelDrawer();
-                                    navigate('/subscription');
+                                    navigate('/subscription', { state: { from: view === 'dashboard' ? '/dashboard' : '/upload' } });
                                 }}
                                 className="neu-button"
                                 style={{ width: '100%', padding: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
