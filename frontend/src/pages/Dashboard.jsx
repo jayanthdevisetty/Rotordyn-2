@@ -108,6 +108,11 @@ export const Dashboard = () => {
     useEffect(() => {
         if (!scriptsLoaded) return;
 
+        if (!window.activeWorkspaceDataset) {
+            navigate('/upload');
+            return;
+        }
+
         // Expose credentials and logout function to global scripts scope
         window.API_BASE_URL = API_BASE_URL;
         window.logout = () => {
@@ -366,13 +371,17 @@ export const Dashboard = () => {
         window.addEventListener('resize', triggerResizeWithTimeout);
 
         // State management
-        let df = []; // Parsed CSV Data
-        let singlePrefixes = []; // Array of all channel prefixes (e.g. BRG1X, BRG1_Seis)
-        let bearingPairs = []; // Array of proximity pairs (e.g. BRG1)
-        let bearingPairsMapping = {}; // Maps bearing base name to X/Y channel prefixes
-        let allDatasetColumns = []; // All columns present in the dataset
+        const workspaceData = window.activeWorkspaceDataset || {};
+        let df = workspaceData.df || [];
+        let singlePrefixes = workspaceData.singlePrefixes || [];
+        let bearingPairs = workspaceData.bearingPairs || [];
+        let bearingPairsMapping = workspaceData.bearingPairsMapping || {};
+        let allDatasetColumns = workspaceData.allDatasetColumns || [];
+        let speedCol = workspaceData.speedCol || 'Speed';
+        let tsCol = workspaceData.tsCol || 'Timestamp';
         let expandedTreeNodes = new Set();
         let baselineThresholds = {};
+        window.detectedSpeedCols = workspaceData.detectedSpeedCols || [];
         
         function calculateBaselineThresholds() {
             baselineThresholds = {};
@@ -408,8 +417,8 @@ export const Dashboard = () => {
             });
         }
 
-        let speedCol = 'Speed(P)';
-        let tsCol = 'Timestamp';
+        if (!speedCol) speedCol = 'Speed(P)';
+        if (!tsCol) tsCol = 'Timestamp';
         
         // Active Filter States
         let activeStateFilter = 'all';
@@ -8259,6 +8268,81 @@ export const Dashboard = () => {
             }
         };
 
+        // Trigger workspace initial load sequence
+        if (workspaceData.isScadaSim) {
+            setTimeout(() => {
+                if (window.startScadaSimulation) {
+                    window.startScadaSimulation();
+                }
+            }, 100);
+        } else {
+            setTimeout(() => {
+                showLoader(true, "Initializing Diagnostics Engine...");
+                
+                // Re-index rows
+                df.forEach((r, idx) => {
+                    r._index = idx;
+                });
+
+                // Display main containers
+                const mainContainer = document.getElementById('main-container');
+                if (mainContainer) mainContainer.style.display = 'flex';
+
+                const timelineBar = document.getElementById('global-timeline-bar');
+                if (timelineBar) timelineBar.style.display = 'flex';
+
+                const topBtn = document.getElementById('btn-top-toggle-timeline');
+                if (topBtn) {
+                    topBtn.style.display = 'inline-block';
+                    topBtn.innerText = 'Hide Speed Profile';
+                    topBtn.style.background = 'var(--card-color)';
+                    topBtn.style.borderColor = 'var(--border-color)';
+                    topBtn.style.color = '#ef4444';
+                }
+
+                // Set file name in UI labels
+                const name = workspaceData.fileName || 'Rotor Telemetry';
+                const nameIds = ['active-dataset-name', 'sidebar-active-filename', 'summary-filename'];
+                nameIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = name;
+                });
+
+                // Dispatch file loaded event
+                window.dispatchEvent(new CustomEvent('rody_file_loaded', { detail: { filename: name } }));
+
+                // Populate controls
+                if (typeof updateSpeedSensorDropdown === 'function') updateSpeedSensorDropdown();
+                calculateBaselineThresholds();
+                populateSidebarTree();
+                populateFilterControls();
+                populateSlowRollDropdown();
+                updateSavedSlowRollList();
+
+                // Set default plot slots
+                if (!plotSlots[0]) {
+                    plotSlots[0] = { bearingOrChannel: 'BRG1X', category: 'trend', isDual: false, layoutLimits: { min: null, max: null, autoScale: true } };
+                }
+                if (!plotSlots[1]) {
+                    plotSlots[1] = { bearingOrChannel: 'BRG1X/BRG1Y', category: 'orbit', isDual: true, layoutLimits: { min: null, max: null, autoScale: true } };
+                }
+
+                renderGrid();
+                saveWorkspaceConfig();
+                showLoader(false);
+
+                // Run diagnostics
+                setTimeout(() => {
+                    runAIDiagnostics();
+                }, 100);
+
+                // Auto-expand tree navigation
+                setTimeout(() => {
+                    selectActivityTab('tree');
+                }, 200);
+            }, 50);
+        }
+
         return () => {
             delete window.handleGenerateReport;
             delete window.printReport;
@@ -8488,51 +8572,37 @@ export const Dashboard = () => {
                     alignItems: 'center',
                     gap: '12px'
                 }}>
+                    <button 
+                        type="button" 
+                        onClick={() => {
+                            if (window.scadaWebSocket) {
+                                window.scadaWebSocket.close();
+                                window.scadaWebSocket = null;
+                            }
+                            window.activeWorkspaceDataset = null;
+                            navigate('/upload');
+                        }} 
+                        style={{ 
+                            background: "var(--card-color)", 
+                            border: "1px solid var(--border-color)", 
+                            color: "var(--accent-color)", 
+                            padding: "8px 16px", 
+                            borderRadius: "50px", 
+                            fontSize: "0.75rem", 
+                            fontWeight: 700, 
+                            cursor: "pointer", 
+                            transition: "all 0.2s", 
+                            boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" 
+                        }}
+                    >
+                        Load New File
+                    </button>
                     <button type="button" id="btn-top-toggle-timeline" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ background: "var(--card-color)", border: "1px solid var(--border-color)", color: "var(--accent-color)", padding: "8px 16px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)" }}>
                         Hide Speed Profile
                     </button>
-
                 </div>
             )}
-            {/* WELCOME / UPLOADER SCREEN */}
-    <div id="welcome-screen">
-        <div style={{position: "absolute", top: "20px", right: "20px", zIndex: 100}}>
-            <button className="btn-upload" type="button" onClick={() => logout()} style={{display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", borderRadius: "8px", margin: 0, width: "auto", fontSize: "0.85rem"}}>
-                <FiLogOut size={16} /> Sign Out
-            </button>
-        </div>
-        <div className="welcome-card">
-            <img src="/favicon.png" style={{width: "56px", height: "56px", objectFit: "contain", marginBottom: "12px", borderRadius: "50%"}} />
-            <div className="welcome-logo">ROTORDYN.AI</div>
-            <h2 style={{fontSize: "1.25rem", marginBottom: "8px"}}>Interactive Vibration Diagnostics Dashboard</h2>
-            <p className="welcome-subtitle">
-                A professional diagnostic app for rotating machinery. Load your merged machine dataset to generate all plots with slider sweeps, telemetry hovers, and customized colors.
-            </p>
             
-            <div id="drop-zone" onClick={() => document.getElementById('file-input').click()}>
-                <div className="upload-icon"><FiFolder size={48} style={{ color: "var(--text-muted)", marginBottom: "15px" }} /></div>
-                <p style={{fontWeight: 500, marginBottom: "5px"}}>Drag & Drop CSV or Excel Files Here</p>
-                <p style={{fontSize: "0.8rem", color: "var(--text-muted)"}}>or click to browse multiple files from local computer</p>
-                <p style={{fontSize: "0.75rem", color: "var(--accent-color)", marginTop: "10px"}}>(Supports multi-file CSV/Excel auto-merging)</p>
-            </div>
-            
-            <input type="file" id="file-input" accept=".csv,.xlsx,.xls" multiple onChange={(e) => window.handleFileSelect && window.handleFileSelect(e)} />
-            <button className="btn-upload" type="button" onClick={() => document.getElementById('file-input').click()}>Select CSV or Excel Files</button>
-            <button className="btn-upload" id="btn-scada-sim" type="button" onClick={() => window.startScadaSimulation && window.startScadaSimulation()} style={{backgroundColor: "transparent", border: "1px dashed var(--accent-color)", color: "var(--accent-color)", marginTop: "10px"}}>Simulate Live SCADA Feed</button>
-            <button className="btn-upload" id="btn-load-cached" type="button" onClick={() => window.loadCachedDataset && window.loadCachedDataset()} style={{backgroundColor: "transparent", border: "1px solid var(--accent-color)", color: "var(--accent-color)", marginTop: "10px", display: "none"}}>Load Last Selected Dataset</button>
-            
-            {/* Saved Datasets section */}
-            <div id="saved-datasets-container" style={{marginTop: "15px", borderTop: "1px solid var(--border-color)", paddingTop: "12px", width: "100%", textAlign: "left"}}>
-                <h3 style={{fontSize: "0.95rem", marginBottom: "8px", fontFamily: "'Outfit', sans-serif", fontWeight: 700, color: "var(--text-color)"}}>Your Saved Datasets</h3>
-                <div id="saved-datasets-list" style={{display: "flex", flexDirection: "column", gap: "8px", maxHeight: "90px", overflowY: "auto", paddingRight: "5px"}}>
-                    <p style={{fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center"}}>Fetching saved datasets...</p>
-                </div>
-            </div>
-
-            <div className="error-message" id="upload-error">Invalid CSV structure detected. Please check your data file.</div>
-        </div>
-    </div>
-
     {/* MAIN DASHBOARD LAYOUT */}
     <div id="main-container" style={{ '--sidebar-width': '60px' }}>
         
