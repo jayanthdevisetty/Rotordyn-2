@@ -4020,6 +4020,10 @@ export const Dashboard = ({ view }) => {
 
         function toggleSlowRoll(checked) {
             slowRollCompensationEnabled = checked;
+            const checkboxEl = document.getElementById('slow-roll-enabled');
+            if (checkboxEl) {
+                checkboxEl.checked = checked;
+            }
             invalidateFilteredDataCache();
             renderGrid();
             if (checked) {
@@ -4069,10 +4073,18 @@ export const Dashboard = ({ view }) => {
                 const slowRollSample = savedSlowRollSamples.find(s => s.id === activeSlowRollSampleId);
                 if (slowRollSample && slowRollSample.row) {
                     const srRow = slowRollSample.row;
+                    
+                    // Pre-calculate and cache the column mappings for all active channels 
+                    // to prevent millions of redundant string regex executions inside the row loop
+                    const channelColumnsCache = {};
+                    singlePrefixes.forEach(ch => {
+                        channelColumnsCache[ch] = getChannelColumns(ch);
+                    });
+                    
                     filtered = filtered.map(row => {
                         const compRow = { ...row };
                         singlePrefixes.forEach(ch => {
-                            const cols = getChannelColumns(ch);
+                            const cols = channelColumnsCache[ch];
                             if (cols.amp_1x && cols.phase_1x) {
                                 const Ad = row[cols.amp_1x];
                                 const phid = row[cols.phase_1x];
@@ -8278,10 +8290,12 @@ export const Dashboard = ({ view }) => {
             
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : (window.API_BASE_URL || '');
             let wsUrl;
+            const tokenVal = (typeof token !== 'undefined' ? token : '') || localStorage.getItem('token') || '';
+            const queryParam = tokenVal ? `?token=${encodeURIComponent(tokenVal)}` : '';
             if (apiBase) {
-                wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream';
+                wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream' + queryParam;
             } else {
-                wsUrl = 'ws://localhost:8000/scada/stream';
+                wsUrl = 'ws://localhost:8000/scada/stream' + queryParam;
             }
             
             console.log("Connecting to SCADA WebSocket: " + wsUrl);
@@ -8382,6 +8396,10 @@ export const Dashboard = ({ view }) => {
             savedSlowRollSamples = [];
             activeSlowRollSampleId = null;
             slowRollCompensationEnabled = false;
+            const checkboxEl = document.getElementById('slow-roll-enabled');
+            if (checkboxEl) {
+                checkboxEl.checked = false;
+            }
             if (timelineIntervalId) {
                 clearInterval(timelineIntervalId);
             }
@@ -9518,7 +9536,7 @@ export const Dashboard = ({ view }) => {
                             <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Slow Roll Compensation</h4>
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <label style={{fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="slow-roll-enabled" onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply Compensation
+                                    <input type="checkbox" id="slow-roll-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply Compensation
                                 </label>
                             </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>

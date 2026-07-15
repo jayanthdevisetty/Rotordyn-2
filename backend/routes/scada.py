@@ -2,14 +2,68 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import asyncio
 import math
 import time
+import httpx
+from jose import jwt
+from config import settings
+from database import supabase
 
 router = APIRouter(prefix="/scada", tags=["scada"])
 
 @router.websocket("/stream")
 async def scada_stream(websocket: WebSocket):
     """Streams live machinery telemetry data packet-by-packet via WebSocket."""
+    token = websocket.query_params.get("token")
+    if not token:
+        # Deny connection if token parameter is missing
+        await websocket.close(code=4008)
+        return
+        
+    user_id = None
+    user_status = "pending"
+    
+    # Verify signature locally using SUPABASE_JWT_SECRET
+    if settings.SUPABASE_JWT_SECRET:
+        try:
+            payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
+            user_id = payload.get("sub")
+        except Exception:
+            pass
+            
+    # Try calling Supabase endpoint as fallback if JWT secret is missing or validation fails
+    if not user_id:
+        try:
+            url = f"{settings.SUPABASE_URL}/auth/v1/user"
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.SUPABASE_ANON_KEY
+            }
+            async with httpx.AsyncClient() as client:
+                res = await client.get(url, headers=headers)
+                if res.status_code == 200:
+                    user_id = res.json().get("id")
+        except Exception:
+            pass
+            
+    if not user_id:
+        # Close connection with policy violation code if unauthenticated
+        await websocket.close(code=4008)
+        return
+        
+    # Check user approval status in database profiles
+    try:
+        db_res = supabase.table("profiles").select("status").eq("id", user_id).execute()
+        if db_res.data and len(db_res.data) > 0:
+            user_status = db_res.data[0].get("status", "pending")
+    except Exception:
+        user_status = "pending"
+        
+    if user_status != "approved":
+        # Deny connection if user account is not approved by administrator
+        await websocket.close(code=4008)
+        return
+        
     await websocket.accept()
-    print("WebSocket client connected to SCADA live stream.")
+    print(f"WebSocket client {user_id} connected to SCADA live stream.")
     
     count = 0
     base_time_ms = int(time.time() * 1000) - 50000
