@@ -5191,16 +5191,23 @@ export const Dashboard = ({ view }) => {
 
         function findClosestRowIndex(dataArray, targetTimeMs) {
             if (!dataArray || dataArray.length === 0) return -1;
-            let closestIdx = 0;
-            let minDiff = Math.abs(dataArray[0]._time_ms - targetTimeMs);
-            for (let i = 1; i < dataArray.length; i++) {
-                let diff = Math.abs(dataArray[i]._time_ms - targetTimeMs);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestIdx = i;
+            
+            let low = 0;
+            let high = dataArray.length - 1;
+            
+            while (low < high - 1) {
+                const mid = Math.floor((low + high) / 2);
+                const midMs = dataArray[mid]._time_ms || 0;
+                if (midMs < targetTimeMs) {
+                    low = mid;
+                } else {
+                    high = mid;
                 }
             }
-            return closestIdx;
+            
+            const diffLow = Math.abs((dataArray[low]._time_ms || 0) - targetTimeMs);
+            const diffHigh = Math.abs((dataArray[high]._time_ms || 0) - targetTimeMs);
+            return diffLow <= diffHigh ? low : high;
         }
 
         // Timeline Player state variables
