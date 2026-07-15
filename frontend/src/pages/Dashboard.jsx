@@ -1388,79 +1388,150 @@ export const Dashboard = ({ view }) => {
             }
         }
 
+        function loadHtml2Canvas() {
+            return new Promise((resolve, reject) => {
+                if (window.html2canvas) {
+                    resolve(window.html2canvas);
+                    return;
+                }
+                if (window.html2pdf) {
+                    resolve(window.html2canvas);
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.async = true;
+                script.onload = () => {
+                    resolve(window.html2canvas);
+                };
+                script.onerror = () => reject(new Error("Failed to load html2canvas library."));
+                document.head.appendChild(script);
+            });
+        }
+
         async function downloadSlotPlot(slotIdx) {
-            const container = document.getElementById(`plotly-container-${slotIdx}`);
-            if (!container || !container.data) {
-                alert("No plot data found to save.");
+            const card = document.getElementById(`grid-card-${slotIdx}`);
+            if (!card) {
+                alert("No plot card found to save.");
                 return;
             }
             const config = plotSlots[slotIdx];
             const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
             
-            if (window.outputDirHandle) {
-                try {
-                    const dataUrl = await Plotly.toImage(container, { format: 'png', width: 1200, height: 800 });
-                    const blob = dataURItoBlob(dataUrl);
+            showLoader(true, "Generating high-quality plot image...");
+            
+            const actions = document.getElementById(`header-actions-${slotIdx}`);
+            const originalDisplay = actions ? actions.style.display : '';
+            
+            try {
+                await loadHtml2Canvas();
+                
+                if (actions) actions.style.display = 'none';
+                
+                const canvas = await window.html2canvas(card, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                
+                const dataUrl = canvas.toDataURL('image/png');
+                const blob = dataURItoBlob(dataUrl);
+                
+                if (window.outputDirHandle) {
                     const success = await saveFileToLocalDirectory(filename, blob);
                     if (success) {
                         alert(`Plot successfully saved directly to output folder: ${window.outputDirHandle.name}/${filename}`);
                         return;
                     }
-                } catch (err) {
-                    console.error("Failed saving directly:", err);
                 }
+                
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert(`Plot successfully saved as '${filename}' to your browser's default Downloads folder.`);
+                
+            } catch (err) {
+                console.error("Failed to export plot image:", err);
+                alert("Failed to save plot image: " + err.message);
+            } finally {
+                if (actions) actions.style.display = originalDisplay;
+                showLoader(false);
             }
-
-            // Fallback
-            Plotly.downloadImage(container, {
-                format: 'png',
-                width: 1200,
-                height: 800,
-                filename: filename.replace('.png', '')
-            });
-            alert(`Plot successfully saved as '${filename}' to your browser's default Downloads folder (usually C:\\Users\\<Username>\\Downloads).`);
         }
 
         async function downloadAllPlots() {
             let count = 0;
             let directCount = 0;
-            for (let idx = 0; idx < plotSlots.length; idx++) {
-                const config = plotSlots[idx];
-                if (!config) continue;
-                const container = document.getElementById(`plotly-container-${idx}`);
-                if (container && container.data) {
-                    count++;
-                    const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
+            
+            showLoader(true, "Preparing to export all plots...");
+            
+            try {
+                await loadHtml2Canvas();
+                
+                for (let idx = 0; idx < plotSlots.length; idx++) {
+                    const config = plotSlots[idx];
+                    if (!config) continue;
                     
-                    if (window.outputDirHandle) {
+                    const card = document.getElementById(`grid-card-${idx}`);
+                    const actions = document.getElementById(`header-actions-${idx}`);
+                    
+                    if (card) {
+                        count++;
+                        const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
+                        
+                        const originalDisplay = actions ? actions.style.display : '';
+                        if (actions) actions.style.display = 'none';
+                        
                         try {
-                            const dataUrl = await Plotly.toImage(container, { format: 'png', width: 1200, height: 800 });
+                            const canvas = await window.html2canvas(card, {
+                                scale: 2,
+                                useCORS: true,
+                                backgroundColor: '#ffffff',
+                                logging: false
+                            });
+                            
+                            const dataUrl = canvas.toDataURL('image/png');
                             const blob = dataURItoBlob(dataUrl);
-                            const success = await saveFileToLocalDirectory(filename, blob);
-                            if (success) {
-                                directCount++;
+                            
+                            if (window.outputDirHandle) {
+                                const success = await saveFileToLocalDirectory(filename, blob);
+                                if (success) {
+                                    directCount++;
+                                }
+                            } else {
+                                const link = document.createElement('a');
+                                link.download = filename;
+                                link.href = dataUrl;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
                             }
                         } catch (err) {
-                            console.error("Failed saving directly:", err);
+                            console.error(`Failed to export plot ${filename}:`, err);
+                        } finally {
+                            if (actions) actions.style.display = originalDisplay;
                         }
-                    } else {
-                        Plotly.downloadImage(container, {
-                            format: 'png',
-                            width: 1200,
-                            height: 800,
-                            filename: filename.replace('.png', '')
-                        });
                     }
                 }
-            }
-            if (count > 0) {
-                if (window.outputDirHandle) {
-                    alert(`Successfully saved ${directCount} of ${count} plot(s) directly to output folder: ${window.outputDirHandle.name}`);
+                
+                if (count > 0) {
+                    if (window.outputDirHandle) {
+                        alert(`Successfully saved ${directCount} of ${count} plot(s) directly to output folder: ${window.outputDirHandle.name}`);
+                    } else {
+                        alert(`Successfully saved ${count} plot(s) to your browser's default Downloads folder.`);
+                    }
                 } else {
-                    alert(`Successfully saved ${count} plot(s) to your browser's default Downloads folder (usually C:\\Users\\<Username>\\Downloads).`);
+                    alert("No active plots found to save.");
                 }
-            } else {
-                alert("No active plots found to save.");
+            } catch (err) {
+                console.error("Failed download all plots:", err);
+                alert("Failed to export plots: " + err.message);
+            } finally {
+                showLoader(false);
             }
         }
 
