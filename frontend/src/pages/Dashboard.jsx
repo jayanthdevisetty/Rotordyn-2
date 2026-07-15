@@ -464,7 +464,7 @@ export const Dashboard = ({ view }) => {
                     if (config && config.category !== 'mode_shape') {
                         const containerDiv = document.getElementById(`plotly-container-${idx}`);
                         if (containerDiv) {
-                            Plotly.Plots.resize(containerDiv);
+                            renderPlotInSlot(idx, containerDiv, config.bearingOrChannel, config.category);
                         }
                     }
                 });
