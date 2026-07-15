@@ -104,7 +104,6 @@ let isTimelinePlaying = false;
 let timelineStepSize = 1;
 let timelinePlaybackDelay = 200;
 let timelinePlotlyContainer = null;
-let timelineResetNeeded = true;
 
 export const Dashboard = ({ view }) => {
     const {user, setUser, token, logout, API_BASE_URL} = useAuth();
@@ -3774,7 +3773,6 @@ export const Dashboard = ({ view }) => {
 
         // Populate Timeline Filters dynamically
         function populateFilterControls() {
-            timelineResetNeeded = true;
             if (df.length === 0) return;
             
             const speeds = df.map(r => r[speedCol] || 0);
@@ -5216,77 +5214,72 @@ export const Dashboard = ({ view }) => {
             const timelineDf = getTimelineData();
             if (timelineDf.length === 0) return;
             
-            const chartDiv = document.getElementById('timeline-plotly-chart');
-            if (timelineResetNeeded || !chartDiv || !timelinePlotlyContainer) {
-                timelineResetNeeded = false;
-                container.innerHTML = `
-                    <div id="timeline-plotly-chart" style="width: 100%; height: 38px;"></div>
-                    <div id="timeline-range-selector" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
-                        <!-- Draggable highlighted range box -->
-                        <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
-                            <!-- Left drag handle -->
-                            <div id="range-handle-left" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                            <!-- Right drag handle -->
-                            <div id="range-handle-right" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                        </div>
-                        <!-- Current cursor playback vertical line indicator -->
-                        <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
-                            <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                            <div style="position: absolute; top: -3px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
-                        </div>
+            container.innerHTML = `
+                <div id="timeline-plotly-chart" style="width: 100%; height: 38px;"></div>
+                <div id="timeline-range-selector" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
+                    <!-- Draggable highlighted range box -->
+                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
+                        <!-- Left drag handle -->
+                        <div id="range-handle-left" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
+                        <!-- Right drag handle -->
+                        <div id="range-handle-right" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
                     </div>
-                    <!-- Hidden range input for back-compatibility with other scripts -->
-                    <input type="range" id="global-timeline-slider" style="display: none;">
-                `;
-                
-                timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
-                
-                const indices = timelineDf.map((_, i) => i);
-                const speeds = timelineDf.map(r => r[speedCol] || 0);
-                
-                const trace = {
-                    x: indices,
-                    y: speeds,
-                    type: 'scatter',
-                    mode: 'lines',
-                    line: {
-                        color: '#0ea5e9',
-                        width: 1.5
-                    },
-                    fill: 'tozeroy',
-                    fillcolor: 'rgba(14, 165, 233, 0.08)',
-                    hoverinfo: 'none'
-                };
-                
-                const layout = {
-                    paper_bgcolor: 'transparent',
-                    plot_bgcolor: 'transparent',
-                    margin: { t: 0, b: 0, l: 0, r: 0 },
-                    xaxis: {
-                        visible: false,
-                        showgrid: false,
-                        zeroline: false,
-                        fixedrange: true
-                    },
-                    yaxis: {
-                        visible: false,
-                        showgrid: false,
-                        zeroline: false,
-                        fixedrange: true
-                    },
-                    showlegend: false,
-                    hovermode: false
-                };
-                
-                Plotly.newPlot(timelinePlotlyContainer, [trace], layout, {
-                    responsive: true,
-                    displayModeBar: false,
-                    staticPlot: true
-                });
-                
-                initTimelineDragEvents();
-            }
+                    <!-- Current cursor playback vertical line indicator -->
+                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
+                        <!-- Circular handle at top of yellow cursor line for easier grabbing -->
+                        <div style="position: absolute; top: -3px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
+                    </div>
+                </div>
+                <!-- Hidden range input for back-compatibility with other scripts -->
+                <input type="range" id="global-timeline-slider" style="display: none;">
+            `;
             
+            timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
+            
+            const indices = timelineDf.map((_, i) => i);
+            const speeds = timelineDf.map(r => r[speedCol] || 0);
+            
+            const trace = {
+                x: indices,
+                y: speeds,
+                type: 'scatter',
+                mode: 'lines',
+                line: {
+                    color: '#0ea5e9',
+                    width: 1.5
+                },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(14, 165, 233, 0.08)',
+                hoverinfo: 'none'
+            };
+            
+            const layout = {
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+                xaxis: {
+                    visible: false,
+                    showgrid: false,
+                    zeroline: false,
+                    fixedrange: true
+                },
+                yaxis: {
+                    visible: false,
+                    showgrid: false,
+                    zeroline: false,
+                    fixedrange: true
+                },
+                showlegend: false,
+                hovermode: false
+            };
+            
+            Plotly.newPlot(timelinePlotlyContainer, [trace], layout, {
+                responsive: true,
+                displayModeBar: false,
+                staticPlot: true
+            });
+            
+            initTimelineDragEvents();
             updateTimelineRangeUI();
         }
 
@@ -7960,7 +7953,6 @@ export const Dashboard = ({ view }) => {
             timelineStepSize = 1;
             timelinePlaybackDelay = 200;
             timelinePlotlyContainer = null;
-            timelineResetNeeded = true;
             SessionCache.delete('csv_filename')
                 .then(() => SessionCache.delete('csv_text'))
                 .then(() => {
@@ -9426,13 +9418,13 @@ export const Dashboard = ({ view }) => {
                     1
                     <span className="tooltip">1 Plot</span>
                 </button>
-                <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
-                    2H
-                    <span className="tooltip">2 Plots Horizontal</span>
-                </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2V' ? 'active' : ''}`} id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
                     2V
                     <span className="tooltip">2 Plots Vertical</span>
+                </button>
+                <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
+                    2H
+                    <span className="tooltip">2 Plots Horizontal</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '4' ? 'active' : ''}`} id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
                     4
