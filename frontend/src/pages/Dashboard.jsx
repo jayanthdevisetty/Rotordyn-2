@@ -6639,18 +6639,23 @@ export const Dashboard = ({ view }) => {
             const paperRx = (circleRadiusPx * 1.08) / width;
             const paperRy = (circleRadiusPx * 1.08) / height;
 
-            // Angles in radians (Top is PI/2, Left is PI)
-            // Arc spans from 165 to 105 degrees (top-left quadrant on screen, sweeping clockwise from left to top)
-            const angleStart = 165 * Math.PI / 180;
-            const angleEnd = 105 * Math.PI / 180;
+            // Generate path using short line segments (L) to ensure 100% compatibility with Plotly shape parser
+            let arcPath = '';
+            const steps = 12;
+            for (let i = 0; i <= steps; i++) {
+                const angle = (165 - (i / steps) * 60) * Math.PI / 180; // Sweeping clockwise from 165 to 105 degrees
+                const x = paperCenterX + paperRx * Math.cos(angle);
+                const y = paperCenterY + paperRy * Math.sin(angle);
+                if (i === 0) {
+                    arcPath += `M ${x.toFixed(4)} ${y.toFixed(4)}`;
+                } else {
+                    arcPath += ` L ${x.toFixed(4)} ${y.toFixed(4)}`;
+                }
+            }
 
-            const xStart = paperCenterX + paperRx * Math.cos(angleStart);
-            const yStart = paperCenterY + paperRy * Math.sin(angleStart);
+            const angleEnd = 105 * Math.PI / 180;
             const xEnd = paperCenterX + paperRx * Math.cos(angleEnd);
             const yEnd = paperCenterY + paperRy * Math.sin(angleEnd);
-
-            // Draw arc path (sweep-flag is 0 for clockwise when y increases upwards)
-            const arcPath = `M ${xStart.toFixed(4)} ${yStart.toFixed(4)} A ${paperRx.toFixed(4)} ${paperRy.toFixed(4)} 0 0 0 ${xEnd.toFixed(4)} ${yEnd.toFixed(4)}`;
 
             // Tangent direction at the end point (pointing clockwise)
             const tangentAngle = angleEnd - Math.PI / 2; // 15 degrees
