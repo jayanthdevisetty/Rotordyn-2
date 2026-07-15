@@ -5703,14 +5703,30 @@ export const Dashboard = ({ view }) => {
             }
         }
 
-        let updateCursorsPending = false;
+        let lastCursorUpdateTime = 0;
+        let updateCursorsTimeout = null;
+
         function updateAllCursorsThrottled() {
-            if (updateCursorsPending) return;
-            updateCursorsPending = true;
-            requestAnimationFrame(() => {
-                updateAllCursors();
-                updateCursorsPending = false;
-            });
+            const now = Date.now();
+            const minInterval = 60; // Limit cursor sync updates to at most 16 FPS to prevent main thread blocking
+            
+            if (now - lastCursorUpdateTime >= minInterval) {
+                if (updateCursorsTimeout) {
+                    clearTimeout(updateCursorsTimeout);
+                    updateCursorsTimeout = null;
+                }
+                lastCursorUpdateTime = now;
+                requestAnimationFrame(updateAllCursors);
+            } else {
+                // Ensure a trailing-edge call is scheduled to capture the final drag position
+                if (!updateCursorsTimeout) {
+                    updateCursorsTimeout = setTimeout(() => {
+                        lastCursorUpdateTime = Date.now();
+                        requestAnimationFrame(updateAllCursors);
+                        updateCursorsTimeout = null;
+                    }, minInterval - (now - lastCursorUpdateTime));
+                }
+            }
         }
 
         // Sync cursor line on all plots
