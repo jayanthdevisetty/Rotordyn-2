@@ -5875,13 +5875,60 @@ export const Dashboard = ({ view }) => {
                 const isPolar = config.category === 'polar';
                 let updateData;
                 if (isPolar) {
-                    const rMax = (container.layout && container.layout.polar && container.layout.polar.radialaxis && container.layout.polar.radialaxis.range) ? container.layout.polar.radialaxis.range[1] : cursorY * 1.1;
-                    const delta_r = Math.min(0.15 * cursorY, 0.08 * (rMax || 1.0));
-                    const delta_theta = 12;
                     updateData = {
-                        r: [[0, cursorY, cursorY - delta_r, null, cursorY, cursorY - delta_r]],
-                        theta: [[cursorX, cursorX, cursorX - delta_theta, null, cursorX, cursorX + delta_theta]]
+                        r: [[cursorY]],
+                        theta: [[cursorX]]
                     };
+                    
+                    // Dynamically calculate tangent angle for the new index
+                    let cursorAngle = 0;
+                    if (container.plotData && container.plotData.length > 1) {
+                        const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
+                        if (localIdx !== -1) {
+                            const curIdx = localIdx;
+                            const nextIdx = curIdx < container.plotData.length - 1 ? curIdx + 1 : curIdx - 1;
+                            const cols = getChannelColumns(config.bearingOrChannel);
+                            const r1 = container.plotData[curIdx][cols.amp_1x] !== undefined ? container.plotData[curIdx][cols.amp_1x] : 0;
+                            
+                            let phases = container.plotData.map(r => r[cols.phase_1x] !== undefined ? r[cols.phase_1x] : 0);
+                            if (container.unwrappedPhases) {
+                                phases = container.unwrappedPhases;
+                            }
+                            
+                            const angleXInput = document.getElementById('probe-angle-x-input');
+                            const angleYInput = document.getElementById('probe-angle-y-input');
+                            const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                            let probeAngle = 90;
+                            const ch = config.bearingOrChannel || '';
+                            if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                                probeAngle = probeXAngle;
+                            } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                                probeAngle = probeYAngle;
+                            }
+
+                            const t1 = (phases[curIdx] - probeAngle) * Math.PI / 180;
+                            const x1 = r1 * Math.sin(t1);
+                            const y1 = r1 * Math.cos(t1);
+
+                            const r2 = container.plotData[nextIdx][cols.amp_1x] !== undefined ? container.plotData[nextIdx][cols.amp_1x] : 0;
+                            const t2 = (phases[nextIdx] - probeAngle) * Math.PI / 180;
+                            const x2 = r2 * Math.sin(t2);
+                            const y2 = r2 * Math.cos(t2);
+
+                            const dx = curIdx < container.plotData.length - 1 ? (x2 - x1) : (x1 - x2);
+                            const dy = curIdx < container.plotData.length - 1 ? (y2 - y1) : (y1 - y2);
+
+                            const tangentRad = Math.atan2(dy, dx);
+                            let tangentDeg = tangentRad * 180 / Math.PI;
+                            cursorAngle = 90 - tangentDeg;
+                        }
+                    }
+                    
+                    // Restyle the marker angle along with coordinates
+                    Plotly.restyle(container, {
+                        'marker.angle': [cursorAngle]
+                    }, [traceIdx]);
                 } else {
                     updateData = {
                         x: [[cursorX]],
