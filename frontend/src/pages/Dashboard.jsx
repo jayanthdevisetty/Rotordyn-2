@@ -9419,12 +9419,12 @@ export const Dashboard = ({ view }) => {
                     <span className="tooltip">1 Plot</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2V' ? 'active' : ''}`} id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
-                    2V
-                    <span className="tooltip">2 Plots Vertical</span>
-                </button>
-                <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
                     2H
                     <span className="tooltip">2 Plots Horizontal</span>
+                </button>
+                <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
+                    2V
+                    <span className="tooltip">2 Plots Vertical</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '4' ? 'active' : ''}`} id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
                     4
