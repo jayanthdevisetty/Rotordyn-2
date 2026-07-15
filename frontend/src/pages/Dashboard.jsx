@@ -6597,6 +6597,7 @@ export const Dashboard = ({ view }) => {
 
             layout.polar = {
                 bgcolor: plotBg,
+                domain: { x: [0.12, 0.88], y: [0.12, 0.88] }, // symmetric domain centered at 0.50
                 angularaxis: {
                     direction: 'clockwise',
                     period: 360,
@@ -6623,17 +6624,11 @@ export const Dashboard = ({ view }) => {
             const width = rect.width || 400;
             const height = rect.height || 300;
 
-            const margin_l = 45;
-            const margin_r = 75;
-            const margin_t = 45;
-            const margin_b = 65;
+            const domainSize = 0.76; // width and height of the domain is 0.76 (from 0.12 to 0.88)
+            const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
 
-            const circleRadiusPx = Math.min(width - (margin_l + margin_r), height - (margin_t + margin_b)) / 2;
-            const centerX = margin_l + (width - margin_l - margin_r) / 2;
-            const centerY = margin_b + (height - margin_t - margin_b) / 2;
-
-            const paperCenterX = centerX / width;
-            const paperCenterY = centerY / height;
+            const paperCenterX = 0.50;
+            const paperCenterY = 0.50;
             
             // Draw arc concentric at 1.08 times the radius (sitting cleanly outside the circle)
             const paperRx = (circleRadiusPx * 1.08) / width;
