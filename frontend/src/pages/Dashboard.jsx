@@ -5321,6 +5321,16 @@ export const Dashboard = ({ view }) => {
         }
 
         function initTimelineDragEvents() {
+            let renderGridPending = false;
+            function requestRenderGrid() {
+                if (renderGridPending) return;
+                renderGridPending = true;
+                requestAnimationFrame(() => {
+                    renderGrid();
+                    renderGridPending = false;
+                });
+            }
+
             const container = document.getElementById('timeline-waveform-container');
             const rangeBox = document.getElementById('timeline-range-box');
             const leftHandle = document.getElementById('range-handle-left');
@@ -5386,6 +5396,9 @@ export const Dashboard = ({ view }) => {
                     if (closestFilteredIdx !== -1) {
                         activeCursorIndex = closestFilteredIdx;
                         timelineSliderInput(activeCursorIndex);
+                        
+                        isDraggingCursor = true;
+                        container.style.cursor = 'col-resize';
                     }
                 } else {
                     const durationMs = endMs - startMs;
@@ -5410,6 +5423,9 @@ export const Dashboard = ({ view }) => {
                         activeCursorIndex = 0;
                         renderGrid();
                         updateTimelineRangeUI();
+                        
+                        isDraggingCursor = true;
+                        container.style.cursor = 'col-resize';
                     }
                 }
             });
@@ -5446,7 +5462,7 @@ export const Dashboard = ({ view }) => {
                             if (presetSelect) presetSelect.value = 'custom';
                             
                             activeCursorIndex = 0;
-                            renderGrid();
+                            requestRenderGrid();
                             updateTimelineRangeUI();
                         }
                     } else if (isDraggingRight) {
@@ -5467,7 +5483,7 @@ export const Dashboard = ({ view }) => {
                             if (presetSelect) presetSelect.value = 'custom';
                             
                             activeCursorIndex = 0;
-                            renderGrid();
+                            requestRenderGrid();
                             updateTimelineRangeUI();
                         }
                     } else if (isDraggingBox) {
@@ -5502,7 +5518,7 @@ export const Dashboard = ({ view }) => {
                             }
                             
                             activeCursorIndex = 0;
-                            renderGrid();
+                            requestRenderGrid();
                             updateTimelineRangeUI();
                         }
                     } else if (isDraggingCursor) {
@@ -5510,6 +5526,33 @@ export const Dashboard = ({ view }) => {
                         let pct = Math.max(0, Math.min(1, mouseX / rect.width));
                         
                         const targetMs = timelineDf[0]._time_ms + pct * totalMs;
+                        
+                        const startMs = parseTimestamp(activeStartTime).getTime();
+                        const endMs = parseTimestamp(activeEndTime).getTime();
+                        
+                        if (targetMs < startMs || targetMs > endMs) {
+                            const durationMs = endMs - startMs;
+                            const newStartMs = Math.max(timelineDf[0]._time_ms, Math.min(timelineDf[timelineDf.length - 1]._time_ms - durationMs, targetMs - durationMs / 2));
+                            const newEndMs = newStartMs + durationMs;
+
+                            const startIdx = findClosestRowIndexByMs(timelineDf, newStartMs);
+                            const endIdx = findClosestRowIndexByMs(timelineDf, newEndMs);
+
+                            if (startIdx !== -1 && endIdx !== -1) {
+                                activeStartTime = timelineDf[startIdx][tsCol];
+                                activeEndTime = timelineDf[endIdx][tsCol];
+
+                                selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
+                                selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
+
+                                const presetSelect = document.getElementById('filter-time-window');
+                                if (presetSelect) presetSelect.value = 'custom';
+
+                                requestRenderGrid();
+                                updateTimelineRangeUI();
+                            }
+                        }
+
                         const filteredDf = getFilteredData();
                         const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, targetMs);
                         if (closestFilteredIdx !== -1) {
@@ -7080,11 +7123,20 @@ export const Dashboard = ({ view }) => {
             
             const C = window.bearingClearance || 12.0;
             const boundary_r = C;
-            const limit = C * 1.6;
+            
+            let maxVal = 0.1;
+            clean_df.forEach(row => {
+                const ax = Math.abs(row[cols.x.amp_1x]) || 0;
+                const ay = Math.abs(row[cols.y.amp_1x]) || 0;
+                if (ax > maxVal) maxVal = ax;
+                if (ay > maxVal) maxVal = ay;
+            });
+            
+            const limit = maxVal * 1.4;
             let finalLimit = limit;
             if (!limits.autoScale) {
-                if (limits.max !== null) finalLimit = Math.max(Math.abs(limits.max), boundary_r * 1.6);
-                else if (limits.min !== null) finalLimit = Math.max(Math.abs(limits.min), boundary_r * 1.6);
+                if (limits.max !== null) finalLimit = Math.abs(limits.max);
+                else if (limits.min !== null) finalLimit = Math.abs(limits.min);
             }
 
             const layout = { ...baseLayout };
