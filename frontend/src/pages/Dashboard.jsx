@@ -5110,65 +5110,37 @@ export const Dashboard = ({ view }) => {
             
             const isPolar = config.category === 'polar';
             if (isPolar) {
-                // Calculate tangent angle for cursor arrowhead direction
-                let cursorAngle = 0;
-                if (localDf && localDf.length > 1) {
-                    const curIdx = localIdx < localDf.length ? localIdx : localDf.length - 1;
-                    const nextIdx = curIdx < localDf.length - 1 ? curIdx + 1 : curIdx - 1;
-                    
-                    const cols = getChannelColumns(config.bearingOrChannel);
-                    const r1 = localDf[curIdx][cols.amp_1x] !== undefined ? localDf[curIdx][cols.amp_1x] : 0;
-                    
-                    // Retrieve phase angles
-                    let phases = localDf.map(r => r[cols.phase_1x] !== undefined ? r[cols.phase_1x] : 0);
-                    if (container && container.unwrappedPhases) {
-                        phases = container.unwrappedPhases;
-                    }
-                    
-                    // Retrieve probe angle
-                    const angleXInput = document.getElementById('probe-angle-x-input');
-                    const angleYInput = document.getElementById('probe-angle-y-input');
-                    const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
-                    const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
-                    let probeAngle = 90;
-                    const ch = config.bearingOrChannel || '';
-                    if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
-                        probeAngle = probeXAngle;
-                    } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
-                        probeAngle = probeYAngle;
-                    }
-
-                    // Convert to radians relative to probe rotation angle
-                    const t1 = (phases[curIdx] - probeAngle) * Math.PI / 180;
-                    const x1 = r1 * Math.sin(t1); // since 0 is top on screen, x is sin and y is cos
-                    const y1 = r1 * Math.cos(t1);
-
-                    const r2 = localDf[nextIdx][cols.amp_1x] !== undefined ? localDf[nextIdx][cols.amp_1x] : 0;
-                    const t2 = (phases[nextIdx] - probeAngle) * Math.PI / 180;
-                    const x2 = r2 * Math.sin(t2);
-                    const y2 = r2 * Math.cos(t2);
-
-                    const dx = curIdx < localDf.length - 1 ? (x2 - x1) : (x1 - x2);
-                    const dy = curIdx < localDf.length - 1 ? (y2 - y1) : (y1 - y2);
-
-                    const tangentRad = Math.atan2(dy, dx);
-                    let tangentDeg = tangentRad * 180 / Math.PI;
-                    // Map screen tangent to Plotly marker angle (0 is straight up, positive is clockwise)
-                    cursorAngle = 90 - tangentDeg;
+                // Retrieve probe angle to calculate correct physical rotation angle on screen
+                const angleXInput = document.getElementById('probe-angle-x-input');
+                const angleYInput = document.getElementById('probe-angle-y-input');
+                const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                let probeAngle = 90;
+                const ch = config.bearingOrChannel || '';
+                if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                    probeAngle = probeXAngle;
+                } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                    probeAngle = probeYAngle;
                 }
+
+                const markerAngle = cursorX - probeAngle;
 
                 traces.push({
                     type: 'scatterpolar',
-                    r: [cursorY],
-                    theta: [cursorX],
-                    mode: 'markers',
+                    r: [0, cursorY],
+                    theta: [cursorX, cursorX],
+                    mode: 'lines+markers',
                     name: 'Cursor Marker',
-                    marker: {
-                        symbol: 'triangle-up',
-                        size: 13,
+                    line: {
                         color: '#2563eb', // ADRE blue
+                        width: 1.8
+                    },
+                    marker: {
+                        size: [0, 13], // Hide the center marker, show the arrowhead at the tip
+                        color: '#2563eb',
+                        symbol: 'triangle-up',
                         line: { width: 1.5, color: '#ffffff' }, // white border for separation
-                        angle: cursorAngle
+                        angle: [0, markerAngle]
                     },
                     showlegend: false,
                     hoverinfo: 'skip'
@@ -5876,58 +5848,28 @@ export const Dashboard = ({ view }) => {
                 let updateData;
                 if (isPolar) {
                     updateData = {
-                        r: [[cursorY]],
-                        theta: [[cursorX]]
+                        r: [[0, cursorY]],
+                        theta: [[cursorX, cursorX]]
                     };
-                    
-                    // Dynamically calculate tangent angle for the new index
-                    let cursorAngle = 0;
-                    if (container.plotData && container.plotData.length > 1) {
-                        const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
-                        if (localIdx !== -1) {
-                            const curIdx = localIdx;
-                            const nextIdx = curIdx < container.plotData.length - 1 ? curIdx + 1 : curIdx - 1;
-                            const cols = getChannelColumns(config.bearingOrChannel);
-                            const r1 = container.plotData[curIdx][cols.amp_1x] !== undefined ? container.plotData[curIdx][cols.amp_1x] : 0;
-                            
-                            let phases = container.plotData.map(r => r[cols.phase_1x] !== undefined ? r[cols.phase_1x] : 0);
-                            if (container.unwrappedPhases) {
-                                phases = container.unwrappedPhases;
-                            }
-                            
-                            const angleXInput = document.getElementById('probe-angle-x-input');
-                            const angleYInput = document.getElementById('probe-angle-y-input');
-                            const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
-                            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
-                            let probeAngle = 90;
-                            const ch = config.bearingOrChannel || '';
-                            if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
-                                probeAngle = probeXAngle;
-                            } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
-                                probeAngle = probeYAngle;
-                            }
 
-                            const t1 = (phases[curIdx] - probeAngle) * Math.PI / 180;
-                            const x1 = r1 * Math.sin(t1);
-                            const y1 = r1 * Math.cos(t1);
-
-                            const r2 = container.plotData[nextIdx][cols.amp_1x] !== undefined ? container.plotData[nextIdx][cols.amp_1x] : 0;
-                            const t2 = (phases[nextIdx] - probeAngle) * Math.PI / 180;
-                            const x2 = r2 * Math.sin(t2);
-                            const y2 = r2 * Math.cos(t2);
-
-                            const dx = curIdx < container.plotData.length - 1 ? (x2 - x1) : (x1 - x2);
-                            const dy = curIdx < container.plotData.length - 1 ? (y2 - y1) : (y1 - y2);
-
-                            const tangentRad = Math.atan2(dy, dx);
-                            let tangentDeg = tangentRad * 180 / Math.PI;
-                            cursorAngle = 90 - tangentDeg;
-                        }
+                    // Retrieve probe angle
+                    const angleXInput = document.getElementById('probe-angle-x-input');
+                    const angleYInput = document.getElementById('probe-angle-y-input');
+                    const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                    const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                    let probeAngle = 90;
+                    const ch = config.bearingOrChannel || '';
+                    if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                        probeAngle = probeXAngle;
+                    } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                        probeAngle = probeYAngle;
                     }
-                    
+
+                    const markerAngle = cursorX - probeAngle;
+
                     // Restyle the marker angle along with coordinates
                     Plotly.restyle(container, {
-                        'marker.angle': [cursorAngle]
+                        'marker.angle': [[0, markerAngle]]
                     }, [traceIdx]);
                 } else {
                     updateData = {
