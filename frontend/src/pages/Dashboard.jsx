@@ -6699,7 +6699,7 @@ export const Dashboard = ({ view }) => {
                     yref: 'paper',
                     path: arcPath,
                     fillcolor: 'rgba(0,0,0,0)', // Use standard transparent rgba instead of none to prevent rendering failure
-                    line: { color: '#2563eb', width: 2.2 }
+                    line: { color: borderCol, width: 1.2 }
                 },
                 // ADRE concentric direction arrowhead
                 {
@@ -6707,8 +6707,8 @@ export const Dashboard = ({ view }) => {
                     xref: 'paper',
                     yref: 'paper',
                     path: arrowheadPath,
-                    fillcolor: '#2563eb', // ADRE blue
-                    line: { color: '#2563eb', width: 1.0 }
+                    fillcolor: borderCol, // Blend with the grid border color
+                    line: { color: borderCol, width: 0.8 }
                 },
                 // Vertical scale line
                 {
