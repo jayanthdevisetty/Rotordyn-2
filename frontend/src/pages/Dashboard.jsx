@@ -3512,9 +3512,9 @@ export const Dashboard = ({ view }) => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' },
-                        { category: 'cascade', name: '3D Waterfall Spectrum' }
+                        // { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        // { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -3623,9 +3623,9 @@ export const Dashboard = ({ view }) => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' },
-                        { category: 'cascade', name: '3D Waterfall Spectrum' }
+                        // { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        // { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -7146,24 +7146,28 @@ export const Dashboard = ({ view }) => {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.xaxis.gridcolor
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1
                 };
+                if (!limits.autoScale) {
+                    layout.xaxis.range = [-finalLimit, finalLimit];
+                    layout.yaxis.range = [-finalLimit, finalLimit];
+                }
             } else if (!showTrace2) {
                 layout.grid = { rows: 1, columns: 2, pattern: 'independent' };
                 layout.column_widths = [0.45, 0.55];
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    gridcolor: baseLayout.xaxis.gridcolor,
                     domain: [0, 0.43]
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0]
                 };
@@ -7174,19 +7178,24 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor
                 };
+                if (!limits.autoScale) {
+                    layout.xaxis.range = [-finalLimit, finalLimit];
+                    layout.yaxis.range = [-finalLimit, finalLimit];
+                    layout.yaxis2.range = [-finalLimit, finalLimit];
+                }
             } else {
                 layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
                 layout.column_widths = [0.34, 0.33, 0.33];
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    gridcolor: baseLayout.xaxis.gridcolor,
                     domain: [0, 0.30]
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0]
                 };
@@ -7197,7 +7206,7 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor
                 };
                 layout.xaxis3 = {
                     title: 'Rotational Cycles (Y)',
@@ -7206,54 +7215,65 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor
                 };
+                if (!limits.autoScale) {
+                    layout.xaxis.range = [-finalLimit, finalLimit];
+                    layout.yaxis.range = [-finalLimit, finalLimit];
+                    layout.yaxis2.range = [-finalLimit, finalLimit];
+                    layout.yaxis3.range = [-finalLimit, finalLimit];
+                }
             }
 
-            // Custom probe shapes and annotations
-            layout.shapes = [
-                // X Probe body (grey cylinder)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: boundary_r * 1.05, y0: -boundary_r * 0.08,
-                    x1: boundary_r * 1.35, y1: boundary_r * 0.08,
-                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                },
-                // X Probe tip (gold)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: boundary_r * 1.01, y0: -boundary_r * 0.05,
-                    x1: boundary_r * 1.05, y1: boundary_r * 0.05,
-                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                },
-                // Y Probe body (grey cylinder)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: -boundary_r * 0.08, y0: boundary_r * 1.05,
-                    x1: boundary_r * 0.08, y1: boundary_r * 1.35,
-                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                },
-                // Y Probe tip (gold)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: -boundary_r * 0.05, y0: boundary_r * 1.01,
-                    x1: boundary_r * 0.05, y1: boundary_r * 1.05,
-                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                }
-            ];
+            if (!limits.autoScale) {
+                // Custom probe shapes and annotations
+                layout.shapes = [
+                    // X Probe body (grey cylinder)
+                    {
+                        type: 'rect', xref: 'x', yref: 'y',
+                        x0: boundary_r * 1.05, y0: -boundary_r * 0.08,
+                        x1: boundary_r * 1.35, y1: boundary_r * 0.08,
+                        fillcolor: '#64748b', line: { color: '#475569', width: 1 }
+                    },
+                    // X Probe tip (gold)
+                    {
+                        type: 'rect', xref: 'x', yref: 'y',
+                        x0: boundary_r * 1.01, y0: -boundary_r * 0.05,
+                        x1: boundary_r * 1.05, y1: boundary_r * 0.05,
+                        fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
+                    },
+                    // Y Probe body (grey cylinder)
+                    {
+                        type: 'rect', xref: 'x', yref: 'y',
+                        x0: -boundary_r * 0.08, y0: boundary_r * 1.05,
+                        x1: boundary_r * 0.08, y1: boundary_r * 1.35,
+                        fillcolor: '#64748b', line: { color: '#475569', width: 1 }
+                    },
+                    // Y Probe tip (gold)
+                    {
+                        type: 'rect', xref: 'x', yref: 'y',
+                        x0: -boundary_r * 0.05, y0: boundary_r * 1.01,
+                        x1: boundary_r * 0.05, y1: boundary_r * 1.05,
+                        fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
+                    }
+                ];
 
-            layout.annotations = [
-                {
-                    x: boundary_r * 1.45, y: 0, xref: 'x', yref: 'y',
-                    text: '<b>X Probe</b>', showarrow: false,
-                    font: { size: 9, color: 'var(--text-color)' }
-                },
-                {
-                    x: 0, y: boundary_r * 1.45, xref: 'x', yref: 'y',
-                    text: '<b>Y Probe</b>', showarrow: false,
-                    font: { size: 9, color: 'var(--text-color)' }
-                }
-            ];
+                layout.annotations = [
+                    {
+                        x: boundary_r * 1.45, y: 0, xref: 'x', yref: 'y',
+                        text: '<b>X Probe</b>', showarrow: false,
+                        font: { size: 9, color: 'var(--text-color)' }
+                    },
+                    {
+                        x: 0, y: boundary_r * 1.45, xref: 'x', yref: 'y',
+                        text: '<b>Y Probe</b>', showarrow: false,
+                        font: { size: 9, color: 'var(--text-color)' }
+                    }
+                ];
+            } else {
+                layout.shapes = [];
+                layout.annotations = [];
+            }
 
             const first_row = df_frames[0];
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
@@ -7290,14 +7310,20 @@ export const Dashboard = ({ view }) => {
                 xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 1: Clearance Boundary
-            traces.push({
-                x: theta.map(t => boundary_r * Math.cos(t)),
-                y: theta.map(t => boundary_r * Math.sin(t)),
-                mode: 'lines', name: 'Clearance Boundary',
-                line: { color: '#ef4444', width: 1, dash: 'dash' },
-                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
-            });
+            // Trace 1: Clearance Boundary (only plotted for manual limits)
+            if (!limits.autoScale) {
+                traces.push({
+                    x: theta.map(t => boundary_r * Math.cos(t)),
+                    y: theta.map(t => boundary_r * Math.sin(t)),
+                    mode: 'lines', name: 'Clearance Boundary',
+                    line: { color: '#ef4444', width: 1, dash: 'dash' },
+                    hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+                });
+            } else {
+                traces.push({
+                    x: [], y: [], mode: 'lines', showlegend: false, hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+                });
+            }
 
             // Trace 2: Keyphasor Dot on Orbit
             traces.push({
