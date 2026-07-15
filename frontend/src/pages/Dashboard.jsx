@@ -6605,12 +6605,84 @@ export const Dashboard = ({ view }) => {
                     angle: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
-                    showticklabels: false, // hide rotated tick numbers inside grid
+                    showticklabels: false,
                     ticks: ''
                 }
             };
-            
-            layout.shapes = [];
+
+            const scaleX = 0.94; // X position for the vertical scale bar in paper coordinates
+            const scaleYStart = 0.50; // Y center (0 scale)
+            const scaleYEnd = 0.88; // Y top (Full Scale)
+            const scaleHeight = scaleYEnd - scaleYStart;
+
+            layout.shapes = [
+                // Vertical scale line
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart,
+                    x1: scaleX,
+                    y1: scaleYEnd,
+                    line: { color: borderCol, width: 1.5 }
+                },
+                // Bottom tick (0%)
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart,
+                    x1: scaleX + 0.015,
+                    y1: scaleYStart,
+                    line: { color: borderCol, width: 1.5 }
+                },
+                // 25% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.25,
+                    x1: scaleX + 0.01,
+                    y1: scaleYStart + scaleHeight * 0.25,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // 50% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.50,
+                    x1: scaleX + 0.012,
+                    y1: scaleYStart + scaleHeight * 0.50,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // 75% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.75,
+                    x1: scaleX + 0.01,
+                    y1: scaleYStart + scaleHeight * 0.75,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // Top tick (100%)
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYEnd,
+                    x1: scaleX + 0.015,
+                    y1: scaleYEnd,
+                    line: { color: borderCol, width: 1.5 }
+                }
+            ];
 
             layout.annotations = [
                 ...(baseLayout.annotations || []),
@@ -6645,6 +6717,55 @@ export const Dashboard = ({ view }) => {
                         size: 9.5,
                         color: baseLayout.font.color || '#475569',
                         weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Unit Label at the top
+                {
+                    text: `<b>${displayUnit}</b>`,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX,
+                    y: scaleYEnd + 0.03,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
+                        weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Top Value
+                {
+                    text: `${currentRMax.toFixed(2)}`,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX - 0.01,
+                    y: scaleYEnd,
+                    xanchor: 'right',
+                    yanchor: 'middle',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Bottom Value (0)
+                {
+                    text: '0',
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX - 0.01,
+                    y: scaleYStart,
+                    xanchor: 'right',
+                    yanchor: 'middle',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
                         family: 'Arial, sans-serif'
                     }
                 }
