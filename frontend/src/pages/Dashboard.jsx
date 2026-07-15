@@ -6586,6 +6586,11 @@ export const Dashboard = ({ view }) => {
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 65, l: 45, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
+            
+            // Format full scale text e.g., "2.60 mil pp FULL SCALE"
+            const displayUnit = ampUnit === 'mils' ? 'mil pp' : ampUnit;
+            const fullScaleText = `${currentRMax.toFixed(2)} ${displayUnit} FULL SCALE`;
+
             layout.polar = {
                 bgcolor: plotBg,
                 angularaxis: {
@@ -6600,8 +6605,8 @@ export const Dashboard = ({ view }) => {
                     angle: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
-                    tickfont: { color: baseLayout.font.color },
-                    title: { text: `Amp (${ampUnit})`, font: { size: 10 } }
+                    showticklabels: false, // hide rotated tick numbers inside grid
+                    ticks: ''
                 }
             };
             
@@ -6609,6 +6614,7 @@ export const Dashboard = ({ view }) => {
 
             layout.annotations = [
                 ...(baseLayout.annotations || []),
+                // Bottom-right: Rotation Direction label
                 {
                     text: 'CW ROTATION',
                     showarrow: false,
@@ -6621,6 +6627,23 @@ export const Dashboard = ({ view }) => {
                     font: {
                         size: 9,
                         color: baseLayout.font.color || '#64748b',
+                        weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Bottom-left: Full Scale label (exact ADRE replica)
+                {
+                    text: fullScaleText,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: 0.02,
+                    y: 0.02,
+                    xanchor: 'left',
+                    yanchor: 'bottom',
+                    font: {
+                        size: 9.5,
+                        color: baseLayout.font.color || '#475569',
                         weight: 'bold',
                         family: 'Arial, sans-serif'
                     }
