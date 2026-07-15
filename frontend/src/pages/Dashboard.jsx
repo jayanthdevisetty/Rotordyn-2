@@ -5132,12 +5132,12 @@ export const Dashboard = ({ view }) => {
                     mode: 'lines+markers',
                     name: 'Cursor Marker',
                     line: {
-                        color: '#2563eb', // ADRE blue
+                        color: '#ef4444', // Red color
                         width: 1.8
                     },
                     marker: {
                         size: [0, 13], // Hide the center marker, show the arrowhead at the tip
-                        color: '#2563eb',
+                        color: '#ef4444', // Red color
                         symbol: 'triangle-up',
                         line: { width: 1.5, color: '#ffffff' }, // white border for separation
                         angle: [0, markerAngle]
@@ -6650,7 +6650,7 @@ export const Dashboard = ({ view }) => {
             const yEnd = paperCenterY + paperRy * Math.sin(angleEnd);
 
             // Draw arc path (sweep-flag is 0 for clockwise when y increases upwards)
-            let arcPath = `M ${xStart.toFixed(4)} ${yStart.toFixed(4)} A ${paperRx.toFixed(4)} ${paperRy.toFixed(4)} 0 0 0 ${xEnd.toFixed(4)} ${yEnd.toFixed(4)}`;
+            const arcPath = `M ${xStart.toFixed(4)} ${yStart.toFixed(4)} A ${paperRx.toFixed(4)} ${paperRy.toFixed(4)} 0 0 0 ${xEnd.toFixed(4)} ${yEnd.toFixed(4)}`;
 
             // Tangent direction at the end point (pointing clockwise)
             const tangentAngle = angleEnd - Math.PI / 2; // 15 degrees
@@ -6663,8 +6663,7 @@ export const Dashboard = ({ view }) => {
             const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
             const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
 
-            // Add the arrowhead to the shape path
-            arcPath += ` M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+            const arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
 
             const scaleX = 0.94; // X position for the vertical scale bar in paper coordinates
             const scaleYStart = 0.50; // Y center (0 scale)
@@ -6672,14 +6671,23 @@ export const Dashboard = ({ view }) => {
             const scaleHeight = scaleYEnd - scaleYStart;
 
             layout.shapes = [
-                // ADRE concentric direction arc arrow outside circle boundary (top-left quadrant)
+                // ADRE concentric direction arc line
                 {
                     type: 'path',
                     xref: 'paper',
                     yref: 'paper',
                     path: arcPath,
+                    fillcolor: 'none',
+                    line: { color: '#2563eb', width: 2.2 }
+                },
+                // ADRE concentric direction arrowhead
+                {
+                    type: 'path',
+                    xref: 'paper',
+                    yref: 'paper',
+                    path: arrowheadPath,
                     fillcolor: '#2563eb', // ADRE blue
-                    line: { color: '#2563eb', width: 3 }
+                    line: { color: '#2563eb', width: 1.0 }
                 },
                 // Vertical scale line
                 {
