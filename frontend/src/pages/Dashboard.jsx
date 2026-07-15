@@ -4784,6 +4784,7 @@ export const Dashboard = ({ view }) => {
             for (let i = startIndex; i < endIndex; i++) {
                 const slotCard = document.createElement('div');
                 slotCard.className = 'grid-card';
+                slotCard.id = `grid-card-${i}`;
                 if (i === activeSlotIndex) {
                     slotCard.classList.add('active');
                 }
@@ -4853,7 +4854,7 @@ export const Dashboard = ({ view }) => {
                     slotCard.innerHTML = `
                         <div class="grid-card-header" style="cursor: grab;">
                             <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}</span>
-                            <div class="grid-card-actions">
+                            <div class="grid-card-actions" id="header-actions-${i}">
                                 ${isOrbit ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
                                         <input type="checkbox" onchange="toggleOrbitTimebase(${i}, this.checked)" ${config.showTimebase ? 'checked' : ''} style="margin: 0; cursor: pointer;"> Timebase
