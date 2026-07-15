@@ -6630,9 +6630,9 @@ export const Dashboard = ({ view }) => {
             const paperCenterX = 0.50;
             const paperCenterY = 0.50;
             
-            // Draw arc concentric at 1.08 times the radius (sitting cleanly outside the circle)
-            const paperRx = (circleRadiusPx * 1.08) / width;
-            const paperRy = (circleRadiusPx * 1.08) / height;
+            // Draw arc concentric at 1.18 times the radius (sitting cleanly outside the tick labels)
+            const paperRx = (circleRadiusPx * 1.18) / width;
+            const paperRy = (circleRadiusPx * 1.18) / height;
 
             // Generate path using short line segments (L) to ensure 100% compatibility with Plotly shape parser
             let arcPath = '';
