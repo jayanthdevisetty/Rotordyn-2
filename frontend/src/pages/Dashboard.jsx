@@ -3556,7 +3556,7 @@ export const Dashboard = ({ view }) => {
             sysChildrenUl.id = 'tree-children-system-profile';
             
             const sysPlots = [
-                { category: 'mode_shape', name: '3D Rotor Profile' }
+                { category: 'mode_shape', name: 'Rotor Profile' }
             ];
             
             sysPlots.forEach(p => {
@@ -4708,8 +4708,8 @@ export const Dashboard = ({ view }) => {
                 bode3d: 'Bode Plot (3D)',
                 centerline: 'Shaft Centerline',
                 centerline_orbit: 'Centerline Orbit Overlay',
-                orbit: 'Rotor Orbits (2D/3D)',
-                mode_shape: '3D Deflection Profile',
+                orbit: 'Rotor Orbits',
+                mode_shape: 'Rotor Deflection Profile',
                 spectrum: 'FFT Spectrum',
                 cascade: '3D Waterfall Spectrum'
             };
@@ -5264,7 +5264,7 @@ export const Dashboard = ({ view }) => {
                     <!-- Current cursor playback vertical line indicator -->
                     <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
                         <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
+                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #fbbf24, #d97706); border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); cursor: col-resize; transition: transform 0.15s ease-in-out; pointer-events: auto;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>
                     </div>
                 </div>
                 <!-- Hidden range input for back-compatibility with other scripts -->
