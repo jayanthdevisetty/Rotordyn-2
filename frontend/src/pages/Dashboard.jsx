@@ -5264,7 +5264,7 @@ export const Dashboard = ({ view }) => {
                     <!-- Current cursor playback vertical line indicator -->
                     <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
                         <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                        <div style="position: absolute; top: -6px; left: -6px; width: 14px; height: 14px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
+                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
                     </div>
                 </div>
                 <!-- Hidden range input for back-compatibility with other scripts -->
