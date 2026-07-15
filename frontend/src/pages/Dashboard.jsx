@@ -4092,6 +4092,27 @@ export const Dashboard = ({ view }) => {
                                     compRow[cols.phase_1x] = phase_comp;
                                 }
                             }
+                            if (cols.amp_2x && cols.phase_2x) {
+                                const Ad2 = row[cols.amp_2x];
+                                const phid2 = row[cols.phase_2x];
+                                const Asr2 = srRow[cols.amp_2x];
+                                const phisr2 = srRow[cols.phase_2x];
+                                if (isNumber(Ad2) && isNumber(phid2) && isNumber(Asr2) && isNumber(phisr2)) {
+                                    const phid2_rad = phid2 * Math.PI / 180;
+                                    const phisr2_rad = phisr2 * Math.PI / 180;
+                                    const xd2 = Ad2 * Math.cos(phid2_rad);
+                                    const yd2 = Ad2 * Math.sin(phid2_rad);
+                                    const xsr2 = Asr2 * Math.cos(phisr2_rad);
+                                    const ysr2 = Asr2 * Math.sin(phisr2_rad);
+                                    const x_comp2 = xd2 - xsr2;
+                                    const y_comp2 = yd2 - ysr2;
+                                    const amp_comp2 = Math.sqrt(x_comp2 * x_comp2 + y_comp2 * y_comp2);
+                                    let phase_comp2 = Math.atan2(y_comp2, x_comp2) * 180 / Math.PI;
+                                    if (phase_comp2 < 0) phase_comp2 += 360;
+                                    compRow[cols.amp_2x] = amp_comp2;
+                                    compRow[cols.phase_2x] = phase_comp2;
+                                }
+                            }
                             if (cols.gap) {
                                 const Gd = row[cols.gap];
                                 const Gsr = srRow[cols.gap];
