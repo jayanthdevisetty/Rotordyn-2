@@ -6544,7 +6544,7 @@ export const Dashboard = ({ view }) => {
             }
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 45, l: 30, r: 75 };
+            layout.margin = { t: 45, b: 65, l: 45, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             layout.polar = {
                 bgcolor: plotBg,
