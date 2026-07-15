@@ -5110,6 +5110,53 @@ export const Dashboard = ({ view }) => {
             
             const isPolar = config.category === 'polar';
             if (isPolar) {
+                // Calculate tangent angle for cursor arrowhead direction
+                let cursorAngle = 0;
+                if (localDf && localDf.length > 1) {
+                    const curIdx = localIdx < localDf.length ? localIdx : localDf.length - 1;
+                    const nextIdx = curIdx < localDf.length - 1 ? curIdx + 1 : curIdx - 1;
+                    
+                    const cols = getChannelColumns(config.bearingOrChannel);
+                    const r1 = localDf[curIdx][cols.amp_1x] !== undefined ? localDf[curIdx][cols.amp_1x] : 0;
+                    
+                    // Retrieve phase angles
+                    let phases = localDf.map(r => r[cols.phase_1x] !== undefined ? r[cols.phase_1x] : 0);
+                    if (container && container.unwrappedPhases) {
+                        phases = container.unwrappedPhases;
+                    }
+                    
+                    // Retrieve probe angle
+                    const angleXInput = document.getElementById('probe-angle-x-input');
+                    const angleYInput = document.getElementById('probe-angle-y-input');
+                    const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                    const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                    let probeAngle = 90;
+                    const ch = config.bearingOrChannel || '';
+                    if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                        probeAngle = probeXAngle;
+                    } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                        probeAngle = probeYAngle;
+                    }
+
+                    // Convert to radians relative to probe rotation angle
+                    const t1 = (phases[curIdx] - probeAngle) * Math.PI / 180;
+                    const x1 = r1 * Math.sin(t1); // since 0 is top on screen, x is sin and y is cos
+                    const y1 = r1 * Math.cos(t1);
+
+                    const r2 = localDf[nextIdx][cols.amp_1x] !== undefined ? localDf[nextIdx][cols.amp_1x] : 0;
+                    const t2 = (phases[nextIdx] - probeAngle) * Math.PI / 180;
+                    const x2 = r2 * Math.sin(t2);
+                    const y2 = r2 * Math.cos(t2);
+
+                    const dx = curIdx < localDf.length - 1 ? (x2 - x1) : (x1 - x2);
+                    const dy = curIdx < localDf.length - 1 ? (y2 - y1) : (y1 - y2);
+
+                    const tangentRad = Math.atan2(dy, dx);
+                    let tangentDeg = tangentRad * 180 / Math.PI;
+                    // Map screen tangent to Plotly marker angle (0 is straight up, positive is clockwise)
+                    cursorAngle = 90 - tangentDeg;
+                }
+
                 traces.push({
                     type: 'scatterpolar',
                     r: [cursorY],
@@ -5117,10 +5164,11 @@ export const Dashboard = ({ view }) => {
                     mode: 'markers',
                     name: 'Cursor Marker',
                     marker: {
-                        symbol: 'cross',
-                        size: 9,
-                        color: '#ef4444',
-                        line: { width: 1.5, color: '#ef4444' }
+                        symbol: 'triangle-up',
+                        size: 13,
+                        color: '#2563eb', // ADRE blue
+                        line: { width: 1.5, color: '#ffffff' }, // white border for separation
+                        angle: cursorAngle
                     },
                     showlegend: false,
                     hoverinfo: 'skip'
@@ -6534,7 +6582,7 @@ export const Dashboard = ({ view }) => {
             const angleXInput = document.getElementById('probe-angle-x-input');
             const angleYInput = document.getElementById('probe-angle-y-input');
             const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
-            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
 
             let probeAngle = 90;
             if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
@@ -6549,39 +6597,6 @@ export const Dashboard = ({ view }) => {
             if (!limits.autoScale && limits.max !== null) {
                 currentRMax = limits.max;
             }
-            const arcRadius = currentRMax * 1.04;
-
-            const arcTheta = [];
-            const arcR = [];
-            const numPoints = 15;
-            for (let i = 0; i < numPoints; i++) {
-                // CW rotation arc from probeAngle - 70 to probeAngle - 20 (top-left quadrant)
-                const angle = (probeAngle - 70) + (i / (numPoints - 1)) * 50;
-                arcTheta.push(angle);
-                arcR.push(arcRadius);
-            }
-
-            const markerSizes = Array(numPoints).fill(0);
-            markerSizes[numPoints - 1] = 12; // arrowhead at end of clockwise sweep
-
-            traces.push({
-                type: 'scatterpolar',
-                r: arcR,
-                theta: arcTheta,
-                mode: 'lines+markers',
-                line: {
-                    color: '#2563eb', // ADRE blue
-                    width: 3.5
-                },
-                marker: {
-                    size: markerSizes,
-                    color: '#2563eb',
-                    symbol: 'triangle-up',
-                    angle: 45 // rotate to point clockwise along the tangent
-                },
-                showlegend: false,
-                hoverinfo: 'skip'
-            });
 
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 65, l: 45, r: 75 };
@@ -6610,12 +6625,73 @@ export const Dashboard = ({ view }) => {
                 }
             };
 
+            // Force radial axis range so circular boundary size matches currentRMax exactly
+            let rMin = (!limits.autoScale && limits.min !== null) ? limits.min : 0.0;
+            layout.polar.radialaxis.range = [rMin, currentRMax];
+
+            // Calculate screen dimensions of the container to render a perfect concentric arc outside the circular boundary
+            const rect = container.getBoundingClientRect();
+            const width = rect.width || 400;
+            const height = rect.height || 300;
+
+            const margin_l = 45;
+            const margin_r = 75;
+            const margin_t = 45;
+            const margin_b = 65;
+
+            const circleRadiusPx = Math.min(width - (margin_l + margin_r), height - (margin_t + margin_b)) / 2;
+            const centerX = margin_l + (width - margin_l - margin_r) / 2;
+            const centerY = margin_b + (height - margin_t - margin_b) / 2;
+
+            const paperCenterX = centerX / width;
+            const paperCenterY = centerY / height;
+            
+            // Draw arc concentric at 1.08 times the radius (sitting cleanly outside the circle)
+            const paperRx = (circleRadiusPx * 1.08) / width;
+            const paperRy = (circleRadiusPx * 1.08) / height;
+
+            // Angles in radians (Top is PI/2, Left is PI)
+            // Arc spans from 165 to 105 degrees (top-left quadrant on screen, sweeping clockwise from left to top)
+            const angleStart = 165 * Math.PI / 180;
+            const angleEnd = 105 * Math.PI / 180;
+
+            const xStart = paperCenterX + paperRx * Math.cos(angleStart);
+            const yStart = paperCenterY + paperRy * Math.sin(angleStart);
+            const xEnd = paperCenterX + paperRx * Math.cos(angleEnd);
+            const yEnd = paperCenterY + paperRy * Math.sin(angleEnd);
+
+            // Draw arc path (sweep-flag is 0 for clockwise when y increases upwards)
+            let arcPath = `M ${xStart.toFixed(4)} ${yStart.toFixed(4)} A ${paperRx.toFixed(4)} ${paperRy.toFixed(4)} 0 0 0 ${xEnd.toFixed(4)} ${yEnd.toFixed(4)}`;
+
+            // Tangent direction at the end point (pointing clockwise)
+            const tangentAngle = angleEnd - Math.PI / 2; // 15 degrees
+            const arrowLength = 9; // pixels
+            const arrowLenX = arrowLength / width;
+            const arrowLenY = arrowLength / height;
+
+            const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
+            const yWing1 = yEnd + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
+            const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
+            const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
+
+            // Add the arrowhead to the shape path
+            arcPath += ` M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+
             const scaleX = 0.94; // X position for the vertical scale bar in paper coordinates
             const scaleYStart = 0.50; // Y center (0 scale)
             const scaleYEnd = 0.88; // Y top (Full Scale)
             const scaleHeight = scaleYEnd - scaleYStart;
 
             layout.shapes = [
+                // ADRE concentric direction arc arrow outside circle boundary (top-left quadrant)
+                {
+                    type: 'path',
+                    xref: 'paper',
+                    yref: 'paper',
+                    path: arcPath,
+                    fillcolor: '#2563eb', // ADRE blue
+                    line: { color: '#2563eb', width: 3 }
+                },
                 // Vertical scale line
                 {
                     type: 'line',
