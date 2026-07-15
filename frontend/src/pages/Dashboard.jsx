@@ -3,6 +3,7 @@ import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
 import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import html2canvas from 'html2canvas';
 
 
 
@@ -1388,27 +1389,6 @@ export const Dashboard = ({ view }) => {
             }
         }
 
-        function loadHtml2Canvas() {
-            return new Promise((resolve, reject) => {
-                if (window.html2canvas) {
-                    resolve(window.html2canvas);
-                    return;
-                }
-                if (window.html2pdf) {
-                    resolve(window.html2canvas);
-                    return;
-                }
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                script.async = true;
-                script.onload = () => {
-                    resolve(window.html2canvas);
-                };
-                script.onerror = () => reject(new Error("Failed to load html2canvas library."));
-                document.head.appendChild(script);
-            });
-        }
-
         async function downloadSlotPlot(slotIdx) {
             const card = document.getElementById(`grid-card-${slotIdx}`);
             if (!card) {
@@ -1424,11 +1404,9 @@ export const Dashboard = ({ view }) => {
             const originalDisplay = actions ? actions.style.display : '';
             
             try {
-                await loadHtml2Canvas();
-                
                 if (actions) actions.style.display = 'none';
                 
-                const canvas = await window.html2canvas(card, {
+                const canvas = await html2canvas(card, {
                     scale: 2,
                     useCORS: true,
                     backgroundColor: '#ffffff',
@@ -1470,8 +1448,6 @@ export const Dashboard = ({ view }) => {
             showLoader(true, "Preparing to export all plots...");
             
             try {
-                await loadHtml2Canvas();
-                
                 for (let idx = 0; idx < plotSlots.length; idx++) {
                     const config = plotSlots[idx];
                     if (!config) continue;
@@ -1487,7 +1463,7 @@ export const Dashboard = ({ view }) => {
                         if (actions) actions.style.display = 'none';
                         
                         try {
-                            const canvas = await window.html2canvas(card, {
+                            const canvas = await html2canvas(card, {
                                 scale: 2,
                                 useCORS: true,
                                 backgroundColor: '#ffffff',
