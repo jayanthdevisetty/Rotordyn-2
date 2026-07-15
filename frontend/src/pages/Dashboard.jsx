@@ -4907,7 +4907,7 @@ export const Dashboard = ({ view }) => {
                 paper_bgcolor: paperBg,
                 plot_bgcolor: plotBg,
                 font: { color: textColor, family: 'Outfit, Inter, sans-serif' },
-                margin: { t: 45, b: 35, l: 45, r: 40 },
+                margin: { t: 45, b: 50, l: 50, r: 40 },
                 autosize: true,
                 height: container.offsetHeight || container.clientHeight || 300,
                 legend: {
@@ -5948,12 +5948,12 @@ export const Dashboard = ({ view }) => {
                                    (showTemp && cols.temp && filteredDf[0][cols.temp] !== undefined);
 
             let phaseDomain = [0.65, 1.0];
-            let valueDomain = [0.0, 0.55];
+            let valueDomain = [0.08, 0.55];
             
             if (hasPhaseTraces && !hasValueTraces) {
-                phaseDomain = [0.0, 1.0];
+                phaseDomain = [0.08, 1.0];
             } else if (!hasPhaseTraces && hasValueTraces) {
-                valueDomain = [0.0, 1.0];
+                valueDomain = [0.08, 1.0];
             }
 
             // Subplot 1 (Top): Phase Angle
@@ -6049,7 +6049,7 @@ export const Dashboard = ({ view }) => {
             }
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 60, r: 50 };
+            layout.margin = { t: 45, b: 50, l: 65, r: 55 };
             
             const showIsoLimits = document.getElementById('show-iso-limits') ? document.getElementById('show-iso-limits').checked : false;
             
@@ -6544,7 +6544,7 @@ export const Dashboard = ({ view }) => {
             }
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 25, l: 30, r: 75 };
+            layout.margin = { t: 45, b: 45, l: 30, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             layout.polar = {
                 bgcolor: plotBg,
@@ -6664,7 +6664,7 @@ export const Dashboard = ({ view }) => {
             const phaseUnit = getChannelUnit(ch, 'phase', 'deg');
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 50, r: 40 };
+            layout.margin = { t: 45, b: 50, l: 55, r: 40 };
 
             // Add critical speed vertical highlight lines & annotations
             if (window.sensorCriticalSpeeds && window.sensorCriticalSpeeds[ch]) {
@@ -6674,7 +6674,7 @@ export const Dashboard = ({ view }) => {
                         type: 'line',
                         x0: peak.rpm,
                         x1: peak.rpm,
-                        y0: 0,
+                        y0: 0.08,
                         y1: 0.45,
                         yref: 'paper',
                         line: { color: 'rgba(239, 68, 68, 0.45)', width: 1.5, dash: 'dash' }
@@ -6730,7 +6730,7 @@ export const Dashboard = ({ view }) => {
             };
             layout.yaxis2 = {
                 title: `Amp (${ampUnit})`,
-                domain: [0.0, 0.45],
+                domain: [0.08, 0.45],
                 gridcolor: gridColor,
                 linecolor: borderCol
             };
@@ -6915,7 +6915,7 @@ export const Dashboard = ({ view }) => {
             const ampUnit = getChannelUnit(brgX, 'amp', 'mils');
  
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 45, r: 75 };
+            layout.margin = { t: 45, b: 50, l: 50, r: 75 };
             layout.xaxis.title = `Physical Horizontal Position (${ampUnit})`;
             layout.yaxis.title = `Physical Vertical Position (${ampUnit})`;
             layout.yaxis.scaleanchor = 'x';
@@ -7061,7 +7061,7 @@ export const Dashboard = ({ view }) => {
             const ampUnit = getChannelUnit(brgX, 'amp', 'mils');
  
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 45, r: 75 };
+            layout.margin = { t: 45, b: 50, l: 50, r: 75 };
             layout.xaxis.title = `Physical Horizontal Position (${ampUnit})`;
             layout.yaxis.title = `Physical Vertical Position (${ampUnit})`;
             layout.yaxis.scaleanchor = 'x';
