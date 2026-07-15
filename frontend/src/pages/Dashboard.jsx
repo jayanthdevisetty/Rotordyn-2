@@ -4373,34 +4373,53 @@ export const Dashboard = ({ view }) => {
                 let gapVal = cols.gap && row[cols.gap] !== undefined && row[cols.gap] !== null ? `${row[cols.gap].toFixed(2)} ${ampUnit}` : 'N/A';
                 let tempVal = cols.temp && row[cols.temp] !== undefined && row[cols.temp] !== null ? `${row[cols.temp].toFixed(1)} ${tempUnit}` : 'N/A';
                 
-                box.innerHTML = `
-                    <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>Direct:</b> ${directVal}</span>
-                    <span><b>1X:</b> ${amp1x} @ ${phase1x}</span>
-                    <span><b>Gap:</b> ${gapVal}</span>
-                    <span><b>Temp:</b> ${tempVal}</span>
-                `;
+                const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
+                const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+                const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+
+                let htmlParts = [
+                    `<span><b>Time:</b> ${t_part.slice(0, 8)}</span>`,
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (showDirect) htmlParts.push(`<span><b>Direct:</b> ${directVal}</span>`);
+                if (show1X) htmlParts.push(`<span><b>1X:</b> ${amp1x} @ ${phase1x}</span>`);
+                if (showGap) htmlParts.push(`<span><b>Gap:</b> ${gapVal}</span>`);
+                if (showTemp) htmlParts.push(`<span><b>Temp:</b> ${tempVal}</span>`);
+
+                box.innerHTML = htmlParts.join('\n');
             } else if (config.category === 'polar') {
                 const cols = getChannelColumns(ch);
                 let amp1x = cols.amp_1x && row[cols.amp_1x] !== undefined && row[cols.amp_1x] !== null ? `${row[cols.amp_1x].toFixed(3)} ${ampUnit}` : 'N/A';
                 let phase1x = cols.phase_1x && row[cols.phase_1x] !== undefined && row[cols.phase_1x] !== null ? `${row[cols.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
-                box.innerHTML = `
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>Amp:</b> ${amp1x}</span>
-                    <span><b>Phase:</b> ${phase1x}</span>
-                `;
+                
+                const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
+
+                let htmlParts = [
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (show1X) {
+                    htmlParts.push(`<span><b>Amp:</b> ${amp1x}</span>`);
+                    htmlParts.push(`<span><b>Phase:</b> ${phase1x}</span>`);
+                }
+                box.innerHTML = htmlParts.join('\n');
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                 const cols = getBearingPairColumns(ch);
                 const ampUnitX = getChannelUnit(chX, 'amp', 'mils');
                 const ampUnitY = getChannelUnit(chY, 'amp', 'mils');
                 let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
                 let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
-                box.innerHTML = `
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>X Gap:</b> ${xGap}</span>
-                    <span><b>Y Gap:</b> ${yGap}</span>
-                `;
+                
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+
+                let htmlParts = [
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (showGap) {
+                    htmlParts.push(`<span><b>X Gap:</b> ${xGap}</span>`);
+                    htmlParts.push(`<span><b>Y Gap:</b> ${yGap}</span>`);
+                }
+                box.innerHTML = htmlParts.join('\n');
             } else {
                 box.innerHTML = `
                     <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
