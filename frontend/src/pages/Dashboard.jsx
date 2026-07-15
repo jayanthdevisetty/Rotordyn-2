@@ -6565,22 +6565,32 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
+            layout.shapes = [
+                {
+                    type: 'path',
+                    xref: 'paper',
+                    yref: 'paper',
+                    path: 'M 0.895 0.08 A 0.025 0.025 0 1 1 0.92 0.105 M 0.908 0.098 L 0.92 0.105 L 0.908 0.112',
+                    line: { color: '#f59e0b', width: 2.5 }
+                }
+            ];
+
             layout.annotations = [
                 ...(baseLayout.annotations || []),
                 {
-                    text: 'CW ROTATION',
+                    text: '<b>ROTATION</b>',
                     showarrow: false,
                     xref: 'paper',
                     yref: 'paper',
-                    x: 0.98,
-                    y: 0.02,
+                    x: 0.88,
+                    y: 0.08,
                     xanchor: 'right',
-                    yanchor: 'bottom',
+                    yanchor: 'middle',
                     font: {
                         size: 9,
                         color: baseLayout.font.color || '#64748b',
                         weight: 'bold',
-                        family: 'Arial, sans-serif'
+                        family: 'Outfit, Arial, sans-serif'
                     }
                 }
             ];
