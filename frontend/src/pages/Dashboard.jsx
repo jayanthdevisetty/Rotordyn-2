@@ -6659,9 +6659,9 @@ export const Dashboard = ({ view }) => {
             const arrowLenY = arrowLength / height;
 
             const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
-            const yWing1 = yEnd + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
+            const yWing1 = yEnd - arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
             const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
-            const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
+            const yWing2 = yEnd - arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
 
             const arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
 
@@ -6677,7 +6677,7 @@ export const Dashboard = ({ view }) => {
                     xref: 'paper',
                     yref: 'paper',
                     path: arcPath,
-                    fillcolor: 'none',
+                    fillcolor: 'rgba(0,0,0,0)', // Use standard transparent rgba instead of none to prevent rendering failure
                     line: { color: '#2563eb', width: 2.2 }
                 },
                 // ADRE concentric direction arrowhead
