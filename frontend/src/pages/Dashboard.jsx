@@ -5257,14 +5257,14 @@ export const Dashboard = ({ view }) => {
                     <!-- Draggable highlighted range box -->
                     <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
                         <!-- Left drag handle -->
-                        <div id="range-handle-left" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
+                        <div id="range-handle-left" style="width: 10px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
                         <!-- Right drag handle -->
-                        <div id="range-handle-right" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
+                        <div id="range-handle-right" style="width: 10px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
                     </div>
                     <!-- Current cursor playback vertical line indicator -->
                     <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
                         <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                        <div style="position: absolute; top: -3px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
+                        <div style="position: absolute; top: -6px; left: -6px; width: 14px; height: 14px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
                     </div>
                 </div>
                 <!-- Hidden range input for back-compatibility with other scripts -->
@@ -9438,7 +9438,7 @@ export const Dashboard = ({ view }) => {
                 <div className="timeline-player-bar" id="global-timeline-bar" style={{display: "none"}}>
                     {/* Row 1: Full-Width Waveform Timeline Navigator */}
                     <div style={{width: "100%", display: "flex", flexDirection: "column", gap: "4px"}}>
-                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "pointer", overflow: "hidden"}}>
+                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "pointer", overflow: "visible"}}>
                             <div style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.75rem"}}>Loading Speed Waveform...</div>
                         </div>
                         <div style={{display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "var(--text-muted)", padding: "0 4px", fontWeight: 500, lineHeight: 1}}>
