@@ -5210,6 +5210,21 @@ export const Dashboard = ({ view }) => {
             return diffLow <= diffHigh ? low : high;
         }
 
+        function safePlotlyReact(container, traces, layout, config) {
+            if (container && container.removeAllListeners) {
+                container.removeAllListeners('plotly_click');
+                container.removeAllListeners('plotly_hover');
+                container.removeAllListeners('plotly_unhover');
+                container.removeAllListeners('plotly_selected');
+            } else if (container && container.off) {
+                container.off('plotly_click');
+                container.off('plotly_hover');
+                container.off('plotly_unhover');
+                container.off('plotly_selected');
+            }
+            return Plotly.react(container, traces, layout, config);
+        }
+
         // Timeline Player state variables
         timelineIntervalId = timelineIntervalId || null;
         isTimelinePlaying = isTimelinePlaying !== undefined ? isTimelinePlaying : false;
@@ -5360,7 +5375,7 @@ export const Dashboard = ({ view }) => {
                 hovermode: false
             };
             
-            Plotly.newPlot(timelinePlotlyContainer, [trace], layout, {
+            safePlotlyReact(timelinePlotlyContainer, [trace], layout, {
                 responsive: true,
                 displayModeBar: false,
                 staticPlot: true
@@ -6256,7 +6271,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = filteredDf;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6351,7 +6366,7 @@ export const Dashboard = ({ view }) => {
                 if (limits.max !== null) layout.yaxis.range = [0, limits.max];
             }
             
-            Plotly.newPlot(container, [tr], layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, [tr], layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_hover', function(data) {
                 if (data.points && data.points.length > 0) {
@@ -6485,7 +6500,7 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
 
@@ -6904,7 +6919,7 @@ export const Dashboard = ({ view }) => {
 
             addCursorToSlot(slotIdx, traces, layout, clean_df);
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7052,7 +7067,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = clean_df;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7141,7 +7156,7 @@ export const Dashboard = ({ view }) => {
             container.unwrappedPhases = phases;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
 
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7243,7 +7258,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = clean_df;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7388,7 +7403,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = clean_df;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7715,7 +7730,7 @@ export const Dashboard = ({ view }) => {
             });
 
             container.df_frames = df_frames;
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false }).then(() => {
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false }).then(() => {
                 Plotly.addFrames(container, frames);
             });
         }
