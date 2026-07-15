@@ -393,6 +393,11 @@ export const Dashboard = ({ view }) => {
             if (tabName === 'team') {
                 fetchTeamMembers();
             }
+
+            // Load signal formatting values if switching to styles tab
+            if (tabName === 'styles') {
+                loadSignalFormat(selectedSignalFormat);
+            }
             
             // Expand drawer
             container.style.setProperty('--sidebar-width', '320px');
@@ -821,11 +826,6 @@ export const Dashboard = ({ view }) => {
             handleBgInsideChange(insideColor);
         }
 
-        // Apply Curve formatting color explicitly
-        function applyCurveFormatting() {
-            const color = document.getElementById('format-color-picker').value;
-            handleFormatColorChange(color);
-        }
 
         // Workspace background color handlers
 
@@ -9557,7 +9557,12 @@ export const Dashboard = ({ view }) => {
                                 </div>
                             </div>
                             <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
-                                <button className="sidebar-file-btn" type="button" onClick={() => window.applyCurveFormatting && window.applyCurveFormatting()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
+                                <button className="sidebar-file-btn" type="button" onClick={() => {
+                                    const picker = document.getElementById('format-color-picker');
+                                    if (picker && window.handleFormatColorChange) {
+                                        window.handleFormatColorChange(picker.value);
+                                    }
+                                }} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
                                     Apply Curve Color
                                 </button>
                             </div>
