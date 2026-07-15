@@ -87,7 +87,7 @@ let plotSlots = [
     }
 ];
 let activeSlotIndex = 0;
-let currentLayout = '2V';
+let currentLayout = '2H';
 let currentGridPage = 0;
 let customizeLayoutMode = false;
 let timeSyncCursor = true;
@@ -117,12 +117,12 @@ export const Dashboard = ({ view }) => {
     const [currentLayoutState, setCurrentLayoutState] = useState(() => {
         try {
             const saved = localStorage.getItem('rotordyn_custom_layout');
-            return saved || '2V';
+            return saved || '2H';
         } catch (e) {
-            return '2V';
+            return '2H';
         }
     });
-    const currentLayoutRef = useRef('2V');
+    const currentLayoutRef = useRef('2H');
 
     // Hook 1: Dynamic Parallel Script Loader
     useEffect(() => {
@@ -2718,9 +2718,9 @@ export const Dashboard = ({ view }) => {
                             }
                         ];
                         activeSlotIndex = 0;
-                        currentLayoutRef.current = '2V';
-                        currentLayout = '2V';
-                        setCurrentLayoutState('2V');
+                        currentLayoutRef.current = '2H';
+                        currentLayout = '2H';
+                        setCurrentLayoutState('2H');
                         currentGridPage = 0;
 
                         if (timelineIntervalId) {
@@ -4789,36 +4789,6 @@ export const Dashboard = ({ view }) => {
                     selectSlot(i);
                 };
                 
-                // Drag & Drop Capabilities
-                slotCard.draggable = true;
-                slotCard.ondragstart = (e) => {
-                    e.dataTransfer.setData('text/plain', i);
-                    slotCard.style.opacity = '0.4';
-                };
-                slotCard.ondragover = (e) => {
-                    e.preventDefault();
-                    slotCard.style.border = '2px dashed var(--accent-color)';
-                };
-                slotCard.ondragleave = () => {
-                    slotCard.style.border = '';
-                };
-                slotCard.ondragend = () => {
-                    slotCard.style.opacity = '1';
-                    slotCard.style.border = '';
-                };
-                slotCard.ondrop = (e) => {
-                    e.preventDefault();
-                    slotCard.style.border = '';
-                    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                    if (!isNaN(sourceIdx) && sourceIdx !== i) {
-                        const temp = plotSlots[sourceIdx];
-                        plotSlots[sourceIdx] = plotSlots[i];
-                        plotSlots[i] = temp;
-                        saveWorkspaceConfig();
-                        renderGrid();
-                    }
-                };
-                
                 const config = plotSlots[i];
                 if (config) {
                     const isOrbit = config.category === 'orbit';
@@ -4847,7 +4817,7 @@ export const Dashboard = ({ view }) => {
                         }
                     }
                     slotCard.innerHTML = `
-                        <div class="grid-card-header" style="cursor: grab;">
+                        <div class="grid-card-header">
                             <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}</span>
                             <div class="grid-card-actions" id="header-actions-${i}">
                                 ${isOrbit ? `
