@@ -849,10 +849,12 @@ export const Dashboard = ({ view }) => {
             document.documentElement.style.setProperty('--plot-bg-color', color);
             document.documentElement.style.setProperty('--paper-bg-color', color);
             const brightness = getBrightness(color);
-            if (brightness < 128) {
-                document.documentElement.style.setProperty('--contrast-grid-color', '#334155');
+            if (brightness < 140) {
+                document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(255, 255, 255, 0.15)');
+                document.documentElement.style.setProperty('--plot-text-color', '#f8fafc');
             } else {
-                document.documentElement.style.setProperty('--contrast-grid-color', '#e2e8f0');
+                document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(15, 23, 42, 0.1)');
+                document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
             }
             renderGrid();
         }
@@ -4918,7 +4920,7 @@ export const Dashboard = ({ view }) => {
             const style = getComputedStyle(document.documentElement);
             const plotBg = style.getPropertyValue('--plot-bg-color').trim() || '#ffffff';
             const paperBg = style.getPropertyValue('--paper-bg-color').trim() || '#ffffff';
-            const textColor = style.getPropertyValue('--text-color').trim() || '#0f172a';
+            const textColor = style.getPropertyValue('--plot-text-color').trim() || style.getPropertyValue('--text-color').trim() || '#0f172a';
             const gridColor = style.getPropertyValue('--contrast-grid-color').trim() || '#e2e8f0';
             
             const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { layoutLimits: { min: null, max: null, autoScale: true } };
@@ -8075,6 +8077,7 @@ export const Dashboard = ({ view }) => {
                 document.documentElement.style.setProperty('--plot-bg-color', '#0f172a');
                 document.documentElement.style.setProperty('--paper-bg-color', '#0f172a');
                 document.documentElement.style.setProperty('--text-color', '#f8fafc');
+                document.documentElement.style.setProperty('--plot-text-color', '#f8fafc');
                 document.documentElement.style.setProperty('--text-muted', '#94a3b8');
                 document.documentElement.style.setProperty('--border-color', '#334155');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#1e293b');
@@ -8093,6 +8096,7 @@ export const Dashboard = ({ view }) => {
                 document.documentElement.style.setProperty('--plot-bg-color', '#ffffff');
                 document.documentElement.style.setProperty('--paper-bg-color', '#ffffff');
                 document.documentElement.style.setProperty('--text-color', '#0f172a');
+                document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
                 document.documentElement.style.setProperty('--text-muted', '#64748b');
                 document.documentElement.style.setProperty('--border-color', '#cbd5e1');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#e2e8f0');
