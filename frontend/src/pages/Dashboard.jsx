@@ -6543,6 +6543,46 @@ export const Dashboard = ({ view }) => {
                 probeAngle = probeYAngle;
             }
 
+            // Add ADRE Sxp concentric rotation direction arc arrow outside outer circular boundary (top-left quadrant)
+            const maxAmp = amps.length > 0 ? Math.max(...amps) : 1.0;
+            let currentRMax = maxAmp * 1.1;
+            if (!limits.autoScale && limits.max !== null) {
+                currentRMax = limits.max;
+            }
+            const arcRadius = currentRMax * 1.04;
+
+            const arcTheta = [];
+            const arcR = [];
+            const numPoints = 15;
+            for (let i = 0; i < numPoints; i++) {
+                // CW rotation arc from probeAngle - 70 to probeAngle - 20 (top-left quadrant)
+                const angle = (probeAngle - 70) + (i / (numPoints - 1)) * 50;
+                arcTheta.push(angle);
+                arcR.push(arcRadius);
+            }
+
+            const markerSizes = Array(numPoints).fill(0);
+            markerSizes[numPoints - 1] = 12; // arrowhead at end of clockwise sweep
+
+            traces.push({
+                type: 'scatterpolar',
+                r: arcR,
+                theta: arcTheta,
+                mode: 'lines+markers',
+                line: {
+                    color: '#2563eb', // ADRE blue
+                    width: 3.5
+                },
+                marker: {
+                    size: markerSizes,
+                    color: '#2563eb',
+                    symbol: 'triangle-up',
+                    angle: 45 // rotate to point clockwise along the tangent
+                },
+                showlegend: false,
+                hoverinfo: 'skip'
+            });
+
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 65, l: 45, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
@@ -6565,32 +6605,24 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
-            layout.shapes = [
-                {
-                    type: 'path',
-                    xref: 'paper',
-                    yref: 'paper',
-                    path: 'M 0.895 0.08 A 0.025 0.025 0 1 1 0.92 0.105 M 0.908 0.098 L 0.92 0.105 L 0.908 0.112',
-                    line: { color: '#f59e0b', width: 2.5 }
-                }
-            ];
+            layout.shapes = [];
 
             layout.annotations = [
                 ...(baseLayout.annotations || []),
                 {
-                    text: '<b>ROTATION</b>',
+                    text: 'CW ROTATION',
                     showarrow: false,
                     xref: 'paper',
                     yref: 'paper',
-                    x: 0.88,
-                    y: 0.08,
+                    x: 0.98,
+                    y: 0.02,
                     xanchor: 'right',
-                    yanchor: 'middle',
+                    yanchor: 'bottom',
                     font: {
                         size: 9,
                         color: baseLayout.font.color || '#64748b',
                         weight: 'bold',
-                        family: 'Outfit, Arial, sans-serif'
+                        family: 'Arial, sans-serif'
                     }
                 }
             ];
