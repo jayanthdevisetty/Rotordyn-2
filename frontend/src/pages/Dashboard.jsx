@@ -4760,7 +4760,11 @@ export const Dashboard = ({ view }) => {
             }
             
             updateTimelineReadout(activeCursorIndex);
-            renderTimelineWaveformPlot();
+            if (!document.getElementById('timeline-plotly-chart')) {
+                renderTimelineWaveformPlot();
+            } else {
+                updateTimelineRangeUI();
+            }
 
             // Clean up any active ThreeJS WebGL contexts to prevent memory leaks
             window.threeCleanupRegistry = window.threeCleanupRegistry || {};
