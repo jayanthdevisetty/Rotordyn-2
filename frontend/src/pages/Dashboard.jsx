@@ -93,7 +93,7 @@ let customizeLayoutMode = false;
 let timeSyncCursor = true;
 let activeCursorIndex = 0;
 let selectedTrendCurveName = 'Direct';
-let colorCodeByStateEnabled = false;
+let colorCodeByStateEnabled = true;
 const stateFormats = {
     startup: { color: '#10b981', width: 2.0, dash: 'solid' },
     shutdown: { color: '#ef4444', width: 2.0, dash: 'dash' },
@@ -5809,9 +5809,8 @@ export const Dashboard = ({ view }) => {
                 
                 const formatted = {
                     ...trace,
-                    name: `${trace.name} (${seg.stateKey.replace('_', ' ')})`,
-                    legendgroup: `${trace.name}_${seg.stateKey}`,
-                    showlegend: idx === segments.findIndex(s => s.stateKey === seg.stateKey),
+                    legendgroup: trace.name,
+                    showlegend: idx === 0,
                     line: {
                         ...(trace.line || {}),
                         dash: stateFmt.dash
@@ -5840,7 +5839,7 @@ export const Dashboard = ({ view }) => {
                     return;
                 }
 
-                const isScatter = trace.type === 'scatter' && trace.x && trace.y && trace.x.length === filteredDf.length;
+                const isScatter = (trace.type === 'scatter' || !trace.type || trace.type === 'scattergl') && trace.x && trace.y && trace.x.length === filteredDf.length;
                 const isScatterPolar = trace.type === 'scatterpolar' && trace.r && trace.theta && trace.r.length === filteredDf.length;
 
                 if (isScatter) {
@@ -10391,7 +10390,7 @@ export const Dashboard = ({ view }) => {
                             <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Machine State Styles</h4>
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="toggle-state-coloring" onChange={(e) => window.handleStateColoringToggle && window.handleStateColoringToggle(e.target.checked)} />
+                                    <input type="checkbox" id="toggle-state-coloring" defaultChecked={true} onChange={(e) => window.handleStateColoringToggle && window.handleStateColoringToggle(e.target.checked)} />
                                     Color-code by Machine State
                                 </label>
                             </div>
