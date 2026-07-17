@@ -964,7 +964,7 @@
         /* Collapsible Sidebar Toggle Button */
         .sidebar-toggle {
             position: absolute;
-            top: 20px;
+            top: 55px;
             left: calc(var(--sidebar-width) - 12px);
             width: 24px;
             height: 24px;
@@ -2379,7 +2379,7 @@ input:focus, textarea:focus {
 /* Right Toolbar styling & Toggle button */
 .right-toolbar-toggle {
     position: absolute;
-    top: 20px;
+    top: 55px;
     right: 38px; /* 50px (toolbar width) - 12px = 38px */
     width: 24px;
     height: 24px;

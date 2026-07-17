@@ -2797,66 +2797,6 @@ export const Dashboard = ({ view }) => {
             optionButtons[0].selectOption();
             container.appendChild(optionsList);
 
-            // Layout selection segment
-            const layoutSegment = document.createElement('div');
-            layoutSegment.style.textAlign = 'left';
-            layoutSegment.style.marginTop = '10px';
-            layoutSegment.innerHTML = `
-                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-color); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Number of Plot Windows</label>
-            `;
-            
-            const layoutOptions = [
-                { value: '1', label: '1' },
-                { value: '2V', label: '2 (2V)' },
-                { value: '4', label: '4' },
-                { value: '6', label: '6' },
-                { value: '8', label: '8' }
-            ];
-
-            let selectedLayout = '2V'; // Default is 2V!
-
-            const layoutBtnsContainer = document.createElement('div');
-            layoutBtnsContainer.style.display = 'grid';
-            layoutBtnsContainer.style.gridTemplateColumns = 'repeat(5, 1fr)';
-            layoutBtnsContainer.style.gap = '6px';
-
-            const layoutButtons = [];
-            layoutOptions.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.style.padding = '8px 4px';
-                btn.style.borderRadius = '6px';
-                btn.style.border = '1px solid var(--border-color)';
-                btn.style.backgroundColor = 'var(--bg-color)';
-                btn.style.color = 'var(--text-color)';
-                btn.style.fontSize = '0.72rem';
-                btn.style.fontWeight = '700';
-                btn.style.cursor = 'pointer';
-                btn.style.transition = 'all 0.2s';
-                btn.innerText = opt.label;
-
-                const selectLayout = () => {
-                    selectedLayout = opt.value;
-                    layoutButtons.forEach(lBtn => {
-                        lBtn.btn.style.borderColor = 'var(--border-color)';
-                        lBtn.btn.style.backgroundColor = 'var(--bg-color)';
-                        lBtn.btn.style.color = 'var(--text-color)';
-                    });
-                    btn.style.borderColor = 'var(--accent-color)';
-                    btn.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                    btn.style.color = 'var(--accent-color)';
-                };
-
-                btn.onclick = selectLayout;
-                layoutBtnsContainer.appendChild(btn);
-                layoutButtons.push({ value: opt.value, btn, selectLayout });
-            });
-
-            // Pre-select '2V'
-            layoutButtons.find(b => b.value === '2V').selectLayout();
-            layoutSegment.appendChild(layoutBtnsContainer);
-            container.appendChild(layoutSegment);
-
             const confirmBtn = document.createElement('button');
             confirmBtn.type = 'button';
             confirmBtn.style.width = '100%';
@@ -2881,7 +2821,7 @@ export const Dashboard = ({ view }) => {
 
             confirmBtn.onclick = () => {
                 backdrop.remove();
-                onComplete(selectedCategory, selectedIsDual, selectedLayout);
+                onComplete(selectedCategory, selectedIsDual, '2V');
             };
             container.appendChild(confirmBtn);
 
@@ -5191,11 +5131,11 @@ export const Dashboard = ({ view }) => {
                 gridEl.style.gridTemplateColumns = '1fr';
                 gridEl.style.gridTemplateRows = '1fr';
             } else if (currentLayout === '2V') {
-                gridEl.style.gridTemplateColumns = '1fr';
-                gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
-            } else if (currentLayout === '2H') {
                 gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
                 gridEl.style.gridTemplateRows = '1fr';
+            } else if (currentLayout === '2H') {
+                gridEl.style.gridTemplateColumns = '1fr';
+                gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
             } else if (currentLayout === '4') {
                 gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
                 gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
@@ -10318,12 +10258,12 @@ export const Dashboard = ({ view }) => {
                     <span className="tooltip">1 Plot</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2V' ? 'active' : ''}`} id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
-                    2H
-                    <span className="tooltip">2 Plots Horizontal</span>
+                    2V
+                    <span className="tooltip">2 Plots Vertical (Side-by-Side)</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
-                    2V
-                    <span className="tooltip">2 Plots Vertical</span>
+                    2H
+                    <span className="tooltip">2 Plots Horizontal (Stacked)</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '4' ? 'active' : ''}`} id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
                     4
