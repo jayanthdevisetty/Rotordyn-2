@@ -902,24 +902,20 @@ export const Dashboard = ({ view }) => {
             }
         }
 
+        function syncSharedFormats(key, prop, val) {
+            if (key === 'amp_1x') {
+                signalFormats['phase_1x'][prop] = val;
+            } else if (key === 'amp_2x') {
+                signalFormats['phase_2x'][prop] = val;
+            } else if (key === 'amp_nx') {
+                signalFormats['phase_nx'][prop] = val;
+            }
+        }
+
         function handleFormatColorChange(color) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].color = color;
-                
-                // Synchronize 1X Amp and 1X Phase colors
-                if (selectedSignalFormat === 'amp_1x') {
-                    signalFormats['phase_1x'].color = color;
-                } else if (selectedSignalFormat === 'phase_1x') {
-                    signalFormats['amp_1x'].color = color;
-                }
-                
-                // Synchronize 2X Amp and 2X Phase colors
-                if (selectedSignalFormat === 'amp_2x') {
-                    signalFormats['phase_2x'].color = color;
-                } else if (selectedSignalFormat === 'phase_2x') {
-                    signalFormats['amp_2x'].color = color;
-                }
-                
+                syncSharedFormats(selectedSignalFormat, 'color', color);
                 renderGrid();
             }
         }
@@ -927,6 +923,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatDashChange(dash) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].dash = dash;
+                syncSharedFormats(selectedSignalFormat, 'dash', dash);
                 renderGrid();
             }
         }
@@ -934,7 +931,9 @@ export const Dashboard = ({ view }) => {
         function handleFormatWidthChange(width) {
             document.getElementById('format-width-val').innerText = width;
             if (signalFormats[selectedSignalFormat]) {
-                signalFormats[selectedSignalFormat].width = parseFloat(width);
+                const w = parseFloat(width);
+                signalFormats[selectedSignalFormat].width = w;
+                syncSharedFormats(selectedSignalFormat, 'width', w);
                 renderGrid();
             }
         }
@@ -942,6 +941,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatModeChange(mode) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].mode = mode;
+                syncSharedFormats(selectedSignalFormat, 'mode', mode);
                 toggleMarkerControls(mode);
                 renderGrid();
             }
@@ -950,6 +950,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatSymbolChange(symbol) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].marker_symbol = symbol;
+                syncSharedFormats(selectedSignalFormat, 'marker_symbol', symbol);
                 renderGrid();
             }
         }
@@ -957,7 +958,9 @@ export const Dashboard = ({ view }) => {
         function handleFormatMarkerSizeChange(size) {
             document.getElementById('format-marker-size-val').innerText = size;
             if (signalFormats[selectedSignalFormat]) {
-                signalFormats[selectedSignalFormat].marker_size = parseFloat(size);
+                const s = parseFloat(size);
+                signalFormats[selectedSignalFormat].marker_size = s;
+                syncSharedFormats(selectedSignalFormat, 'marker_size', s);
                 renderGrid();
             }
         }
@@ -9627,12 +9630,9 @@ export const Dashboard = ({ view }) => {
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <select id="format-signal-select" onChange={(e) => window.loadSignalFormat && window.loadSignalFormat(e.target.value)} style={{padding: "4px", fontSize: "0.75rem"}}>
                                     <option value="direct">Direct Vibration</option>
-                                    <option value="amp_1x">1X Amplitude</option>
-                                    <option value="phase_1x">1X Phase</option>
-                                    <option value="amp_2x">2X Amplitude</option>
-                                    <option value="phase_2x">2X Phase</option>
-                                    <option value="amp_nx">nX Amplitude</option>
-                                    <option value="phase_nx">nX Phase</option>
+                                    <option value="amp_1x">1X Amplitude & Phase</option>
+                                    <option value="amp_2x">2X Amplitude & Phase</option>
+                                    <option value="amp_nx">nX Amplitude & Phase</option>
                                     <option value="gap">Avg Gap</option>
                                     <option value="temp">Temperature</option>
                                     <option value="speed">Speed</option>
