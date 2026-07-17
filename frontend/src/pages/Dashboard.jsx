@@ -352,10 +352,19 @@ export const Dashboard = ({ view }) => {
             });
         }
 
+        let isLeftCollapsed = false;
+        let isRightCollapsed = false;
+
         function selectActivityTab(tabName) {
             const container = document.getElementById('main-container');
             const toggleBtn = document.getElementById('sidebar-toggle-btn');
             const toggleIconBtn = document.getElementById('act-btn-toggle');
+            
+            // If it was collapsed to 0px, expand it first
+            if (isLeftCollapsed) {
+                isLeftCollapsed = false;
+                if (container) container.classList.remove('sidebar-fully-collapsed');
+            }
             
             // If drawer is open and we click the already active tab, close it
             if (isDrawerOpen && activeActivityTab === tabName) {
@@ -400,10 +409,10 @@ export const Dashboard = ({ view }) => {
             }
             
             // Expand drawer
-            container.style.setProperty('--sidebar-width', '320px');
+            if (container) container.style.setProperty('--sidebar-width', '320px');
             if (toggleBtn) {
                 toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
-                toggleBtn.title = "Collapse Sidebar";
+                toggleBtn.title = "Collapse Sidebar Fully";
             }
             if (toggleIconBtn) {
                 toggleIconBtn.innerHTML = `
@@ -434,10 +443,10 @@ export const Dashboard = ({ view }) => {
             });
             
             // Collapse to 60px
-            container.style.setProperty('--sidebar-width', '60px');
+            if (container) container.style.setProperty('--sidebar-width', '60px');
             if (toggleBtn) {
                 toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
-                toggleBtn.title = "Expand Sidebar";
+                toggleBtn.title = "Collapse Sidebar Fully";
             }
             if (toggleIconBtn) {
                 toggleIconBtn.innerHTML = `
@@ -452,15 +461,81 @@ export const Dashboard = ({ view }) => {
         }
 
         function toggleSidebarGlobal() {
+            if (isLeftCollapsed) {
+                toggleSidebar();
+                return;
+            }
             if (isDrawerOpen) {
                 closePanelDrawer();
             } else {
-                selectActivityTab(activeActivityTab);
+                selectActivityTab(activeActivityTab || 'tree');
             }
         }
 
         function toggleSidebar() {
-            toggleSidebarGlobal();
+            const container = document.getElementById('main-container');
+            const toggleBtn = document.getElementById('sidebar-toggle-btn');
+            
+            if (isLeftCollapsed) {
+                // Expand sidebar from 0px
+                isLeftCollapsed = false;
+                if (container) {
+                    container.classList.remove('sidebar-fully-collapsed');
+                    if (isDrawerOpen) {
+                        container.style.setProperty('--sidebar-width', '320px');
+                        if (toggleBtn) {
+                            toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
+                            toggleBtn.title = "Collapse Sidebar Fully";
+                        }
+                    } else {
+                        container.style.setProperty('--sidebar-width', '60px');
+                        if (toggleBtn) {
+                            toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                            toggleBtn.title = "Collapse Sidebar Fully";
+                        }
+                    }
+                }
+            } else {
+                // Collapse sidebar fully to 0px
+                isLeftCollapsed = true;
+                if (container) {
+                    container.classList.add('sidebar-fully-collapsed');
+                    container.style.setProperty('--sidebar-width', '0px');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                    toggleBtn.title = "Expand Sidebar";
+                }
+            }
+            
+            triggerResizeWithTimeout();
+        }
+
+        function toggleRightToolbar() {
+            const container = document.getElementById('main-container');
+            const toggleBtn = document.getElementById('right-toolbar-toggle-btn');
+            
+            if (isRightCollapsed) {
+                isRightCollapsed = false;
+                if (container) {
+                    container.classList.remove('right-fully-collapsed');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                    toggleBtn.title = "Collapse Toolbar";
+                }
+            } else {
+                isRightCollapsed = true;
+                if (container) {
+                    container.classList.add('right-fully-collapsed');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
+                    toggleBtn.title = "Expand Toolbar";
+                }
+            }
+            
+            triggerResizeWithTimeout();
         }
 
         function triggerResizeWithTimeout() {
@@ -8484,6 +8559,7 @@ export const Dashboard = ({ view }) => {
         window.closePanelDrawer = closePanelDrawer;
         window.toggleSidebarGlobal = toggleSidebarGlobal;
         window.toggleSidebar = toggleSidebar;
+        window.toggleRightToolbar = toggleRightToolbar;
         window.triggerResizeWithTimeout = triggerResizeWithTimeout;
         window.getChannelUnit = getChannelUnit;
         window.applyWorkspaceStyle = applyWorkspaceStyle;
@@ -9200,6 +9276,7 @@ export const Dashboard = ({ view }) => {
         delete window.closePanelDrawer;
         delete window.toggleSidebarGlobal;
         delete window.toggleSidebar;
+        delete window.toggleRightToolbar;
         delete window.triggerResizeWithTimeout;
         delete window.getChannelUnit;
         delete window.applyWorkspaceStyle;
@@ -10184,6 +10261,9 @@ export const Dashboard = ({ view }) => {
             </div>
             
             {/* Right-side Toolbar (Extensible Layout & Cursor controls) */}
+            <button id="right-toolbar-toggle-btn" className="right-toolbar-toggle" type="button" onClick={() => window.toggleRightToolbar && window.toggleRightToolbar()} title="Collapse Toolbar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{width:"16px",height:"16px",display:"block",margin:"auto"}}><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
             <div className="right-toolbar">
                 <button className={`toolbar-btn ${currentLayoutState === '1' ? 'active' : ''}`} id="btn-layout-1" type="button" onClick={() => window.setLayout && window.setLayout('1')}>
                     1
