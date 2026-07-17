@@ -92,6 +92,7 @@ let currentGridPage = 0;
 let customizeLayoutMode = false;
 let timeSyncCursor = true;
 let activeCursorIndex = 0;
+let selectedTrendCurveName = 'Direct';
 let x_gap_rest_global = {};
 let y_gap_rest_global = {};
 let activeActivityTab = 'tree';
@@ -5500,33 +5501,73 @@ export const Dashboard = ({ view }) => {
                 const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
                 const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
                 
-                const hasValueTraces = (showDirect && cols.direct && cursorRow[cols.direct] !== undefined) ||
-                                       (show1X && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined) ||
-                                       (show2X && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined) ||
-                                       (showGap && cols.gap && cursorRow[cols.gap] !== undefined) ||
-                                       (showTemp && cols.temp && cursorRow[cols.temp] !== undefined);
-                
-                if (hasValueTraces) {
-                    markerAxis = 'y2';
-                    if (cols.amp_1x && cursorRow[cols.amp_1x] !== undefined && show1X) {
-                        cursorY = cursorRow[cols.amp_1x];
-                    } else if (cols.direct && cursorRow[cols.direct] !== undefined && showDirect) {
-                        cursorY = cursorRow[cols.direct];
-                    } else if (cols.amp_2x && cursorRow[cols.amp_2x] !== undefined && show2X) {
-                        cursorY = cursorRow[cols.amp_2x];
-                    } else if (cols.gap && cursorRow[cols.gap] !== undefined && showGap) {
-                        cursorY = cursorRow[cols.gap];
-                    } else if (cols.temp && cursorRow[cols.temp] !== undefined && showTemp) {
-                        cursorY = cursorRow[cols.temp];
-                    }
-                } else {
-                    markerAxis = 'y';
-                    if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined && show1X) {
-                        cursorY = cursorRow[cols.phase_1x];
-                    } else if (cols.phase_2x && cursorRow[cols.phase_2x] !== undefined && show2X) {
-                        cursorY = cursorRow[cols.phase_2x];
+                let resolvedY = null;
+                let resolvedAxis = 'y2';
+
+                if (selectedTrendCurveName === 'Direct' && cols.direct && cursorRow[cols.direct] !== undefined && showDirect) {
+                    resolvedY = cursorRow[cols.direct];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === '1X Amp' && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined && show1X) {
+                    resolvedY = cursorRow[cols.amp_1x];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === '2X Amp' && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined && show2X) {
+                    resolvedY = cursorRow[cols.amp_2x];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === 'Avg Gap' && cols.gap && cursorRow[cols.gap] !== undefined && showGap) {
+                    resolvedY = cursorRow[cols.gap];
+                    resolvedAxis = 'y3';
+                } else if (selectedTrendCurveName === 'Temp' && cols.temp && cursorRow[cols.temp] !== undefined && showTemp) {
+                    resolvedY = cursorRow[cols.temp];
+                    resolvedAxis = 'y4';
+                } else if (selectedTrendCurveName === '1X Phase' && cols.phase_1x && cursorRow[cols.phase_1x] !== undefined && show1X) {
+                    const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                    const unwrapped_phases = unwrapPhase(raw_phases);
+                    resolvedY = unwrapped_phases[localIdx];
+                    resolvedAxis = 'y';
+                } else if (selectedTrendCurveName === '2X Phase' && cols.phase_2x && cursorRow[cols.phase_2x] !== undefined && show2X) {
+                    const raw_phases = localDf.map(r => r[cols.phase_2x]);
+                    const unwrapped_phases = unwrapPhase(raw_phases);
+                    resolvedY = unwrapped_phases[localIdx];
+                    resolvedAxis = 'y';
+                }
+
+                if (resolvedY === null) {
+                    const showDirectVal = showDirect && cols.direct && cursorRow[cols.direct] !== undefined;
+                    const show1XVal = show1X && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined;
+                    const show2XVal = show2X && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined;
+                    const showGapVal = showGap && cols.gap && cursorRow[cols.gap] !== undefined;
+                    const showTempVal = showTemp && cols.temp && cursorRow[cols.temp] !== undefined;
+
+                    if (show1XVal) {
+                        resolvedY = cursorRow[cols.amp_1x];
+                        resolvedAxis = 'y2';
+                    } else if (showDirectVal) {
+                        resolvedY = cursorRow[cols.direct];
+                        resolvedAxis = 'y2';
+                    } else if (show2XVal) {
+                        resolvedY = cursorRow[cols.amp_2x];
+                        resolvedAxis = 'y2';
+                    } else if (showGapVal) {
+                        resolvedY = cursorRow[cols.gap];
+                        resolvedAxis = 'y3';
+                    } else if (showTempVal) {
+                        resolvedY = cursorRow[cols.temp];
+                        resolvedAxis = 'y4';
+                    } else if (show1X && cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[localIdx];
+                        resolvedAxis = 'y';
+                    } else if (show2X && cols.phase_2x && cursorRow[cols.phase_2x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_2x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[localIdx];
+                        resolvedAxis = 'y';
                     }
                 }
+
+                cursorY = resolvedY !== null ? resolvedY : 0;
+                markerAxis = resolvedAxis;
             } else if (config.category === 'polar') {
                 const cols = getChannelColumns(config.bearingOrChannel);
                 if (container && container.unwrappedPhases && container.plotData) {
@@ -5596,7 +5637,7 @@ export const Dashboard = ({ view }) => {
                     type: 'scatter',
                     x: [cursorX],
                     y: [cursorY],
-                    xaxis: config.category === 'trend' ? (markerAxis === 'y2' ? 'x2' : 'x') : undefined,
+                    xaxis: config.category === 'trend' ? (markerAxis === 'y' ? 'x' : 'x2') : undefined,
                     yaxis: config.category === 'trend' ? markerAxis : undefined,
                     mode: 'markers',
                     name: 'Cursor Marker',
@@ -6258,6 +6299,7 @@ export const Dashboard = ({ view }) => {
                 
                 let cursorY = null;
                 let cursorX = targetTime;
+                let markerAxis = 'y';
                 
                 if (config.category === 'trend') {
                     const cols = getChannelColumns(config.bearingOrChannel);
@@ -6267,31 +6309,73 @@ export const Dashboard = ({ view }) => {
                     const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
                     const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
                     
-                    const hasValueTraces = (showDirect && cols.direct && row[cols.direct] !== undefined) ||
-                                           (show1X && cols.amp_1x && row[cols.amp_1x] !== undefined) ||
-                                           (show2X && cols.amp_2x && row[cols.amp_2x] !== undefined) ||
-                                           (showGap && cols.gap && row[cols.gap] !== undefined) ||
-                                           (showTemp && cols.temp && row[cols.temp] !== undefined);
-                    
-                    if (hasValueTraces) {
-                        if (cols.amp_1x && row[cols.amp_1x] !== undefined && show1X) {
-                            cursorY = row[cols.amp_1x];
-                        } else if (cols.direct && row[cols.direct] !== undefined && showDirect) {
-                            cursorY = row[cols.direct];
-                        } else if (cols.amp_2x && row[cols.amp_2x] !== undefined && show2X) {
-                            cursorY = row[cols.amp_2x];
-                        } else if (cols.gap && row[cols.gap] !== undefined && showGap) {
-                            cursorY = row[cols.gap];
-                        } else if (cols.temp && row[cols.temp] !== undefined && showTemp) {
-                            cursorY = row[cols.temp];
-                        }
-                    } else {
-                        if (cols.phase_1x && row[cols.phase_1x] !== undefined && show1X) {
-                            cursorY = row[cols.phase_1x];
-                        } else if (cols.phase_2x && row[cols.phase_2x] !== undefined && show2X) {
-                            cursorY = row[cols.phase_2x];
+                    let resolvedY = null;
+                    let resolvedAxis = 'y2';
+
+                    if (selectedTrendCurveName === 'Direct' && cols.direct && row[cols.direct] !== undefined && showDirect) {
+                        resolvedY = row[cols.direct];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === '1X Amp' && cols.amp_1x && row[cols.amp_1x] !== undefined && show1X) {
+                        resolvedY = row[cols.amp_1x];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === '2X Amp' && cols.amp_2x && row[cols.amp_2x] !== undefined && show2X) {
+                        resolvedY = row[cols.amp_2x];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === 'Avg Gap' && cols.gap && row[cols.gap] !== undefined && showGap) {
+                        resolvedY = row[cols.gap];
+                        resolvedAxis = 'y3';
+                    } else if (selectedTrendCurveName === 'Temp' && cols.temp && row[cols.temp] !== undefined && showTemp) {
+                        resolvedY = row[cols.temp];
+                        resolvedAxis = 'y4';
+                    } else if (selectedTrendCurveName === '1X Phase' && cols.phase_1x && row[cols.phase_1x] !== undefined && show1X) {
+                        const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[activeCursorIndex];
+                        resolvedAxis = 'y';
+                    } else if (selectedTrendCurveName === '2X Phase' && cols.phase_2x && row[cols.phase_2x] !== undefined && show2X) {
+                        const raw_phases = container.plotData.map(r => r[cols.phase_2x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[activeCursorIndex];
+                        resolvedAxis = 'y';
+                    }
+
+                    if (resolvedY === null) {
+                        const showDirectVal = showDirect && cols.direct && row[cols.direct] !== undefined;
+                        const show1XVal = show1X && cols.amp_1x && row[cols.amp_1x] !== undefined;
+                        const show2XVal = show2X && cols.amp_2x && row[cols.amp_2x] !== undefined;
+                        const showGapVal = showGap && cols.gap && row[cols.gap] !== undefined;
+                        const showTempVal = showTemp && cols.temp && row[cols.temp] !== undefined;
+
+                        if (show1XVal) {
+                            resolvedY = row[cols.amp_1x];
+                            resolvedAxis = 'y2';
+                        } else if (showDirectVal) {
+                            resolvedY = row[cols.direct];
+                            resolvedAxis = 'y2';
+                        } else if (show2XVal) {
+                            resolvedY = row[cols.amp_2x];
+                            resolvedAxis = 'y2';
+                        } else if (showGapVal) {
+                            resolvedY = row[cols.gap];
+                            resolvedAxis = 'y3';
+                        } else if (showTempVal) {
+                            resolvedY = row[cols.temp];
+                            resolvedAxis = 'y4';
+                        } else if (show1X && cols.phase_1x && row[cols.phase_1x] !== undefined) {
+                            const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                            const unwrapped_phases = unwrapPhase(raw_phases);
+                            resolvedY = unwrapped_phases[activeCursorIndex];
+                            resolvedAxis = 'y';
+                        } else if (show2X && cols.phase_2x && row[cols.phase_2x] !== undefined) {
+                            const raw_phases = container.plotData.map(r => r[cols.phase_2x]);
+                            const unwrapped_phases = unwrapPhase(raw_phases);
+                            resolvedY = unwrapped_phases[activeCursorIndex];
+                            resolvedAxis = 'y';
                         }
                     }
+
+                    cursorY = resolvedY !== null ? resolvedY : 0;
+                    markerAxis = resolvedAxis;
                 } else if (config.category === 'polar') {
                     if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
@@ -6358,7 +6442,9 @@ export const Dashboard = ({ view }) => {
                 } else {
                     updateData = {
                         x: [[cursorX]],
-                        y: [[cursorY]]
+                        y: [[cursorY]],
+                        xaxis: config.category === 'trend' ? (markerAxis === 'y' ? 'x' : 'x2') : undefined,
+                        yaxis: config.category === 'trend' ? markerAxis : undefined
                     };
                 }
                 
@@ -6403,6 +6489,14 @@ export const Dashboard = ({ view }) => {
         function handlePlotClick(eventData, container) {
             if (eventData.points && eventData.points.length > 0) {
                 const pt = eventData.points[0];
+                
+                const config = plotSlots[parseInt(container.dataset.slotIndex)];
+                if (config && config.category === 'trend' && pt.trace && pt.trace.name) {
+                    if (pt.trace.name !== 'Cursor Marker' && pt.trace.name !== 'Cursor Line') {
+                        selectedTrendCurveName = pt.trace.name;
+                    }
+                }
+
                 const globalIdx = getGlobalIndexFromPlotPoint(pt, container);
                 if (globalIdx !== -1) {
                     activeCursorIndex = globalIdx;
