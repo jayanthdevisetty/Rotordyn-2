@@ -47,33 +47,21 @@ if (import.meta.env.PROD) {
         `;
     };
 
-    // 1. Console Element Getter Detection (Chromium/Chrome)
-    const element = new Image();
-    Object.defineProperty(element, 'id', {
-        get: () => {
-            blockAccess();
-            throw new Error("DevTools detected");
-        }
-    });
-
-    // 2. RegExp toString Detection (Other engines)
-    const devtoolsTest = /./;
-    devtoolsTest.toString = () => {
-        blockAccess();
-        return '';
-    };
-
     setInterval(() => {
-        // Trigger getter checks
-        console.log(element);
-        console.log(devtoolsTest);
-        console.clear();
-
-        // 3. Debugger Time-Lag check (Firefox & Safari fallback)
+        // 1. Debugger Time-Lag check (Firefox & Safari fallback)
         const before = new Date().getTime();
         debugger;
         const after = new Date().getTime();
         if (after - before > 100) {
+            blockAccess();
+            return;
+        }
+
+        // 2. Docked DevTools viewport dimension delta check (threshold 160px)
+        const threshold = 160;
+        const widthDev = window.outerWidth - window.innerWidth > threshold;
+        const heightDev = window.outerHeight - window.innerHeight > threshold;
+        if ((widthDev || heightDev) && !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
             blockAccess();
         }
     }, 1000);
