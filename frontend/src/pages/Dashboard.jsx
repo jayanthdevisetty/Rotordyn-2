@@ -2605,6 +2605,155 @@ export const Dashboard = ({ view }) => {
             return new Date();
         }
 
+        function showDefaultPlotSelectionModal(orderedPrefixes, bearingPairs, singlePrefixes, onComplete) {
+            const backdrop = document.createElement('div');
+            backdrop.style.position = 'fixed';
+            backdrop.style.top = '0';
+            backdrop.style.left = '0';
+            backdrop.style.width = '100vw';
+            backdrop.style.height = '100vh';
+            backdrop.style.backgroundColor = 'rgba(9, 13, 22, 0.85)';
+            backdrop.style.backdropFilter = 'blur(10px)';
+            backdrop.style.display = 'flex';
+            backdrop.style.justifyContent = 'center';
+            backdrop.style.alignItems = 'center';
+            backdrop.style.zIndex = '999999';
+            backdrop.style.fontFamily = "'Outfit', 'Plus Jakarta Sans', sans-serif";
+
+            const container = document.createElement('div');
+            container.style.width = '420px';
+            container.style.padding = '30px';
+            container.style.backgroundColor = 'var(--card-color)';
+            container.style.border = '1px solid var(--border-color)';
+            container.style.borderRadius = '16px';
+            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '20px';
+            container.style.color = 'var(--text-color)';
+            container.style.textAlign = 'center';
+
+            const header = document.createElement('div');
+            header.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 10px;">📊</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-color)">Configure Default Plot Grid</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted)">Choose the default plot type to display for the loaded dataset:</p>
+            `;
+            container.appendChild(header);
+
+            const optionsList = document.createElement('div');
+            optionsList.style.display = 'grid';
+            optionsList.style.gridTemplateColumns = '1fr';
+            optionsList.style.gap = '10px';
+            optionsList.style.maxHeight = '280px';
+            optionsList.style.overflowY = 'auto';
+            optionsList.style.paddingRight = '5px';
+
+            const plotTypes = [
+                { id: 'trend', name: 'Trend Plots', isDual: false },
+                { id: 'polar', name: 'Polar Plots', isDual: false },
+                { id: 'bode2d', name: 'Bode Plots (2D)', isDual: false },
+                { id: 'centerline', name: 'Shaft Centerline Plots', isDual: true },
+                { id: 'centerline_orbit', name: 'Centerline Orbit Overlays', isDual: true },
+                { id: 'orbit', name: 'Rotor Orbit Plots', isDual: true },
+                { id: 'spectrum', name: 'FFT Spectrum Plots', isDual: false }
+            ];
+
+            let selectedCategory = 'trend';
+            let selectedIsDual = false;
+
+            const optionButtons = [];
+            plotTypes.forEach(pt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.width = '100%';
+                btn.style.padding = '12px 16px';
+                btn.style.borderRadius = '8px';
+                btn.style.border = '1px solid var(--border-color)';
+                btn.style.backgroundColor = 'var(--bg-color)';
+                btn.style.color = 'var(--text-color)';
+                btn.style.fontSize = '0.85rem';
+                btn.style.fontWeight = '600';
+                btn.style.cursor = 'pointer';
+                btn.style.textAlign = 'left';
+                btn.style.transition = 'all 0.2s';
+                btn.style.display = 'flex';
+                btn.style.justifyContent = 'space-between';
+                btn.style.alignItems = 'center';
+                
+                btn.innerHTML = `
+                    <span>${pt.name}</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); padding: 2px 6px; background: var(--card-color); border-radius: 4px; border: 1px solid var(--border-color)">
+                        ${pt.isDual ? 'Bearing Pairs' : 'Channels'}
+                    </span>
+                `;
+
+                btn.onmouseenter = () => {
+                    if (selectedCategory !== pt.id) {
+                        btn.style.borderColor = 'var(--accent-color)';
+                        btn.style.backgroundColor = 'rgba(59, 130, 246, 0.05)';
+                    }
+                };
+                btn.onmouseleave = () => {
+                    if (selectedCategory !== pt.id) {
+                        btn.style.borderColor = 'var(--border-color)';
+                        btn.style.backgroundColor = 'var(--bg-color)';
+                    }
+                };
+
+                const selectOption = () => {
+                    selectedCategory = pt.id;
+                    selectedIsDual = pt.isDual;
+                    optionButtons.forEach(otherBtn => {
+                        otherBtn.btn.style.borderColor = 'var(--border-color)';
+                        otherBtn.btn.style.backgroundColor = 'var(--bg-color)';
+                        otherBtn.btn.style.boxShadow = 'none';
+                    });
+                    btn.style.borderColor = 'var(--accent-color)';
+                    btn.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    btn.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.2)';
+                };
+
+                btn.onclick = selectOption;
+                optionsList.appendChild(btn);
+                optionButtons.push({ id: pt.id, btn, selectOption });
+            });
+
+            optionButtons[0].selectOption();
+            container.appendChild(optionsList);
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.type = 'button';
+            confirmBtn.style.width = '100%';
+            confirmBtn.style.padding = '12px';
+            confirmBtn.style.borderRadius = '50px';
+            confirmBtn.style.border = 'none';
+            confirmBtn.style.backgroundColor = 'var(--accent-color)';
+            confirmBtn.style.color = '#ffffff';
+            confirmBtn.style.fontWeight = '700';
+            confirmBtn.style.fontSize = '0.88rem';
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.3)';
+            confirmBtn.style.transition = 'all 0.2s';
+            confirmBtn.innerText = 'Render Selected Layout';
+
+            confirmBtn.onmouseenter = () => {
+                confirmBtn.style.opacity = '0.9';
+            };
+            confirmBtn.onmouseleave = () => {
+                confirmBtn.style.opacity = '1';
+            };
+
+            confirmBtn.onclick = () => {
+                backdrop.remove();
+                onComplete(selectedCategory, selectedIsDual);
+            };
+            container.appendChild(confirmBtn);
+
+            backdrop.appendChild(container);
+            document.body.appendChild(backdrop);
+        }
+
         function parseCSVData(csvText, filename) {
             const preprocessed = preprocessCSV(csvText);
             
@@ -2719,64 +2868,77 @@ export const Dashboard = ({ view }) => {
                         if (summaryTime) summaryTime.innerText = `${t_first} - ${t_last}`;
                         if (summaryFilename) summaryFilename.innerText = filename.split('/').pop().split('\\').pop();
 
-                        // Load default view slot based on priority order of trend plots (up to 8 slots)
+                        // Load default view slots based on user selection in modal
                         const ordered = getPriorityOrder(singlePrefixes);
-                        const N = Math.min(ordered.length, 8);
-                        plotSlots = [];
-                        for (let i = 0; i < N; i++) {
-                            plotSlots.push({
-                                bearingOrChannel: ordered[i],
-                                category: 'trend',
-                                isDual: false,
-                                layoutLimits: { min: null, max: null, autoScale: true }
-                            });
-                        }
                         
-                        let layout = '8';
-                        if (N === 1) layout = '1';
-                        else if (N === 2) layout = '2H';
-                        else if (N <= 4) layout = '4';
-                        else if (N <= 6) layout = '6';
-                        else layout = '8';
-
-                        activeSlotIndex = 0;
-                        currentLayoutRef.current = layout;
-                        currentLayout = layout;
-                        setCurrentLayoutState(layout);
-                        currentGridPage = 0;
-
-                        if (timelineIntervalId) {
-                            clearInterval(timelineIntervalId);
-                            isTimelinePlaying = false;
-                            const playBtn = document.getElementById('tl-btn-play');
-                            if (playBtn) playBtn.innerText = 'Play';
-                        }
-                        document.getElementById('global-timeline-bar').style.display = 'flex';
-                        const topBtn = document.getElementById('btn-top-toggle-timeline');
-                        if (topBtn) {
-                            topBtn.style.display = 'inline-block';
-                            topBtn.innerText = 'Hide Speed Profile';
-                            topBtn.style.background = 'var(--card-color)';
-                            topBtn.style.borderColor = 'var(--border-color)';
-                            topBtn.style.color = '#ef4444';
-                        }
-
-                        populateSlowRollDropdown();
-                        updateSavedSlowRollList();
-
-                        renderGrid();
-                        saveWorkspaceConfig();
                         showLoader(false);
                         
-                        // Run AI critical speed detection and malfunction auto-diagnostics
-                        setTimeout(() => {
-                            runAIDiagnostics();
-                        }, 100);
-                        
-                        // Auto-expand Sensor Navigation to guide the user on first load
-                        setTimeout(() => {
-                            selectActivityTab('tree');
-                        }, 200);
+                        showDefaultPlotSelectionModal(ordered, bearingPairs, singlePrefixes, (category, isDual) => {
+                            showLoader(true, "Initializing plot grid...");
+                            
+                            setTimeout(() => {
+                                const targets = isDual ? bearingPairs : ordered;
+                                const N = Math.min(targets.length, 8);
+                                plotSlots = [];
+                                for (let i = 0; i < N; i++) {
+                                    plotSlots.push({
+                                        bearingOrChannel: targets[i],
+                                        category: category,
+                                        isDual: isDual,
+                                        layoutLimits: { min: null, max: null, autoScale: true },
+                                        showTimebase: true,
+                                        showTrace2: false,
+                                        cycles: 8
+                                    });
+                                }
+                                
+                                let layout = '8';
+                                if (N === 1) layout = '1';
+                                else if (N === 2) layout = '2H';
+                                else if (N <= 4) layout = '4';
+                                else if (N <= 6) layout = '6';
+                                else layout = '8';
+
+                                activeSlotIndex = 0;
+                                currentLayoutRef.current = layout;
+                                currentLayout = layout;
+                                setCurrentLayoutState(layout);
+                                currentGridPage = 0;
+
+                                if (timelineIntervalId) {
+                                    clearInterval(timelineIntervalId);
+                                    isTimelinePlaying = false;
+                                    const playBtn = document.getElementById('tl-btn-play');
+                                    if (playBtn) playBtn.innerText = 'Play';
+                                }
+                                document.getElementById('global-timeline-bar').style.display = 'flex';
+                                const topBtn = document.getElementById('btn-top-toggle-timeline');
+                                if (topBtn) {
+                                    topBtn.style.display = 'inline-block';
+                                    topBtn.innerText = 'Hide Speed Profile';
+                                    topBtn.style.background = 'var(--card-color)';
+                                    topBtn.style.borderColor = 'var(--border-color)';
+                                    topBtn.style.color = '#ef4444';
+                                }
+
+                                populateSlowRollDropdown();
+                                updateSavedSlowRollList();
+
+                                setView('dashboard');
+
+                                setTimeout(() => {
+                                    renderGrid();
+                                    saveWorkspaceConfig();
+                                    showLoader(false);
+                                    
+                                    // Run AI critical speed detection and malfunction auto-diagnostics
+                                    runAIDiagnostics();
+                                    
+                                    // Auto-expand Sensor Navigation to guide the user on first load
+                                    selectActivityTab('tree');
+                                }, 50);
+                            }, 300);
+                        });
                     }, 500);
                 },
                 error: function(err) {
