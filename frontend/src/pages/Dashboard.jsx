@@ -5214,7 +5214,14 @@ export const Dashboard = ({ view }) => {
             const totalPages = Math.ceil(totalSlots / pageSize);
             if (currentGridPage >= totalPages) currentGridPage = Math.max(0, totalPages - 1);
             
-            document.getElementById('grid-page-indicator').innerText = `Window ${currentGridPage + 1} of ${totalPages || 1}`;
+            const controlsEl = document.querySelector('.grid-page-controls');
+            if (controlsEl) {
+                controlsEl.style.display = totalPages <= 1 ? 'none' : 'flex';
+            }
+            const indicatorEl = document.getElementById('grid-page-indicator');
+            if (indicatorEl) {
+                indicatorEl.innerText = `Window ${currentGridPage + 1} of ${totalPages || 1}`;
+            }
             
             for (let i = startIndex; i < endIndex; i++) {
                 const slotCard = document.createElement('div');
@@ -5357,7 +5364,7 @@ export const Dashboard = ({ view }) => {
                 paper_bgcolor: paperBg,
                 plot_bgcolor: plotBg,
                 font: { color: textColor, family: 'Outfit, Inter, sans-serif' },
-                margin: { t: 45, b: 50, l: 50, r: 40 },
+                margin: { t: 15, b: 35, l: 40, r: 15 },
                 autosize: true,
                 height: container.offsetHeight || container.clientHeight || 300,
                 legend: {
