@@ -6491,9 +6491,10 @@ export const Dashboard = ({ view }) => {
                 const pt = eventData.points[0];
                 
                 const config = plotSlots[parseInt(container.dataset.slotIndex)];
-                if (config && config.category === 'trend' && pt.trace && pt.trace.name) {
-                    if (pt.trace.name !== 'Cursor Marker' && pt.trace.name !== 'Cursor Line') {
-                        selectedTrendCurveName = pt.trace.name;
+                if (config && config.category === 'trend') {
+                    const traceName = (pt.data && pt.data.name) || (pt.trace && pt.trace.name);
+                    if (traceName && traceName !== 'Cursor Marker' && traceName !== 'Cursor Line') {
+                        selectedTrendCurveName = traceName;
                     }
                 }
 
