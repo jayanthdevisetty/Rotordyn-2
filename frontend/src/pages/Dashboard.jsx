@@ -534,9 +534,9 @@ export const Dashboard = ({ view }) => {
         let activeEndTime = 'all';
 
         const signalFormats = {
-            direct: { color: '#2563eb', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_1x: { color: '#ef4444', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_1x: { color: '#ef4444', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            direct: { color: '#1e40af', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_1x: { color: '#991b1b', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_1x: { color: '#991b1b', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
