@@ -2701,28 +2701,30 @@ export const Dashboard = ({ view }) => {
                         if (summaryTime) summaryTime.innerText = `${t_first} - ${t_last}`;
                         if (summaryFilename) summaryFilename.innerText = filename.split('/').pop().split('\\').pop();
 
-                        // Load default view slot
-                        plotSlots = [
-                            {
-                                bearingOrChannel: singlePrefixes[0] || 'BRG1X',
+                        // Load default view slot based on priority order of trend plots (up to 8 slots)
+                        const ordered = getPriorityOrder(singlePrefixes);
+                        const N = Math.min(ordered.length, 8);
+                        plotSlots = [];
+                        for (let i = 0; i < N; i++) {
+                            plotSlots.push({
+                                bearingOrChannel: ordered[i],
                                 category: 'trend',
                                 isDual: false,
                                 layoutLimits: { min: null, max: null, autoScale: true }
-                            },
-                            {
-                                bearingOrChannel: bearingPairs[0] || singlePrefixes[1] || 'BRG1',
-                                category: bearingPairs[0] ? 'orbit' : 'trend',
-                                isDual: false,
-                                layoutLimits: { min: null, max: null, autoScale: true },
-                                showTimebase: true,
-                                showTrace2: false,
-                                cycles: 8
-                            }
-                        ];
+                            });
+                        }
+                        
+                        let layout = '8';
+                        if (N === 1) layout = '1';
+                        else if (N === 2) layout = '2H';
+                        else if (N <= 4) layout = '4';
+                        else if (N <= 6) layout = '6';
+                        else layout = '8';
+
                         activeSlotIndex = 0;
-                        currentLayoutRef.current = '2H';
-                        currentLayout = '2H';
-                        setCurrentLayoutState('2H');
+                        currentLayoutRef.current = layout;
+                        currentLayout = layout;
+                        setCurrentLayoutState(layout);
                         currentGridPage = 0;
 
                         if (timelineIntervalId) {
@@ -3676,86 +3678,85 @@ export const Dashboard = ({ view }) => {
 
         let activeBearingOrChannel = null;
 
-        function selectPlotType(bearingOrChannel, category, isDual) {
-            activeBearingOrChannel = bearingOrChannel;
-            if (activeSlotIndex >= plotSlots.length) {
-                while (plotSlots.length <= activeSlotIndex) {
-                    plotSlots.push(null);
-                }
+        function getPriorityOrder(prefixes) {
+            if (!prefixes || prefixes.length === 0) return [];
+            return [...prefixes].sort((a, b) => {
+                const parse = (p) => {
+                    const m = p.match(/^([a-zA-Z\s]*)(\d+)(.*)$/);
+                    if (m) {
+                        return {
+                            name: m[1],
+                            num: parseInt(m[2], 10),
+                            suffix: m[3].toLowerCase()
+                        };
+                    }
+                    return { name: p, num: 999, suffix: '' };
+                };
+                const pa = parse(a);
+                const pb = parse(b);
+                if (pa.name !== pb.name) return pa.name.localeCompare(pb.name);
+                if (pa.num !== pb.num) return pa.num - pb.num;
+                const getSuffixVal = (s) => {
+                    if (s.includes('x')) return 1;
+                    if (s.includes('y')) return 2;
+                    if (s.includes('seis')) return 3;
+                    return 4;
+                };
+                return getSuffixVal(pa.suffix) - getSuffixVal(pb.suffix);
+            });
+        }
+
+        function applyCategoryToAllSlots(category) {
+            if (!singlePrefixes || singlePrefixes.length === 0) return;
+            
+            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
+            let isSingle = !bearingPairCategories.includes(category);
+            
+            const orderedPrefixes = getPriorityOrder(singlePrefixes);
+            const targets = isSingle ? orderedPrefixes : bearingPairs;
+            
+            const N = Math.min(targets.length, 8);
+            
+            plotSlots = [];
+            for (let i = 0; i < N; i++) {
+                plotSlots.push({
+                    bearingOrChannel: targets[i],
+                    category: category,
+                    isDual: !isSingle,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                });
             }
             
-            const current = plotSlots[activeSlotIndex];
-            if (current && current.bearingOrChannel === bearingOrChannel && current.category === category) {
-                plotSlots[activeSlotIndex] = null;
-            } else {
-                plotSlots[activeSlotIndex] = {
-                    bearingOrChannel: bearingOrChannel,
-                    category: category,
-                    isDual: isDual,
-                    layoutLimits: {
-                        min: null,
-                        max: null,
-                        autoScale: true
-                    }
-                };
-            }
+            let layout = '8';
+            if (N === 1) layout = '1';
+            else if (N === 2) layout = '2H';
+            else if (N <= 4) layout = '4';
+            else if (N <= 6) layout = '6';
+            else layout = '8';
+            
+            currentLayout = layout;
+            currentLayoutRef.current = layout;
+            setCurrentLayoutState(layout);
             
             renderGrid();
             saveWorkspaceConfig();
         }
 
-        function populatePlotFromToolbar(category) {
-            let targetBc = activeBearingOrChannel;
-            if (!targetBc && plotSlots[activeSlotIndex]) {
-                targetBc = plotSlots[activeSlotIndex].bearingOrChannel;
+        function selectPlotType(bearingOrChannel, category, isDual) {
+            applyCategoryToAllSlots(category);
+            const idx = plotSlots.findIndex(slot => slot && slot.bearingOrChannel === bearingOrChannel);
+            if (idx !== -1) {
+                activeSlotIndex = idx;
             }
-            if (!targetBc) {
-                targetBc = bearingPairs[0] || singlePrefixes[0];
-            }
-            if (!targetBc) return; // No dataset loaded yet
-            
-            // Auto-correct channel/bearing compatibility for toolbar plot selection
-            const singleChannelCategories = ['polar', 'bode2d', 'bode3d', 'spectrum', 'cascade'];
-            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
-            
-            if (singleChannelCategories.includes(category) && bearingPairs.includes(targetBc)) {
-                // Auto-target the X-channel of the bearing pair (e.g., BRG1 -> BRG1X)
-                targetBc = targetBc + 'X';
-            } else if (bearingPairCategories.includes(category) && !bearingPairs.includes(targetBc)) {
-                // Auto-target the bearing pair itself (e.g., BRG1X -> BRG1)
-                const match = bearingPairs.find(bp => targetBc.startsWith(bp));
-                if (match) {
-                    targetBc = match;
-                }
-            }
-            
-            if (category === 'centerline' && !bearingPairs.includes(targetBc)) {
-                const match = bearingPairs.find(bp => targetBc.startsWith(bp));
-                if (match) {
-                    targetBc = match;
-                } else {
-                    targetBc = bearingPairs[0];
-                }
-            }
-            if (!targetBc) return;
-            
-            if (activeSlotIndex >= plotSlots.length) {
-                while (plotSlots.length <= activeSlotIndex) {
-                    plotSlots.push(null);
-                }
-            }
-            
-            plotSlots[activeSlotIndex] = {
-                bearingOrChannel: targetBc,
-                category: category,
-                isDual: false,
-                layoutLimits: {
-                    min: null,
-                    max: null,
-                    autoScale: true
-                }
-            };
             renderGrid();
+            saveWorkspaceConfig();
+        }
+
+        function populatePlotFromToolbar(category) {
+            applyCategoryToAllSlots(category);
         }
         window.populatePlotFromToolbar = populatePlotFromToolbar;
 
