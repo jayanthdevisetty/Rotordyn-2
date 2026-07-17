@@ -4325,6 +4325,41 @@ export const Dashboard = ({ view }) => {
         }
         window.saveSlowRollSample = saveSlowRollSample;
 
+        function applySlowRollAtCurrentIndex() {
+            if (!df || df.length === 0 || timelineIndex < 0 || timelineIndex >= df.length) return;
+            
+            const targetRow = df[timelineIndex];
+            if (!targetRow) return;
+            
+            const targetTimeMs = targetRow._time_ms || 0;
+            const rpm = Math.round(targetRow[speedCol]) || 0;
+            const name = `Slow Roll ${rpm} RPM`;
+            
+            const newSample = {
+                id: targetTimeMs,
+                name: name,
+                row: targetRow
+            };
+            
+            if (!savedSlowRollSamples.find(s => s.id === targetTimeMs)) {
+                savedSlowRollSamples.push(newSample);
+            }
+            activeSlowRollSampleId = targetTimeMs;
+            
+            // Enable compensation
+            slowRollCompensationEnabled = true;
+            const compCheckbox = document.getElementById('slow-roll-enabled');
+            if (compCheckbox) compCheckbox.checked = true;
+            
+            updateSavedSlowRollList();
+            populateSlowRollDropdown();
+            
+            // Re-render and force recalculation
+            invalidateFilteredDataCache();
+            renderGrid();
+        }
+        window.applySlowRollAtCurrentIndex = applySlowRollAtCurrentIndex;
+
         function updateSavedSlowRollList() {
             const listEl = document.getElementById('slow-roll-saved-list');
             if (!listEl) return;
@@ -8560,6 +8595,7 @@ export const Dashboard = ({ view }) => {
         window.toggleSidebarGlobal = toggleSidebarGlobal;
         window.toggleSidebar = toggleSidebar;
         window.toggleRightToolbar = toggleRightToolbar;
+        window.applySlowRollAtCurrentIndex = applySlowRollAtCurrentIndex;
         window.triggerResizeWithTimeout = triggerResizeWithTimeout;
         window.getChannelUnit = getChannelUnit;
         window.applyWorkspaceStyle = applyWorkspaceStyle;
@@ -9277,6 +9313,7 @@ export const Dashboard = ({ view }) => {
         delete window.toggleSidebarGlobal;
         delete window.toggleSidebar;
         delete window.toggleRightToolbar;
+        delete window.applySlowRollAtCurrentIndex;
         delete window.triggerResizeWithTimeout;
         delete window.getChannelUnit;
         delete window.applyWorkspaceStyle;
@@ -10193,6 +10230,10 @@ export const Dashboard = ({ view }) => {
                                 <button className="timeline-ctrl-btn" id="tl-btn-prev" onClick={() => window.timelinePrev && window.timelinePrev()} title="Step Back (Ctrl+Left)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronLeft size={16} /></button>
                                 <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronRight size={16} /></button>
                             </div>
+
+                            <button className="timeline-ctrl-btn" id="tl-btn-apply-slowroll" onClick={() => window.applySlowRollAtCurrentIndex && window.applySlowRollAtCurrentIndex()} title="Apply current cursor point as Slow Roll Compensation Baseline" style={{display: "inline-flex", alignItems: "center", backgroundColor: "rgba(14, 165, 233, 0.12)", color: "var(--accent-color)", border: "1px solid rgba(14, 165, 233, 0.25)", padding: "4px 12px", borderRadius: "50px", fontSize: "0.72rem", fontWeight: 700, gap: "4px", cursor: "pointer"}}>
+                                🎯 Apply Slow Roll
+                            </button>
                             
                             {/* Step & Speed settings */}
                             <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
@@ -10252,7 +10293,7 @@ export const Dashboard = ({ view }) => {
                     <div id="plotly-grid"></div>
                     
                     {/* Page controls at the bottom of grid */}
-                    <div className="grid-page-controls" style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", padding: "6px 0", backgroundColor: "var(--card-color)", borderTop: "1px solid var(--border-color)", flexShrink: 0, fontSize: "0.8rem", fontFamily: "'Outfit'"}}>
+                    <div className="grid-page-controls" style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", padding: "2px 0", backgroundColor: "var(--card-color)", borderTop: "1px solid var(--border-color)", flexShrink: 0, fontSize: "0.8rem", fontFamily: "'Outfit'"}}>
                         <button className="grid-card-btn" type="button" onClick={() => window.prevGridPage && window.prevGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronLeft size={16} /></button>
                         <span id="grid-page-indicator">Page 1 of 1</span>
                         <button className="grid-card-btn" type="button" onClick={() => window.nextGridPage && window.nextGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronRight size={16} /></button>
