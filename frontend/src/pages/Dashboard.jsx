@@ -5380,23 +5380,23 @@ export const Dashboard = ({ view }) => {
                         <div class="grid-card-body" id="plotly-slot-body-${i}" style="position: relative;">
                             <div id="plotly-container-${i}" class="chart-container"></div>
                             ${colorCodeByStateEnabled ? `
-                                <div class="state-floating-legend" style="position: absolute; top: 10px; right: 10px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 5px 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.1); pointer-events: none; opacity: 0.95; font-family: var(--font-family, sans-serif);">
-                                    <div style="font-size: 0.55rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.05em;">State Styles</div>
-                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
-                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
-                                        <span>Startup</span>
+                                <div class="state-floating-legend" style="position: absolute; top: 12px; right: 12px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04); pointer-events: none; opacity: 0.9; transition: opacity 0.25s ease-in-out; font-family: var(--font-family, sans-serif); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); min-width: 105px;">
+                                    <div style="font-size: 0.55rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); padding-bottom: 3px;">State Styles</div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <span style="flex: 1;">Startup</span>
+                                        <svg width="24" height="4" style="display: block; margin-left: auto;"><line x1="0" y1="2" x2="24" y2="2" stroke="${stateFormats.startup.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
-                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
-                                        <span>Shutdown</span>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <span style="flex: 1;">Shutdown</span>
+                                        <svg width="24" height="4" style="display: block; margin-left: auto;"><line x1="0" y1="2" x2="24" y2="2" stroke="${stateFormats.shutdown.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
-                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
-                                        <span>Steady State</span>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <span style="flex: 1;">Steady State</span>
+                                        <svg width="24" height="4" style="display: block; margin-left: auto;"><line x1="0" y1="2" x2="24" y2="2" stroke="${stateFormats.steady_state.color}" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
-                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
-                                        <span>Other/Default</span>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <span style="flex: 1;">Other/Default</span>
+                                        <svg width="24" height="4" style="display: block; margin-left: auto;"><line x1="0" y1="2" x2="24" y2="2" stroke="${stateFormats.other.color}" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
                                     </div>
                                 </div>
                             ` : ''}
