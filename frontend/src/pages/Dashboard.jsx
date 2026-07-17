@@ -5377,8 +5377,31 @@ export const Dashboard = ({ view }) => {
                             </div>
                         </div>
                         <div class="plot-telemetry-box-inline" id="plot-telemetry-box-${i}" style="display: none;"></div>
-                        <div class="grid-card-body" id="plotly-slot-body-${i}">
-                            <div id="plotly-container-${i}" class="chart-container"></div>
+                        <div class="grid-card-body" id="plotly-slot-body-${i}" style="display: flex; flex-direction: column;">
+                            ${colorCodeByStateEnabled ? `
+                                <div class="state-legend-row" style="display: flex; gap: 14px; justify-content: center; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-color); background-color: var(--card-color); font-size: 0.65rem; color: var(--text-color); font-family: var(--font-family, sans-serif); margin-bottom: 4px;">
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 4px; font-size: 0.6rem; letter-spacing: 0.05em;">States:</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.startup.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Startup</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.shutdown.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Shutdown</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.steady_state.color}" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Steady State</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.other.color}" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Other/Default</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            <div id="plotly-container-${i}" class="chart-container" style="flex: 1;"></div>
                         </div>
                     `;
                     
@@ -5853,48 +5876,7 @@ export const Dashboard = ({ view }) => {
                 }
             });
 
-            // Append state guide dummy traces to display horizontally in the native Plotly legend
-            if (newTraces.length > 0) {
-                const isTrend = traces.some(t => t.xaxis === 'x2');
-                const isPolar = traces.some(t => t.type === 'scatterpolar');
-                
-                const guides = [
-                    { name: 'Startup (Solid)', dash: stateFormats.startup.dash, color: stateFormats.startup.color },
-                    { name: 'Shutdown (Dashed)', dash: stateFormats.shutdown.dash, color: stateFormats.shutdown.color },
-                    { name: 'Steady State (Dotted)', dash: stateFormats.steady_state.dash, color: stateFormats.steady_state.color },
-                    { name: 'Other/Default (Dash-Dot)', dash: stateFormats.other.dash, color: stateFormats.other.color }
-                ];
-
-                guides.forEach(guide => {
-                    const guideTrace = {
-                        type: isPolar ? 'scatterpolar' : 'scatter',
-                        mode: 'lines',
-                        name: guide.name,
-                        legendgroup: 'StateLegendGuide',
-                        showlegend: true,
-                        line: {
-                            color: guide.color || '#6b7280',
-                            width: 2.2,
-                            dash: guide.dash
-                        },
-                        hoverinfo: 'skip'
-                    };
-
-                    if (isPolar) {
-                        guideTrace.r = [null];
-                        guideTrace.theta = [null];
-                    } else {
-                        guideTrace.x = [null];
-                        guideTrace.y = [null];
-                        if (isTrend) {
-                            guideTrace.xaxis = 'x2';
-                            guideTrace.yaxis = 'y2';
-                        }
-                    }
-
-                    newTraces.push(guideTrace);
-                });
-            }
+            // State guides removed from Plotly legend to preserve chart area size
 
             return newTraces;
         }
