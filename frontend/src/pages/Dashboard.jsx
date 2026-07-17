@@ -3733,41 +3733,83 @@ export const Dashboard = ({ view }) => {
             const orderedPrefixes = getPriorityOrder(singlePrefixes);
             const targets = isSingle ? orderedPrefixes : bearingPairs;
             
-            const N = Math.min(targets.length, 8);
+            // Get capacity of current layout
+            const capacity = currentLayout ? (
+                currentLayout === '1' ? 1 :
+                currentLayout === '2H' ? 2 :
+                currentLayout === '4' ? 4 :
+                currentLayout === '6' ? 6 : 8
+            ) : 8;
+            
+            const N_plots = targets.length;
+            const N = Math.min(N_plots, 8); // cap available plots at 8
+            
+            // Keep current layout capacity if it fits N, otherwise expand to fit N
+            const totalSlots = Math.max(capacity, N);
             
             plotSlots = [];
-            for (let i = 0; i < N; i++) {
-                plotSlots.push({
-                    bearingOrChannel: targets[i],
-                    category: category,
-                    isDual: !isSingle,
-                    layoutLimits: { min: null, max: null, autoScale: true },
-                    showTimebase: true,
-                    showTrace2: false,
-                    cycles: 8
-                });
+            for (let i = 0; i < totalSlots; i++) {
+                if (i < N) {
+                    plotSlots.push({
+                        bearingOrChannel: targets[i],
+                        category: category,
+                        isDual: !isSingle,
+                        layoutLimits: { min: null, max: null, autoScale: true },
+                        showTimebase: true,
+                        showTrace2: false,
+                        cycles: 8
+                    });
+                } else {
+                    plotSlots.push(null); // Leave empty slots
+                }
             }
             
-            let layout = '8';
-            if (N === 1) layout = '1';
-            else if (N === 2) layout = '2H';
-            else if (N <= 4) layout = '4';
-            else if (N <= 6) layout = '6';
-            else layout = '8';
+            let layout = currentLayout || '8';
+            if (N > capacity) {
+                if (N === 1) layout = '1';
+                else if (N === 2) layout = '2H';
+                else if (N <= 4) layout = '4';
+                else if (N <= 6) layout = '6';
+                else layout = '8';
+            }
             
             currentLayout = layout;
             currentLayoutRef.current = layout;
             setCurrentLayoutState(layout);
+            
+            if (activeSlotIndex >= totalSlots) {
+                activeSlotIndex = 0;
+            }
             
             renderGrid();
             saveWorkspaceConfig();
         }
 
         function selectPlotType(bearingOrChannel, category, isDual) {
-            applyCategoryToAllSlots(category);
-            const idx = plotSlots.findIndex(slot => slot && slot.bearingOrChannel === bearingOrChannel);
-            if (idx !== -1) {
-                activeSlotIndex = idx;
+            // Update ONLY the selected/active window slot instead of overwriting all slots!
+            // This enables comparing different plot types across different slots.
+            const capacity = currentLayout ? (
+                currentLayout === '1' ? 1 :
+                currentLayout === '2H' ? 2 :
+                currentLayout === '4' ? 4 :
+                currentLayout === '6' ? 6 : 8
+            ) : 8;
+            
+            // Ensure plotSlots is sized up to capacity to support setting slots
+            while (plotSlots.length < capacity) {
+                plotSlots.push(null);
+            }
+            
+            if (activeSlotIndex >= 0 && activeSlotIndex < capacity) {
+                plotSlots[activeSlotIndex] = {
+                    bearingOrChannel: bearingOrChannel,
+                    category: category,
+                    isDual: isDual,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                };
             }
             renderGrid();
             saveWorkspaceConfig();
@@ -4949,6 +4991,16 @@ export const Dashboard = ({ view }) => {
 
         // Render dispatcher inside a specific slot
         function renderPlotInSlot(slotIdx, container, bearingOrChannel, category) {
+            // Purge container if the plot category changes to prevent stale Plotly axis scaling/subplot contamination
+            if (container.dataset.plotCategory && container.dataset.plotCategory !== category) {
+                try {
+                    Plotly.purge(container);
+                } catch (e) {
+                    console.warn("Failed to purge Plotly container:", e);
+                }
+            }
+            container.dataset.plotCategory = category;
+
             const filteredDf = getFilteredData();
             if (checkEmptyData(container, filteredDf)) return;
             
