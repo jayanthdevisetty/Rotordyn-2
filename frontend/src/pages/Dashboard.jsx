@@ -901,6 +901,54 @@ export const Dashboard = ({ view }) => {
             handleBgInsideChange(insideColor);
         }
 
+        function resetColorCustomizations() {
+            // 1. Reset Workspace background CSS variables
+            document.documentElement.style.setProperty('--bg-color', '#f1f5f9');
+            document.documentElement.style.setProperty('--card-color', '#ffffff');
+            document.documentElement.style.setProperty('--border-color', '#cbd5e1');
+            document.documentElement.style.setProperty('--text-color', '#0f172a');
+            document.documentElement.style.setProperty('--text-muted', '#64748b');
+            document.documentElement.style.setProperty('--plot-bg-color', '#ffffff');
+            document.documentElement.style.setProperty('--paper-bg-color', '#ffffff');
+            document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(15, 23, 42, 0.1)');
+            document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
+
+            // 2. Reset pickers value in UI
+            const bgOutsidePicker = document.getElementById('bg-outside-picker');
+            const bgInsidePicker = document.getElementById('bg-inside-picker');
+            if (bgOutsidePicker) bgOutsidePicker.value = '#f1f5f9';
+            if (bgInsidePicker) bgInsidePicker.value = '#ffffff';
+
+            // 3. Reset all curve colors to default hexes
+            const defaultColors = {
+                direct: '#1e40af',
+                amp_1x: '#fe0606',
+                phase_1x: '#fe0606',
+                amp_2x: '#10b981',
+                phase_2x: '#10b981',
+                amp_nx: '#a855f7',
+                phase_nx: '#a855f7',
+                gap: '#fb923c',
+                temp: '#fbbf24',
+                speed: '#38bdf8',
+                load: '#c084fc'
+            };
+            Object.keys(defaultColors).forEach(key => {
+                if (signalFormats[key]) {
+                    signalFormats[key].color = defaultColors[key];
+                }
+            });
+
+            // 4. Update the color picker in Curve Formatting UI
+            if (typeof selectedSignalFormat !== 'undefined') {
+                loadSignalFormat(selectedSignalFormat);
+            }
+
+            // 5. Re-render Plot grid
+            renderGrid();
+        }
+        window.resetColorCustomizations = resetColorCustomizations;
+
 
         // Workspace background color handlers
 
@@ -9264,6 +9312,7 @@ export const Dashboard = ({ view }) => {
         delete window.triggerResizeWithTimeout;
         delete window.getChannelUnit;
         delete window.applyWorkspaceStyle;
+        delete window.resetColorCustomizations;
         delete window.applyCurveFormatting;
         delete window.handleBgOutsideChange;
         delete window.handleBgInsideChange;
@@ -9834,9 +9883,14 @@ export const Dashboard = ({ view }) => {
                                     <label style={{fontSize: "0.65rem", marginBottom: 0, color: "var(--text-muted)"}}>Grid Area</label>
                                 </div>
                             </div>
-                            <button className="sidebar-file-btn" type="button" onClick={() => window.applyWorkspaceStyle && window.applyWorkspaceStyle()} style={{marginTop: "8px", fontSize: "0.7rem", padding: "4px 8px"}}>
-                                Apply Style
-                            </button>
+                            <div style={{display: "flex", gap: "8px", marginTop: "8px"}}>
+                                <button className="sidebar-file-btn" type="button" onClick={() => window.applyWorkspaceStyle && window.applyWorkspaceStyle()} style={{flex: 1, fontSize: "0.7rem", padding: "4px 8px"}}>
+                                    Apply Style
+                                </button>
+                                <button className="sidebar-file-btn" type="button" onClick={() => window.resetColorCustomizations && window.resetColorCustomizations()} style={{flex: 1, fontSize: "0.7rem", padding: "4px 8px", backgroundColor: "rgba(239, 68, 68, 0.08)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.2)"}} title="Reset all background and curve colors back to factory defaults">
+                                    Reset Defaults
+                                </button>
+                            </div>
                         </div>
 
                         {/* Bearing Clearance Configuration */}
