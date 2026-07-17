@@ -5401,7 +5401,7 @@ export const Dashboard = ({ view }) => {
                                     </div>
                                 </div>
                             ` : ''}
-                            <div id="plotly-container-${i}" class="chart-container" style="flex: 1;"></div>
+                            <div id="plotly-container-${i}" class="chart-container" style="${colorCodeByStateEnabled ? 'top: 25px; height: calc(100% - 25px);' : ''}"></div>
                         </div>
                     `;
                     
