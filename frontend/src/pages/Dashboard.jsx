@@ -93,6 +93,13 @@ let customizeLayoutMode = false;
 let timeSyncCursor = true;
 let activeCursorIndex = 0;
 let selectedTrendCurveName = 'Direct';
+let colorCodeByStateEnabled = false;
+const stateFormats = {
+    startup: { color: '#10b981', width: 2.0, dash: 'solid' },
+    shutdown: { color: '#ef4444', width: 2.0, dash: 'dash' },
+    steady_state: { color: '#3b82f6', width: 1.5, dash: 'solid' },
+    other: { color: '#64748b', width: 1.5, dash: 'dot' }
+};
 let x_gap_rest_global = {};
 let y_gap_rest_global = {};
 let activeActivityTab = 'tree';
@@ -940,6 +947,20 @@ export const Dashboard = ({ view }) => {
                 }
             });
 
+            stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
+            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'dash' };
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'dot' };
+            colorCodeByStateEnabled = false;
+            
+            const stateCheckbox = document.getElementById('toggle-state-coloring');
+            if (stateCheckbox) stateCheckbox.checked = false;
+            
+            const stateSelect = document.getElementById('state-style-select');
+            if (stateSelect) stateSelect.value = 'startup';
+            
+            loadStateStyle('startup');
+
             // 4. Update the color picker in Curve Formatting UI
             if (typeof selectedSignalFormat !== 'undefined') {
                 loadSignalFormat(selectedSignalFormat);
@@ -949,6 +970,69 @@ export const Dashboard = ({ view }) => {
             renderGrid();
         }
         window.resetColorCustomizations = resetColorCustomizations;
+
+        function loadStateStyle(stateKey) {
+            const fmt = stateFormats[stateKey];
+            if (fmt) {
+                const colorPicker = document.getElementById('state-color-picker');
+                const widthInput = document.getElementById('state-width-input');
+                const widthVal = document.getElementById('state-width-val');
+                const dashSelect = document.getElementById('state-dash-select');
+                
+                if (colorPicker) colorPicker.value = fmt.color;
+                if (widthInput) {
+                    widthInput.value = fmt.width;
+                    if (widthVal) widthVal.innerText = fmt.width;
+                }
+                if (dashSelect) dashSelect.value = fmt.dash;
+            }
+        }
+
+        function handleStateColorChange(color) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].color = color;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateWidthChange(width) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].width = parseFloat(width);
+                    const widthVal = document.getElementById('state-width-val');
+                    if (widthVal) widthVal.innerText = width;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateDashChange(dash) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].dash = dash;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateColoringToggle(checked) {
+            colorCodeByStateEnabled = checked;
+            renderGrid();
+        }
+
+        window.loadStateStyle = loadStateStyle;
+        window.handleStateColorChange = handleStateColorChange;
+        window.handleStateWidthChange = handleStateWidthChange;
+        window.handleStateDashChange = handleStateDashChange;
+        window.handleStateColoringToggle = handleStateColoringToggle;
 
 
         // Workspace background color handlers
@@ -2970,6 +3054,7 @@ export const Dashboard = ({ view }) => {
                         populateFilterControls();
                         populateSidebarTree();
                         loadSignalFormat('direct');
+                        loadStateStyle('startup');
 
                         // Populate dataset summary statistics
                         const speeds = df.map(r => r[speedCol] || 0);
@@ -5674,6 +5759,112 @@ export const Dashboard = ({ view }) => {
             return diffLow <= diffHigh ? low : high;
         }
 
+        function splitTraceByState(trace, filteredDf, coordType) {
+            const segments = [];
+            let currentState = null;
+            let currentSegment = null;
+
+            const isXY = coordType === 'xy';
+
+            for (let i = 0; i < filteredDf.length; i++) {
+                const row = filteredDf[i];
+                const stateVal = String(row['state'] || 'other').toLowerCase().trim();
+                
+                let stateKey = 'other';
+                if (stateVal.includes('start') || stateVal.includes('up')) {
+                    stateKey = 'startup';
+                } else if (stateVal.includes('shut') || stateVal.includes('down')) {
+                    stateKey = 'shutdown';
+                } else if (stateVal.includes('steady') || stateVal.includes('state')) {
+                    stateKey = 'steady_state';
+                }
+
+                const c1 = isXY ? trace.x[i] : trace.r[i];
+                const c2 = isXY ? trace.y[i] : trace.theta[i];
+
+                if (currentSegment === null || currentState !== stateKey) {
+                    if (currentSegment !== null) {
+                        currentSegment.c1.push(c1);
+                        currentSegment.c2.push(c2);
+                        segments.push(currentSegment);
+                    }
+                    currentSegment = {
+                        c1: [c1],
+                        c2: [c2],
+                        stateKey: stateKey
+                    };
+                    currentState = stateKey;
+                } else {
+                    currentSegment.c1.push(c1);
+                    currentSegment.c2.push(c2);
+                }
+            }
+
+            if (currentSegment && currentSegment.c1.length > 0) {
+                segments.push(currentSegment);
+            }
+
+            return segments.map((seg, idx) => {
+                const stateFmt = stateFormats[seg.stateKey] || stateFormats.other;
+                
+                const formatted = {
+                    ...trace,
+                    name: `${trace.name} (${seg.stateKey.replace('_', ' ')})`,
+                    legendgroup: `${trace.name}_${seg.stateKey}`,
+                    showlegend: idx === segments.findIndex(s => s.stateKey === seg.stateKey),
+                    line: {
+                        ...trace.line,
+                        color: stateFmt.color,
+                        width: stateFmt.width,
+                        dash: stateFmt.dash
+                    }
+                };
+
+                if (isXY) {
+                    formatted.x = seg.c1;
+                    formatted.y = seg.c2;
+                } else {
+                    formatted.r = seg.c1;
+                    formatted.theta = seg.c2;
+                }
+
+                if (formatted.marker) {
+                    formatted.marker = {
+                        ...formatted.marker,
+                        color: stateFmt.color
+                    };
+                }
+
+                return formatted;
+            });
+        }
+
+        function splitTracesByState(traces, filteredDf) {
+            if (!colorCodeByStateEnabled || !filteredDf || filteredDf.length === 0) return traces;
+            
+            const newTraces = [];
+            traces.forEach(trace => {
+                if (trace.name === 'Cursor Marker' || trace.name === 'Cursor Line') {
+                    newTraces.push(trace);
+                    return;
+                }
+
+                const isScatter = trace.type === 'scatter' && trace.x && trace.y && trace.x.length === filteredDf.length;
+                const isScatterPolar = trace.type === 'scatterpolar' && trace.r && trace.theta && trace.r.length === filteredDf.length;
+
+                if (isScatter) {
+                    const segments = splitTraceByState(trace, filteredDf, 'xy');
+                    segments.forEach(seg => newTraces.push(seg));
+                } else if (isScatterPolar) {
+                    const segments = splitTraceByState(trace, filteredDf, 'rtheta');
+                    segments.forEach(seg => newTraces.push(seg));
+                } else {
+                    newTraces.push(trace);
+                }
+            });
+            return newTraces;
+        }
+
         function safePlotlyReact(container, traces, layout, config) {
             if (container && container.removeAllListeners) {
                 container.removeAllListeners('plotly_click');
@@ -5686,7 +5877,13 @@ export const Dashboard = ({ view }) => {
                 container.off('plotly_unhover');
                 container.off('plotly_selected');
             }
-            return Plotly.react(container, traces, layout, config);
+
+            let processedTraces = traces;
+            if (colorCodeByStateEnabled && container && container.plotData) {
+                processedTraces = splitTracesByState(traces, container.plotData);
+            }
+
+            return Plotly.react(container, processedTraces, layout, config);
         }
 
         // Timeline Player state variables
@@ -9408,6 +9605,11 @@ export const Dashboard = ({ view }) => {
         delete window.getChannelUnit;
         delete window.applyWorkspaceStyle;
         delete window.resetColorCustomizations;
+        delete window.loadStateStyle;
+        delete window.handleStateColorChange;
+        delete window.handleStateWidthChange;
+        delete window.handleStateDashChange;
+        delete window.handleStateColoringToggle;
         delete window.applyCurveFormatting;
         delete window.handleBgOutsideChange;
         delete window.handleBgInsideChange;
@@ -10190,6 +10392,48 @@ export const Dashboard = ({ view }) => {
                                     <span id="format-width-val">1.5</span>
                                 </label>
                                 <input type="range" id="format-width-input" min="0.5" max="5.0" step="0.1" defaultValue="1.5" onInput={(e) => window.handleFormatWidthChange && window.handleFormatWidthChange(e.target.value)} style={{padding: 0, margin: 0, background: "none"}} />
+                            </div>
+                        </div>
+
+                        {/* Machine State Styles */}
+                        <div id="state-formatting-panel" className="controls-block" style={{background: "none", padding: 0, marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "12px"}}>
+                            <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Machine State Styles</h4>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="toggle-state-coloring" onChange={(e) => window.handleStateColoringToggle && window.handleStateColoringToggle(e.target.checked)} />
+                                    Color-code by Machine State
+                                </label>
+                            </div>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <select id="state-style-select" onChange={(e) => window.loadStateStyle && window.loadStateStyle(e.target.value)} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                    <option value="startup">Startup</option>
+                                    <option value="shutdown">Shutdown</option>
+                                    <option value="steady_state">Steady State</option>
+                                    <option value="other">Other/Default</option>
+                                </select>
+                            </div>
+                            <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
+                                <div className="color-picker-mini" style={{flex: 1, padding: "2px 4px"}}>
+                                    <input type="color" id="state-color-picker" onChange={(e) => window.handleStateColorChange && window.handleStateColorChange(e.target.value)} style={{width: "14px", height: "14px"}} />
+                                    <label style={{fontSize: "0.6rem", marginBottom: 0, color: "var(--text-muted)"}}>Color</label>
+                                </div>
+                            </div>
+                            <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
+                                <div style={{flex: 1}}>
+                                    <select id="state-dash-select" onChange={(e) => window.handleStateDashChange && window.handleStateDashChange(e.target.value)} style={{padding: "3px", fontSize: "0.7rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="solid">Solid</option>
+                                        <option value="dash">Dashed</option>
+                                        <option value="dot">Dotted</option>
+                                        <option value="dashdot">Dash-Dot</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="control-group" style={{marginBottom: 0}}>
+                                <label htmlFor="state-width-input" style={{fontSize: "0.65rem", display: "flex", justifyContent: "space-between", marginBottom: "3px"}}>
+                                    <span>Line Width</span>
+                                    <span id="state-width-val">2.0</span>
+                                </label>
+                                <input type="range" id="state-width-input" min="0.5" max="5.0" step="0.1" defaultValue="2.0" onInput={(e) => window.handleStateWidthChange && window.handleStateWidthChange(e.target.value)} style={{padding: 0, margin: 0, background: "none"}} />
                             </div>
                         </div>
                     </div>
