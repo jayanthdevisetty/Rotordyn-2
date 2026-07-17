@@ -5813,9 +5813,7 @@ export const Dashboard = ({ view }) => {
                     legendgroup: `${trace.name}_${seg.stateKey}`,
                     showlegend: idx === segments.findIndex(s => s.stateKey === seg.stateKey),
                     line: {
-                        ...trace.line,
-                        color: stateFmt.color,
-                        width: stateFmt.width,
+                        ...(trace.line || {}),
                         dash: stateFmt.dash
                     }
                 };
@@ -5826,13 +5824,6 @@ export const Dashboard = ({ view }) => {
                 } else {
                     formatted.r = seg.c1;
                     formatted.theta = seg.c2;
-                }
-
-                if (formatted.marker) {
-                    formatted.marker = {
-                        ...formatted.marker,
-                        color: stateFmt.color
-                    };
                 }
 
                 return formatted;
@@ -10412,11 +10403,8 @@ export const Dashboard = ({ view }) => {
                                     <option value="other">Other/Default</option>
                                 </select>
                             </div>
-                            <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
-                                <div className="color-picker-mini" style={{flex: 1, padding: "2px 4px"}}>
-                                    <input type="color" id="state-color-picker" onChange={(e) => window.handleStateColorChange && window.handleStateColorChange(e.target.value)} style={{width: "14px", height: "14px"}} />
-                                    <label style={{fontSize: "0.6rem", marginBottom: 0, color: "var(--text-muted)"}}>Color</label>
-                                </div>
+                            <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: "8px", lineHeight: "1.3", borderLeft: "2px solid var(--border-color)", paddingLeft: "6px"}}>
+                                Note: Curve colors are preserved; machine states are differentiated using the dash styles selected below.
                             </div>
                             <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
                                 <div style={{flex: 1}}>
