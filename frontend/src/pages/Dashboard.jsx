@@ -2645,7 +2645,7 @@ export const Dashboard = ({ view }) => {
             optionsList.style.display = 'grid';
             optionsList.style.gridTemplateColumns = '1fr';
             optionsList.style.gap = '10px';
-            optionsList.style.maxHeight = '280px';
+            optionsList.style.maxHeight = '220px';
             optionsList.style.overflowY = 'auto';
             optionsList.style.paddingRight = '5px';
 
@@ -2722,6 +2722,66 @@ export const Dashboard = ({ view }) => {
             optionButtons[0].selectOption();
             container.appendChild(optionsList);
 
+            // Layout selection segment
+            const layoutSegment = document.createElement('div');
+            layoutSegment.style.textAlign = 'left';
+            layoutSegment.style.marginTop = '10px';
+            layoutSegment.innerHTML = `
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-color); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Number of Plot Windows</label>
+            `;
+            
+            const layoutOptions = [
+                { value: '1', label: '1' },
+                { value: '2V', label: '2 (2V)' },
+                { value: '4', label: '4' },
+                { value: '6', label: '6' },
+                { value: '8', label: '8' }
+            ];
+
+            let selectedLayout = '2V'; // Default is 2V!
+
+            const layoutBtnsContainer = document.createElement('div');
+            layoutBtnsContainer.style.display = 'grid';
+            layoutBtnsContainer.style.gridTemplateColumns = 'repeat(5, 1fr)';
+            layoutBtnsContainer.style.gap = '6px';
+
+            const layoutButtons = [];
+            layoutOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.padding = '8px 4px';
+                btn.style.borderRadius = '6px';
+                btn.style.border = '1px solid var(--border-color)';
+                btn.style.backgroundColor = 'var(--bg-color)';
+                btn.style.color = 'var(--text-color)';
+                btn.style.fontSize = '0.72rem';
+                btn.style.fontWeight = '700';
+                btn.style.cursor = 'pointer';
+                btn.style.transition = 'all 0.2s';
+                btn.innerText = opt.label;
+
+                const selectLayout = () => {
+                    selectedLayout = opt.value;
+                    layoutButtons.forEach(lBtn => {
+                        lBtn.btn.style.borderColor = 'var(--border-color)';
+                        lBtn.btn.style.backgroundColor = 'var(--bg-color)';
+                        lBtn.btn.style.color = 'var(--text-color)';
+                    });
+                    btn.style.borderColor = 'var(--accent-color)';
+                    btn.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    btn.style.color = 'var(--accent-color)';
+                };
+
+                btn.onclick = selectLayout;
+                layoutBtnsContainer.appendChild(btn);
+                layoutButtons.push({ value: opt.value, btn, selectLayout });
+            });
+
+            // Pre-select '2V'
+            layoutButtons.find(b => b.value === '2V').selectLayout();
+            layoutSegment.appendChild(layoutBtnsContainer);
+            container.appendChild(layoutSegment);
+
             const confirmBtn = document.createElement('button');
             confirmBtn.type = 'button';
             confirmBtn.style.width = '100%';
@@ -2746,7 +2806,7 @@ export const Dashboard = ({ view }) => {
 
             confirmBtn.onclick = () => {
                 backdrop.remove();
-                onComplete(selectedCategory, selectedIsDual);
+                onComplete(selectedCategory, selectedIsDual, selectedLayout);
             };
             container.appendChild(confirmBtn);
 
@@ -2873,31 +2933,33 @@ export const Dashboard = ({ view }) => {
                         
                         showLoader(false);
                         
-                        showDefaultPlotSelectionModal(ordered, bearingPairs, singlePrefixes, (category, isDual) => {
+                        showDefaultPlotSelectionModal(ordered, bearingPairs, singlePrefixes, (category, isDual, layout) => {
                             showLoader(true, "Initializing plot grid...");
                             
                             setTimeout(() => {
                                 const targets = isDual ? bearingPairs : ordered;
-                                const N = Math.min(targets.length, 8);
+                                const capacity = layout === '1' ? 1 :
+                                                 (layout === '2H' || layout === '2V') ? 2 :
+                                                 layout === '4' ? 4 :
+                                                 layout === '6' ? 6 : 8;
+
+                                const N = Math.min(targets.length, capacity);
                                 plotSlots = [];
-                                for (let i = 0; i < N; i++) {
-                                    plotSlots.push({
-                                        bearingOrChannel: targets[i],
-                                        category: category,
-                                        isDual: isDual,
-                                        layoutLimits: { min: null, max: null, autoScale: true },
-                                        showTimebase: true,
-                                        showTrace2: false,
-                                        cycles: 8
-                                    });
+                                for (let i = 0; i < capacity; i++) {
+                                    if (i < N) {
+                                        plotSlots.push({
+                                            bearingOrChannel: targets[i],
+                                            category: category,
+                                            isDual: isDual,
+                                            layoutLimits: { min: null, max: null, autoScale: true },
+                                            showTimebase: true,
+                                            showTrace2: false,
+                                            cycles: 8
+                                        });
+                                    } else {
+                                        plotSlots.push(null); // Leave empty slots
+                                    }
                                 }
-                                
-                                let layout = '8';
-                                if (N === 1) layout = '1';
-                                else if (N === 2) layout = '2H';
-                                else if (N <= 4) layout = '4';
-                                else if (N <= 6) layout = '6';
-                                else layout = '8';
 
                                 activeSlotIndex = 0;
                                 currentLayoutRef.current = layout;
@@ -3898,7 +3960,7 @@ export const Dashboard = ({ view }) => {
             // Get capacity of current layout
             const capacity = currentLayout ? (
                 currentLayout === '1' ? 1 :
-                currentLayout === '2H' ? 2 :
+                (currentLayout === '2H' || currentLayout === '2V') ? 2 :
                 currentLayout === '4' ? 4 :
                 currentLayout === '6' ? 6 : 8
             ) : 8;
@@ -3929,7 +3991,7 @@ export const Dashboard = ({ view }) => {
             let layout = currentLayout || '8';
             if (N > capacity) {
                 if (N === 1) layout = '1';
-                else if (N === 2) layout = '2H';
+                else if (N === 2) layout = '2V';
                 else if (N <= 4) layout = '4';
                 else if (N <= 6) layout = '6';
                 else layout = '8';
@@ -3952,7 +4014,7 @@ export const Dashboard = ({ view }) => {
             // This enables comparing different plot types across different slots.
             const capacity = currentLayout ? (
                 currentLayout === '1' ? 1 :
-                currentLayout === '2H' ? 2 :
+                (currentLayout === '2H' || currentLayout === '2V') ? 2 :
                 currentLayout === '4' ? 4 :
                 currentLayout === '6' ? 6 : 8
             ) : 8;
