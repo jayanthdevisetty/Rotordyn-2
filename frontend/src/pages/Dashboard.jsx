@@ -4266,9 +4266,10 @@ export const Dashboard = ({ view }) => {
         window.saveSlowRollSample = saveSlowRollSample;
 
         function applySlowRollAtCurrentIndex() {
-            if (!df || df.length === 0 || timelineIndex < 0 || timelineIndex >= df.length) return;
+            const filteredDf = getFilteredData();
+            if (!filteredDf || filteredDf.length === 0 || activeCursorIndex < 0 || activeCursorIndex >= filteredDf.length) return;
             
-            const targetRow = df[timelineIndex];
+            const targetRow = filteredDf[activeCursorIndex];
             if (!targetRow) return;
             
             const targetTimeMs = targetRow._time_ms || 0;
@@ -5156,7 +5157,7 @@ export const Dashboard = ({ view }) => {
             
             const controlsEl = document.querySelector('.grid-page-controls');
             if (controlsEl) {
-                controlsEl.style.display = totalPages <= 1 ? 'none' : 'flex';
+                controlsEl.style.display = 'flex';
             }
             const indicatorEl = document.getElementById('grid-page-indicator');
             if (indicatorEl) {
@@ -6316,7 +6317,7 @@ export const Dashboard = ({ view }) => {
                 const layoutUpdate = {};
                 if (container.layout.shapes) {
                     const shapes = [...container.layout.shapes];
-                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line');
+                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
                     if (lineIdx !== -1) {
                         let targetX = targetTime;
                         if (config.category === 'bode2d') {
@@ -6357,11 +6358,10 @@ export const Dashboard = ({ view }) => {
                 const globalIdx = getGlobalIndexFromPlotPoint(pt, container);
                 if (globalIdx !== -1) {
                     activeCursorIndex = globalIdx;
-                    if (timeSyncCursor) {
-                        updateAllCursorsThrottled();
-                    } else {
-                        updateSlotTelemetryBox(parseInt(container.dataset.slotIndex), activeCursorIndex);
-                    }
+                    updateAllCursorsThrottled();
+                    const slider = document.getElementById('global-timeline-slider');
+                    if (slider) slider.value = activeCursorIndex;
+                    updateTimelineReadout(activeCursorIndex);
                 }
             }
         }
