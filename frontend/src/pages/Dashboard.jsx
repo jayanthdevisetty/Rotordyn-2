@@ -2986,19 +2986,25 @@ export const Dashboard = ({ view }) => {
                                 populateSlowRollDropdown();
                                 updateSavedSlowRollList();
 
-                                setView('dashboard');
-
+                                // Transition View
+                                document.getElementById('welcome-screen').style.opacity = '0';
                                 setTimeout(() => {
-                                    renderGrid();
-                                    saveWorkspaceConfig();
-                                    showLoader(false);
-                                    
-                                    // Run AI critical speed detection and malfunction auto-diagnostics
-                                    runAIDiagnostics();
-                                    
-                                    // Auto-expand Sensor Navigation to guide the user on first load
-                                    selectActivityTab('tree');
-                                }, 50);
+                                    document.getElementById('welcome-screen').style.display = 'none';
+                                    document.getElementById('main-container').style.display = 'flex';
+                                    navigate('/dashboard');
+
+                                    setTimeout(() => {
+                                        renderGrid();
+                                        saveWorkspaceConfig();
+                                        showLoader(false);
+                                        
+                                        // Run AI critical speed detection and malfunction auto-diagnostics
+                                        runAIDiagnostics();
+                                        
+                                        // Auto-expand Sensor Navigation to guide the user on first load
+                                        selectActivityTab('tree');
+                                    }, 50);
+                                }, 500);
                             }, 300);
                         });
                     }, 500);
