@@ -97,8 +97,8 @@ let colorCodeByStateEnabled = true;
 const stateFormats = {
     startup: { color: '#10b981', width: 2.0, dash: 'solid' },
     shutdown: { color: '#ef4444', width: 2.0, dash: 'dash' },
-    steady_state: { color: '#3b82f6', width: 1.5, dash: 'solid' },
-    other: { color: '#64748b', width: 1.5, dash: 'dot' }
+    steady_state: { color: '#3b82f6', width: 1.5, dash: 'dot' },
+    other: { color: '#64748b', width: 1.5, dash: 'dashdot' }
 };
 let x_gap_rest_global = {};
 let y_gap_rest_global = {};
@@ -949,12 +949,12 @@ export const Dashboard = ({ view }) => {
 
             stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
             stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'dash' };
-            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
-            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'dot' };
-            colorCodeByStateEnabled = false;
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'dot' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'dashdot' };
+            colorCodeByStateEnabled = true;
             
             const stateCheckbox = document.getElementById('toggle-state-coloring');
-            if (stateCheckbox) stateCheckbox.checked = false;
+            if (stateCheckbox) stateCheckbox.checked = true;
             
             const stateSelect = document.getElementById('state-style-select');
             if (stateSelect) stateSelect.value = 'startup';
@@ -5377,8 +5377,29 @@ export const Dashboard = ({ view }) => {
                             </div>
                         </div>
                         <div class="plot-telemetry-box-inline" id="plot-telemetry-box-${i}" style="display: none;"></div>
-                        <div class="grid-card-body" id="plotly-slot-body-${i}">
+                        <div class="grid-card-body" id="plotly-slot-body-${i}" style="position: relative;">
                             <div id="plotly-container-${i}" class="chart-container"></div>
+                            ${colorCodeByStateEnabled ? `
+                                <div class="state-floating-legend" style="position: absolute; top: 10px; right: 10px; background-color: var(--card-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 5px 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.1); pointer-events: none; opacity: 0.95; font-family: var(--font-family, sans-serif);">
+                                    <div style="font-size: 0.55rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.05em;">State Styles</div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Startup</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Shutdown</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Steady State</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.55rem; font-weight: 600; color: var(--text-color);">
+                                        <svg width="20" height="4" style="display: block;"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--text-color)" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Other/Default</span>
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                     
