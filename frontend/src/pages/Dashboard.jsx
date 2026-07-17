@@ -534,11 +534,11 @@ export const Dashboard = ({ view }) => {
         let activeEndTime = 'all';
 
         const signalFormats = {
-            direct: { color: '#38bdf8', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_1x: { color: '#10b981', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_1x: { color: '#10b981', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_2x: { color: '#ef4444', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_2x: { color: '#ef4444', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            direct: { color: '#2563eb', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_1x: { color: '#ef4444', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_1x: { color: '#ef4444', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             gap: { color: '#fb923c', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
@@ -905,6 +905,21 @@ export const Dashboard = ({ view }) => {
         function handleFormatColorChange(color) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].color = color;
+                
+                // Synchronize 1X Amp and 1X Phase colors
+                if (selectedSignalFormat === 'amp_1x') {
+                    signalFormats['phase_1x'].color = color;
+                } else if (selectedSignalFormat === 'phase_1x') {
+                    signalFormats['amp_1x'].color = color;
+                }
+                
+                // Synchronize 2X Amp and 2X Phase colors
+                if (selectedSignalFormat === 'amp_2x') {
+                    signalFormats['phase_2x'].color = color;
+                } else if (selectedSignalFormat === 'phase_2x') {
+                    signalFormats['amp_2x'].color = color;
+                }
+                
                 renderGrid();
             }
         }
