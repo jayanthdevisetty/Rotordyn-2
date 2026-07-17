@@ -7042,12 +7042,20 @@ export const Dashboard = ({ view }) => {
                 });
             }
             
+            let minSpeedVal = Math.min(...speeds);
+            let maxSpeedVal = Math.max(...speeds);
+            if (minSpeedVal === maxSpeedVal || isNaN(minSpeedVal) || isNaN(maxSpeedVal)) {
+                minSpeedVal = (minSpeedVal || 0) - 100;
+                maxSpeedVal = (maxSpeedVal || 0) + 100;
+            }
+
             layout.xaxis = {
                 anchor: 'y',
                 domain: [0, 1],
                 showticklabels: false,
                 gridcolor: gridColor,
-                linecolor: borderCol
+                linecolor: borderCol,
+                range: [minSpeedVal, maxSpeedVal]
             };
             layout.yaxis = {
                 title: `Phase (${phaseUnit})`,
@@ -7063,7 +7071,8 @@ export const Dashboard = ({ view }) => {
                 showticklabels: true,
                 title: `Speed (${speedUnit})`,
                 gridcolor: gridColor,
-                linecolor: borderCol
+                linecolor: borderCol,
+                range: [minSpeedVal, maxSpeedVal]
             };
             layout.yaxis2 = {
                 title: `Amp (${ampUnit})`,
