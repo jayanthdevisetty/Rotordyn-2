@@ -8083,6 +8083,7 @@ export const Dashboard = ({ view }) => {
             const active_targets = target_rpms.filter(r => r < max_rpm);
             active_targets.push(max_rpm);
             
+            const theta_orbit = Array.from({length: 128}, (_, i) => (i / 127) * (2 * Math.PI - 0.08));
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             const orbitColors = ['#f43f5e', '#fb923c', '#10b981', '#38bdf8', '#a855f7'];
             
@@ -8111,11 +8112,11 @@ export const Dashboard = ({ view }) => {
                 const gx_phys = pt_row.x;
                 const gy_phys = pt_row.y;
                 
-                const ox = theta.map(t => {
+                const ox = theta_orbit.map(t => {
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gx_phys + pt_orb.x;
                 });
-                const oy = theta.map(t => {
+                const oy = theta_orbit.map(t => {
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gy_phys + pt_orb.y;
                 });
@@ -8243,6 +8244,170 @@ export const Dashboard = ({ view }) => {
             layout.showlegend = false;
             layout.hovermode = 'closest';
 
+            function getDynamicShapesAndAnnotations(limit, showTimebase, showTrace2, cycles, cycle_period_ms, brg) {
+                const shift = limit;
+                
+                function getRotatedRectPath(cx, cy, r0, r1, w, angleDegrees) {
+                    const rad = angleDegrees * Math.PI / 180;
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    const x1 = cx + r0 * cos - (w / 2) * sin;
+                    const y1 = cy + r0 * sin + (w / 2) * cos;
+                    const x2 = cx + r1 * cos - (w / 2) * sin;
+                    const y2 = cy + r1 * sin + (w / 2) * cos;
+                    const x3 = cx + r1 * cos + (w / 2) * sin;
+                    const y3 = cy + r1 * sin - (w / 2) * cos;
+                    const x4 = cx + r0 * cos + (w / 2) * sin;
+                    const y4 = cy + r0 * sin - (w / 2) * cos;
+                    return `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
+                }
+
+                const shapes = [
+                    {
+                        type: 'line',
+                        xref: 'x', yref: 'y',
+                        x0: limit, x1: limit,
+                        y0: 2 * limit, y1: 2 * limit - 0.05 * limit,
+                        line: { color: '#000000', width: 1.5 }
+                    },
+                    {
+                        type: 'path',
+                        xref: 'x', yref: 'y',
+                        path: getRotatedRectPath(limit, limit, limit * 1.02, limit * 1.35, limit * 0.08, 135),
+                        fillcolor: '#e2e8f0',
+                        line: { color: '#475569', width: 1.5 }
+                    },
+                    {
+                        type: 'path',
+                        xref: 'x', yref: 'y',
+                        path: getRotatedRectPath(limit, limit, limit * 1.02, limit * 1.35, limit * 0.08, 45),
+                        fillcolor: '#e2e8f0',
+                        line: { color: '#475569', width: 1.5 }
+                    }
+                ];
+
+                if (showTimebase) {
+                    for (let i = 0; i <= cycles; i++) {
+                        const t_kp = i * cycle_period_ms;
+                        shapes.push({
+                            type: 'line',
+                            xref: 'x2',
+                            yref: 'paper',
+                            x0: t_kp,
+                            x1: t_kp,
+                            y0: 0,
+                            y1: 1,
+                            line: {
+                                color: '#94a3b8',
+                                width: 1,
+                                dash: 'dash'
+                            }
+                        });
+                    }
+                }
+
+                const annotations = [
+                    {
+                        x: limit, y: limit * 1.82, xref: 'x', yref: 'y',
+                        text: '<b>Up</b>', showarrow: false,
+                        yanchor: 'top',
+                        font: { size: 10, color: '#000000' }
+                    },
+                    {
+                        x: limit, y: limit * 2.05, xref: 'x', yref: 'y',
+                        text: '<b>TDC</b>', showarrow: false,
+                        yanchor: 'bottom',
+                        font: { size: 10, color: '#000000' }
+                    },
+                    {
+                        x: limit * 0.07, y: limit * 1.93, xref: 'x', yref: 'y',
+                        text: '<b>Y</b>',
+                        showarrow: false,
+                        font: { color: '#ffffff', size: 10 },
+                        bgcolor: '#000000',
+                        bordercolor: '#000000',
+                        borderwidth: 1.5,
+                        borderpad: 2.5
+                    },
+                    {
+                        x: limit * 1.93, y: limit * 1.93, xref: 'x', yref: 'y',
+                        text: '<b>X</b>',
+                        showarrow: false,
+                        font: { color: '#ffffff', size: 10 },
+                        bgcolor: '#000000',
+                        bordercolor: '#000000',
+                        borderwidth: 1.5,
+                        borderpad: 2.5
+                    },
+                    {
+                        x: limit * 2.05, y: limit, xref: 'x', yref: 'y',
+                        text: 'AC COUPLED', textangle: 90, showarrow: false,
+                        font: { size: 9, color: '#000000' }
+                    },
+                    {
+                        x: limit * 0.6, y: limit * 1.7,
+                        ax: limit * 0.2, ay: limit * 1.1,
+                        xref: 'x', yref: 'y',
+                        axref: 'x', ayref: 'y',
+                        showarrow: true,
+                        arrowhead: 2,
+                        arrowsize: 1.5,
+                        arrowwidth: 2,
+                        arrowcolor: '#000000',
+                        text: ''
+                    },
+                    {
+                        x: limit * 0.02, y: limit * 1.95, xref: 'x', yref: 'y',
+                        text: '<b>X Probe (135°)</b>',
+                        showarrow: false,
+                        xanchor: 'left',
+                        yanchor: 'bottom',
+                        font: { size: 9, color: '#475569' }
+                    },
+                    {
+                        x: limit * 1.98, y: limit * 1.95, xref: 'x', yref: 'y',
+                        text: '<b>Y Probe (45°)</b>',
+                        showarrow: false,
+                        xanchor: 'right',
+                        yanchor: 'bottom',
+                        font: { size: 9, color: '#475569' }
+                    }
+                ];
+
+                const parts_brg = brg.split('/');
+                const brgX = parts_brg[0];
+                const brgY = parts_brg[1] || parts_brg[0];
+                const mapping = bearingPairsMapping && bearingPairsMapping[brg];
+                const x_prefix = mapping ? mapping.x : (brgX + 'X');
+                const y_prefix = mapping ? mapping.y : (brgY + 'Y');
+
+                if (showTimebase) {
+                    if (showTrace2) {
+                        annotations.push({
+                            x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                        annotations.push({
+                            x: 0.55, y: 0.47, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>Y: ${y_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                    } else {
+                        annotations.push({
+                            x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                    }
+                }
+
+                return { shapes, annotations };
+            }
+
             const spikelineConfig = {
                 showspikes: true,
                 spikemode: 'across',
@@ -8252,22 +8417,20 @@ export const Dashboard = ({ view }) => {
                 spikecolor: 'var(--text-muted)'
             };
 
-            const tickvals = [-finalLimit, -finalLimit / 2, 0, finalLimit / 2, finalLimit];
-            const ticktext = tickvals.map(v => {
-                const absVal = Math.abs(v);
-                return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
-            });
+            const tickvals = [0, finalLimit / 2, finalLimit, finalLimit * 1.5, 2 * finalLimit];
+            const ticktext = tickvals.map(v => Number(v.toFixed(3)).toString());
 
-            const shift = 0;
+            const shift = finalLimit;
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: '',
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    range: [-finalLimit, finalLimit],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8283,46 +8446,10 @@ export const Dashboard = ({ view }) => {
                     title: '',
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
-                    range: [-finalLimit, finalLimit],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
-                    showline: true,
-                    mirror: true,
-                    linecolor: '#000000',
-                    linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
-                    ticks: 'outside',
-                    tickcolor: '#000000',
-                    ticklen: 5,
-                    ...spikelineConfig
-                };
-            } else if (!showTimebase) {
-                layout.grid = { rows: 1, columns: 1 };
-                layout.xaxis = {
-                    title: '',
-                    gridcolor: baseLayout.xaxis.gridcolor,
-                    range: [-finalLimit, finalLimit],
-                    tickvals: tickvals,
-                    ticktext: ticktext,
-                    showline: true,
-                    mirror: true,
-                    linecolor: '#000000',
-                    linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
-                    ticks: 'outside',
-                    tickcolor: '#000000',
-                    ticklen: 5,
-                    ...spikelineConfig
-                };
-                layout.yaxis = {
-                    title: '',
-                    gridcolor: baseLayout.yaxis.gridcolor,
-                    scaleanchor: 'x', scaleratio: 1,
-                    range: [-finalLimit, finalLimit],
-                    tickvals: tickvals,
-                    ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8336,14 +8463,15 @@ export const Dashboard = ({ view }) => {
                 };
             } else if (!showTrace2) {
                 layout.grid = { rows: 1, columns: 2, pattern: 'independent' };
-                layout.column_widths = [0.45, 0.55];
+                layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
                     title: '',
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    domain: [0, 0.43],
-                    range: [-finalLimit, finalLimit],
+                    domain: [0, 0.46],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8360,9 +8488,10 @@ export const Dashboard = ({ view }) => {
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
-                    range: [-finalLimit, finalLimit],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8377,7 +8506,7 @@ export const Dashboard = ({ view }) => {
                 layout.xaxis2 = {
                     title: 'Time (ms)',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
-                    domain: [0.55, 1.0],
+                    domain: [0.54, 1.0],
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
@@ -8387,8 +8516,7 @@ export const Dashboard = ({ view }) => {
                 };
                 const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
                 const ticktextY2 = tickvalsY2.map(v => {
-                    const absVal = Math.abs(v);
-                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
                 });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
@@ -8412,13 +8540,15 @@ export const Dashboard = ({ view }) => {
                 };
             } else {
                 layout.grid = { rows: 2, columns: 2, pattern: 'independent' };
+                layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
                     title: '',
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    domain: [0, 0.45],
-                    range: [-finalLimit, finalLimit],
+                    domain: [0, 0.46],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8435,9 +8565,10 @@ export const Dashboard = ({ view }) => {
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
-                    range: [-finalLimit, finalLimit],
+                    range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#000000',
@@ -8449,11 +8580,11 @@ export const Dashboard = ({ view }) => {
                     ticklen: 5,
                     ...spikelineConfig
                 };
-                // Bottom subplot (X)
+                // Bottom subplot (Y)
                 layout.xaxis2 = {
                     title: 'Time (ms)',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
-                    domain: [0.55, 1.0],
+                    domain: [0.54, 1.0],
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
@@ -8461,16 +8592,15 @@ export const Dashboard = ({ view }) => {
                     showgrid: false,
                     ...spikelineConfig
                 };
-                const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
+                const tickvalsY2 = [-limitY3, -limitY3 / 2, 0, limitY3 / 2, limitY3];
                 const ticktextY2 = tickvalsY2.map(v => {
-                    const absVal = Math.abs(v);
-                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
                 });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     domain: [0.0, 0.46],
-                    range: [-limitY2, limitY2],
+                    range: [-limitY3, limitY3],
                     tickvals: tickvalsY2,
                     ticktext: ticktextY2,
                     tickmode: 'array',
@@ -8487,11 +8617,11 @@ export const Dashboard = ({ view }) => {
                     zerolinecolor: '#475569',
                     zerolinewidth: 1
                 };
-                // Bottom-to-top layout: Top subplot (Y) shares X2 domain
+                // Top subplot (X)
                 layout.xaxis3 = {
                     title: 'Time (ms)',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
-                    domain: [0.55, 1.0],
+                    domain: [0.54, 1.0],
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
@@ -8499,16 +8629,15 @@ export const Dashboard = ({ view }) => {
                     showgrid: false,
                     ...spikelineConfig
                 };
-                const tickvalsY3 = [-limitY3, -limitY3 / 2, 0, limitY3 / 2, limitY3];
+                const tickvalsY3 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
                 const ticktextY3 = tickvalsY3.map(v => {
-                    const absVal = Math.abs(v);
-                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
                 });
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     domain: [0.54, 1.0],
-                    range: [-limitY3, limitY3],
+                    range: [-limitY2, limitY2],
                     tickvals: tickvalsY3,
                     ticktext: ticktextY3,
                     tickmode: 'array',
@@ -8526,137 +8655,17 @@ export const Dashboard = ({ view }) => {
                     zerolinewidth: 1
                 };
             }
-            // Rotated rectangles path helper for physical probe shapes
-            function getRotatedRectPath(cx, cy, r0, r1, w, angleDegrees) {
-                const rad = angleDegrees * Math.PI / 180;
-                const cos = Math.cos(rad);
-                const sin = Math.sin(rad);
-                
-                const x1 = cx + r0 * cos - (w / 2) * sin;
-                const y1 = cy + r0 * sin + (w / 2) * cos;
-                
-                const x2 = cx + r1 * cos - (w / 2) * sin;
-                const y2 = cy + r1 * sin + (w / 2) * cos;
-                
-                const x3 = cx + r1 * cos + (w / 2) * sin;
-                const y3 = cy + r1 * sin - (w / 2) * cos;
-                
-                const x4 = cx + r0 * cos + (w / 2) * sin;
-                const y4 = cy + r0 * sin - (w / 2) * cos;
-                
-                return `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
-            }
 
-            // Custom shapes: Only vertical dashed lines for keyphasor trigger alignment on timebase
-            layout.shapes = [];
-            if (showTimebase) {
-                for (let i = 0; i <= cycles; i++) {
-                    const t_kp = i * cycle_period_ms;
-                    layout.shapes.push({
-                        type: 'line',
-                        xref: 'x2',
-                        yref: 'paper',
-                        x0: t_kp,
-                        x1: t_kp,
-                        y0: 0,
-                        y1: 1,
-                        line: {
-                            color: '#94a3b8',
-                            width: 1,
-                            dash: 'dash'
-                        }
-                    });
-                }
-            }
+            const dynamicLayoutConfig = getDynamicShapesAndAnnotations(finalLimit, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+            layout.shapes = dynamicLayoutConfig.shapes;
+            layout.annotations = dynamicLayoutConfig.annotations;
 
-            layout.annotations = [
-                {
-                    x: 0, y: finalLimit * 1.05, xref: 'x', yref: 'y',
-                    text: '<b>Up</b>', showarrow: false,
-                    font: { size: 10, color: '#000000' }
-                },
-                {
-                    x: -finalLimit * 0.93, y: finalLimit * 0.93, xref: 'x', yref: 'y',
-                    text: '<b>Y</b>',
-                    showarrow: false,
-                    font: { color: '#ffffff', size: 10 },
-                    bgcolor: '#000000',
-                    bordercolor: '#000000',
-                    borderwidth: 1.5,
-                    borderpad: 2.5
-                },
-                {
-                    x: finalLimit * 0.93, y: finalLimit * 0.93, xref: 'x', yref: 'y',
-                    text: '<b>X</b>',
-                    showarrow: false,
-                    font: { color: '#ffffff', size: 10 },
-                    bgcolor: '#000000',
-                    bordercolor: '#000000',
-                    borderwidth: 1.5,
-                    borderpad: 2.5
-                },
-                {
-                    x: finalLimit * 1.05, y: 0, xref: 'x', yref: 'y',
-                    text: 'AC COUPLED', textangle: 90, showarrow: false,
-                    font: { size: 9, color: '#000000' }
-                },
-                // Rotation arrow in the second quadrant
-                {
-                    x: -finalLimit * 0.4, y: finalLimit * 0.7,
-                    ax: -finalLimit * 0.8, ay: finalLimit * 0.1,
-                    xref: 'x', yref: 'y',
-                    axref: 'x', ayref: 'y',
-                    showarrow: true,
-                    arrowhead: 2,
-                    arrowsize: 1.5,
-                    arrowwidth: 2,
-                    arrowcolor: '#000000',
-                    text: ''
-                }
-            ];
-
-            // Add subplot title annotations
-            const parts_brg = brg.split('/');
-            const brgX = parts_brg[0];
-            const brgY = parts_brg[1] || parts_brg[0];
-            const mapping = bearingPairsMapping && bearingPairsMapping[brg];
-            const x_prefix = mapping ? mapping.x : (brgX + 'X');
-            const y_prefix = mapping ? mapping.y : (brgY + 'Y');
-
-            if (showTimebase) {
-                if (showTrace2) {
-                    layout.annotations.push({
-                        x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
-                        xanchor: 'left', yanchor: 'bottom',
-                        text: `<b>Y: ${y_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
-                        font: { size: 10, color: 'var(--text-color)' }
-                    });
-                    layout.annotations.push({
-                        x: 0.55, y: 0.47, xref: 'paper', yref: 'paper',
-                        xanchor: 'left', yanchor: 'bottom',
-                        text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
-                        font: { size: 10, color: 'var(--text-color)' }
-                    });
-                } else {
-                    layout.annotations.push({
-                        x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
-                        xanchor: 'left', yanchor: 'bottom',
-                        text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
-                        font: { size: 10, color: 'var(--text-color)' }
-                    });
-                }
-            }
-
-            // Refine theta range to generate clean gaps around Keyphasor dot (large gap before dot, small gap after)
-            const theta_orbit = Array.from({length: 64}, (_, i) => {
-                const t_min = 0.08;
-                const t_max = 2 * Math.PI - 0.25;
-                return t_min + (i / 63) * (t_max - t_min);
-            });
+            // Refine theta range to generate clean gaps around Keyphasor dot (gap immediately before the dot)
+            const theta_orbit = Array.from({length: 128}, (_, i) => (i / 127) * (2 * Math.PI - 0.08));
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             
-            const px_i = first_row[cols.x.phase_1x] * Math.PI / 180;
-            const py_i = first_row[cols.y.phase_1x] * Math.PI / 180;
+            const px_i = first_row ? ((first_row[cols.x.phase_1x] || 0) * Math.PI / 180) : 0;
+            const py_i = first_row ? ((first_row[cols.y.phase_1x] || 0) * Math.PI / 180) : 0;
             
             const x_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift);
             const y_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift);
@@ -8694,41 +8703,45 @@ export const Dashboard = ({ view }) => {
             // Trace 0: Orbit Path
             traces.push({
                 x: x_init_shifted, y: y_init_shifted, mode: 'lines', name: '1X Orbit',
-                line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                line: { color: '#f43f5e', width: 2 }, hoverinfo: 'x+y',
                 xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 1: Clearance Boundary (hidden/invisible)
+            // Trace 1: Clearance Boundary (circular, centered)
             traces.push({
-                x: theta.map(t => shift + boundary_r * Math.cos(t)),
-                y: theta.map(t => shift + boundary_r * Math.sin(t)),
+                x: theta.map(t => shift + finalLimit * Math.cos(t)),
+                y: theta.map(t => shift + finalLimit * Math.sin(t)),
                 mode: 'lines', name: 'Clearance Boundary',
-                visible: false,
+                visible: true,
+                line: { color: '#ef4444', width: 1.2, dash: 'dash' },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 2: Keyphasor Dot on Orbit (Blue marker)
+            // Trace 2: Keyphasor Dot on Orbit (Orange marker with black outline)
             traces.push({
                 x: [pt_kp_init_shifted.x],
                 y: [pt_kp_init_shifted.y],
                 mode: 'markers', name: 'Keyphasor Dot',
-                marker: { size: 8, color: '#2563eb', symbol: 'circle' },
+                marker: { size: 9, color: '#f97316', symbol: 'circle', line: { width: 1.2, color: '#000000' } },
                 hoverinfo: 'x+y', xaxis: 'x', yaxis: 'y'
             });
 
             if (showTimebase) {
+                const targetXAxis = showTrace2 ? 'x3' : 'x2';
+                const targetYAxis = showTrace2 ? 'y3' : 'y2';
+
                 // Trace 3: X Timebase waveform
                 traces.push({
                     x: tb_x_init_time, y: tb_x_init_val_shifted, mode: 'lines', name: 'X Waveform',
                     line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
-                    xaxis: 'x2', yaxis: 'y2'
+                    xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
                 // Trace 4: Keyphasor Dots on X Timebase (Blue marker)
                 traces.push({
                     x: kp_times, y: kp_x_init_val_shifted, mode: 'markers', name: 'KP Dots X',
                     marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
-                    xaxis: 'x2', yaxis: 'y2'
+                    xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
                 if (showTrace2) {
@@ -8736,14 +8749,14 @@ export const Dashboard = ({ view }) => {
                     traces.push({
                         x: tb_y_init_time, y: tb_y_init_val_shifted, mode: 'lines', name: 'Y Waveform',
                         line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
-                        xaxis: 'x3', yaxis: 'y3'
+                        xaxis: 'x2', yaxis: 'y2'
                     });
 
                     // Trace 6: Keyphasor Dots on Y Timebase (Blue marker)
                     traces.push({
                         x: kp_times, y: kp_y_init_val_shifted, mode: 'markers', name: 'KP Dots Y',
                         marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
-                        xaxis: 'x3', yaxis: 'y3'
+                        xaxis: 'x2', yaxis: 'y2'
                     });
                 }
             }
@@ -8768,9 +8781,9 @@ export const Dashboard = ({ view }) => {
             const dots_y = [];
             const dot_step = finalLimit / 8;
             for (let i = -8; i <= 8; i++) {
-                const dx = i * dot_step;
+                const dx = i * dot_step + finalLimit;
                 for (let j = -8; j <= 8; j++) {
-                    const dy = j * dot_step;
+                    const dy = j * dot_step + finalLimit;
                     const isMajorX = Math.abs(i % 4) === 0;
                     const isMajorY = Math.abs(j % 4) === 0;
                     if (isMajorX && isMajorY) continue;
@@ -8784,10 +8797,10 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 9: Rotation Start + Tick on Orbit line
+            // Trace 9: Rotation Start + Tick on Orbit line (hidden to prevent confusion)
             traces.push({
-                x: [x_init_shifted[Math.floor(x_init_shifted.length * 0.75)]],
-                y: [y_init_shifted[Math.floor(y_init_shifted.length * 0.75)]],
+                x: [],
+                y: [],
                 mode: 'markers', name: 'Start Tick',
                 marker: { symbol: 'plus', size: 7, color: '#000000', line: { width: 1.5, color: '#000000' } },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
@@ -8801,20 +8814,26 @@ export const Dashboard = ({ view }) => {
                 const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
                 const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
 
-                const ox_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + shift);
-                const oy_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + shift);
+                const frameLimit = limits.autoScale ? (Math.max(ax, ay) * 1.15 || 0.1) : finalLimit;
+                const frameShift = frameLimit;
+
+                const ox_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift);
+                const oy_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift);
 
                 const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
-                const pt_kp_x_shifted = pt_kp.x + shift;
-                const pt_kp_y_shifted = pt_kp.y + shift;
+                const pt_kp_x_shifted = pt_kp.x + frameShift;
+                const pt_kp_y_shifted = pt_kp.y + frameShift;
 
                 const start_tick_x = ox_shifted[Math.floor(ox_shifted.length * 0.75)];
                 const start_tick_y = oy_shifted[Math.floor(oy_shifted.length * 0.75)];
 
                 const f_data = [
-                    { x: ox_shifted, y: oy_shifted },
-                    {}, // Trace 1 (static)
-                    { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] }
+                    { x: ox_shifted, y: oy_shifted }, // Trace 0
+                    {
+                        x: theta.map(t => frameShift + frameLimit * Math.cos(t)),
+                        y: theta.map(t => frameShift + frameLimit * Math.sin(t))
+                    }, // Trace 1
+                    { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] } // Trace 2
                 ];
                 const f_traces = [0, 1, 2];
 
@@ -8831,8 +8850,8 @@ export const Dashboard = ({ view }) => {
                     });
                     const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
                     
-                    f_data.push({ x: tb_x_time, y: tb_x });
-                    f_data.push({ x: kp_times_frame, y: kp_x });
+                    f_data.push({ x: tb_x_time, y: tb_x }); // Trace 3
+                    f_data.push({ x: kp_times_frame, y: kp_x }); // Trace 4
                     f_traces.push(3, 4);
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => {
@@ -8843,46 +8862,82 @@ export const Dashboard = ({ view }) => {
                         });
                         const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
                         
-                        f_data.push({ x: tb_x_time, y: tb_y });
-                        f_data.push({ x: kp_times_frame, y: kp_y });
+                        f_data.push({ x: tb_x_time, y: tb_y }); // Trace 5
+                        f_data.push({ x: kp_times_frame, y: kp_y }); // Trace 6
                         f_traces.push(5, 6);
-                    }                }
+                    }
+                }
 
-                f_data.push({ x: [start_tick_x], y: [start_tick_y] });
-                f_traces.push(9);
+                // Generate dynamic grid crosses and dots for the frame
+                const frame_tickvals = [0, frameLimit / 2, frameLimit, frameLimit * 1.5, 2 * frameLimit];
+                const frame_crosses_x = [];
+                const frame_crosses_y = [];
+                frame_tickvals.forEach(tx => {
+                    frame_tickvals.forEach(ty => {
+                        frame_crosses_x.push(tx);
+                        frame_crosses_y.push(ty);
+                    });
+                });
+
+                const frame_dots_x = [];
+                const frame_dots_y = [];
+                const frame_dot_step = frameLimit / 8;
+                for (let i = -8; i <= 8; i++) {
+                    const dx = i * frame_dot_step + frameLimit;
+                    for (let j = -8; j <= 8; j++) {
+                        const dy = j * frame_dot_step + frameLimit;
+                        const isMajorX = Math.abs(i % 4) === 0;
+                        const isMajorY = Math.abs(j % 4) === 0;
+                        if (isMajorX && isMajorY) continue;
+                        frame_dots_x.push(dx);
+                        frame_dots_y.push(dy);
+                    }
+                }
+
+                f_data.push({ x: frame_crosses_x, y: frame_crosses_y }); // Trace 7
+                f_data.push({ x: frame_dots_x, y: frame_dots_y }); // Trace 8
+                f_data.push({ x: [], y: [] }); // Trace 9
+                f_traces.push(7, 8, 9);
 
                 const f_layout = {};
                 if (limits.autoScale) {
-                    const framePeak = Math.max(ax, ay);
-                    const frameLimit = framePeak > 0 ? (framePeak * 1.15) : 0.1;
-                    const frameTickvals = [-frameLimit, -frameLimit / 2, 0, frameLimit / 2, frameLimit];
-                    const frameTicktext = frameTickvals.map(v => {
-                        const absVal = Math.abs(v);
-                        return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
-                    });
+                    const frameTickvals = [0, frameLimit / 2, frameLimit, frameLimit * 1.5, 2 * frameLimit];
+                    const frameTicktext = frameTickvals.map(v => Number(v.toFixed(3)).toString());
                     
-                    f_layout.xaxis = { range: [-frameLimit, frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
-                    f_layout.yaxis = { range: [-frameLimit, frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    f_layout.xaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    f_layout.yaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
                     
                     if (showTimebase) {
-                        const frameLimitY2 = ax > 0 ? (ax * 1.15) : 0.1;
-                        const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
-                        const frameTicktextY2 = frameTickvalsY2.map(v => {
-                            const absVal = Math.abs(v);
-                            return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
-                        });
-                        f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
-                        
                         if (showTrace2) {
-                            const frameLimitY3 = ay > 0 ? (ay * 1.15) : 0.1;
+                            // Top subplot (X Waveform) -> yaxis3, based on ax
+                            const frameLimitY3 = ax > 0 ? (ax * 1.15) : 0.1;
                             const frameTickvalsY3 = [-frameLimitY3, -frameLimitY3 / 2, 0, frameLimitY3 / 2, frameLimitY3];
                             const frameTicktextY3 = frameTickvalsY3.map(v => {
-                                const absVal = Math.abs(v);
-                                return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
                             });
                             f_layout.yaxis3 = { range: [-frameLimitY3, frameLimitY3], tickvals: frameTickvalsY3, ticktext: frameTicktextY3, tickmode: 'array' };
+
+                            // Bottom subplot (Y Waveform) -> yaxis2, based on ay
+                            const frameLimitY2 = ay > 0 ? (ay * 1.15) : 0.1;
+                            const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
+                            const frameTicktextY2 = frameTickvalsY2.map(v => {
+                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                            });
+                            f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
+                        } else {
+                            // Single subplot (X Waveform) -> yaxis2, based on ax
+                            const frameLimitY2 = ax > 0 ? (ax * 1.15) : 0.1;
+                            const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
+                            const frameTicktextY2 = frameTickvalsY2.map(v => {
+                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                            });
+                            f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
                         }
                     }
+
+                    const frameLayoutConfig = getDynamicShapesAndAnnotations(frameLimit, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+                    f_layout.shapes = frameLayoutConfig.shapes;
+                    f_layout.annotations = frameLayoutConfig.annotations;
                 }
 
                 frames.push({
