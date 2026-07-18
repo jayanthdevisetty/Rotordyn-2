@@ -2735,9 +2735,8 @@ export const Dashboard = ({ view }) => {
             
             return masterRows;
         }
-
         function parseTimestamp(ts) {
-            if (!ts) return null;
+            if (!ts) return new Date(0);
             if (ts instanceof Date) return ts;
             
             let str = String(ts).trim().toLowerCase();
@@ -3856,7 +3855,7 @@ export const Dashboard = ({ view }) => {
                 const dualPlots = [
                     { category: 'centerline', name: 'Shaft Centerline' },
                     { category: 'centerline_orbit', name: 'Centerline Orbit Overlay' },
-                    { category: 'orbit', name: 'Rotor Orbits (2D/3D)' }
+                    { category: 'orbit', name: 'Rotor Orbits (2D)' }
                 ];
                 
                 dualPlots.forEach(p => {
@@ -8231,6 +8230,9 @@ export const Dashboard = ({ view }) => {
             const limitY2 = Math.max(0.1, ax_i * 1.2);
             const limitY3 = Math.max(0.1, ay_i * 1.2);
 
+            const speed_val = first_row ? (first_row[speedCol] || 3600) : 3600;
+            const cycle_period_ms = 60000 / Math.max(10, speed_val);
+            const total_time_ms = cycles * cycle_period_ms;
             const layout = { ...baseLayout };
             layout.showlegend = false;
             layout.hovermode = 'closest';
@@ -8253,6 +8255,25 @@ export const Dashboard = ({ view }) => {
             const shift = 0;
 
             if (!showTimebase) {
+                layout.grid = { rows: 1, columns: 1 };
+                layout.xaxis = {
+                    title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
+                    gridcolor: baseLayout.xaxis.gridcolor,
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    ...spikelineConfig
+                };
+                layout.yaxis = {
+                    title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    scaleanchor: 'x', scaleratio: 1,
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    ...spikelineConfig
+                };
+            } else if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
@@ -8294,8 +8315,8 @@ export const Dashboard = ({ view }) => {
                     ...spikelineConfig
                 };
                 layout.xaxis2 = {
-                    title: 'Rotational Cycles',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
                     domain: [0.55, 1.0],
                     ...spikelineConfig
                 };
@@ -8305,12 +8326,11 @@ export const Dashboard = ({ view }) => {
                     range: [-limitY2, limitY2]
                 };
             } else {
-                layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
-                layout.column_widths = [0.34, 0.33, 0.33];
+                layout.grid = { rows: 2, columns: 2, pattern: 'independent' };
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    domain: [0, 0.30],
+                    domain: [0, 0.45],
                     range: [-finalLimit, finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
@@ -8326,30 +8346,33 @@ export const Dashboard = ({ view }) => {
                     ticktext: ticktext,
                     ...spikelineConfig
                 };
+                // Bottom subplot (X)
                 layout.xaxis2 = {
-                    title: 'Rotational Cycles (X)',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.38, 0.66],
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
+                    domain: [0.55, 1.0],
                     ...spikelineConfig
                 };
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
+                    domain: [0.0, 0.46],
                     range: [-limitY2, limitY2]
                 };
+                // Top subplot (Y)
                 layout.xaxis3 = {
-                    title: 'Rotational Cycles (Y)',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.72, 1.0],
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
+                    domain: [0.55, 1.0],
                     ...spikelineConfig
                 };
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
+                    domain: [0.54, 1.0],
                     range: [-limitY3, limitY3]
                 };
             }
-
             // Rotated rectangles path helper for physical probe shapes
             function getRotatedRectPath(cx, cy, r0, r1, w, angleDegrees) {
                 const rad = angleDegrees * Math.PI / 180;
@@ -8463,6 +8486,38 @@ export const Dashboard = ({ view }) => {
                 }
             ];
 
+            // Add subplot title annotations
+            const parts_brg = brg.split('/');
+            const brgX = parts_brg[0];
+            const brgY = parts_brg[1] || parts_brg[0];
+            const mapping = bearingPairsMapping && bearingPairsMapping[brg];
+            const x_prefix = mapping ? mapping.x : (brgX + 'X');
+            const y_prefix = mapping ? mapping.y : (brgY + 'Y');
+
+            if (showTimebase) {
+                if (showTrace2) {
+                    layout.annotations.push({
+                        x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                        xanchor: 'left', yanchor: 'bottom',
+                        text: `<b>Y: ${y_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                        font: { size: 10, color: 'var(--text-color)' }
+                    });
+                    layout.annotations.push({
+                        x: 0.55, y: 0.47, xref: 'paper', yref: 'paper',
+                        xanchor: 'left', yanchor: 'bottom',
+                        text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                        font: { size: 10, color: 'var(--text-color)' }
+                    });
+                } else {
+                    layout.annotations.push({
+                        x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                        xanchor: 'left', yanchor: 'bottom',
+                        text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                        font: { size: 10, color: 'var(--text-color)' }
+                    });
+                }
+            }
+
             // Refine theta range to generate clean gaps around Keyphasor dot (large gap before dot, small gap after)
             const theta_orbit = Array.from({length: 64}, (_, i) => {
                 const t_min = 0.08;
@@ -8476,27 +8531,27 @@ export const Dashboard = ({ view }) => {
             
             const x_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift);
             const y_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift);
-            // Timebase waveforms (raw single-channel signals, with gaps around Keyphasor dots)
+
+
             const tb_steps = 100 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
-            const tb_x_init_time = theta_tb.map(t => t / (2 * Math.PI));
+            const tb_x_init_time = theta_tb.map(t => (t / (2 * Math.PI)) * cycle_period_ms);
             const tb_y_init_time = tb_x_init_time;
-
             const tb_x_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
-                // Create a gap in the line before and after the Keyphasor trigger event
-                if (Math.abs(c - Math.round(c)) < 0.06) return null;
+                const dist = Math.round(c) - c;
+                if (dist > 0 && dist < 0.06) return null;
                 return ax_i * Math.cos(t - px_i);
             });
 
             const tb_y_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
-                if (Math.abs(c - Math.round(c)) < 0.06) return null;
+                const dist = Math.round(c) - c;
+                if (dist > 0 && dist < 0.06) return null;
                 return ay_i * Math.cos(t - py_i);
             });
-
             // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
-            const kp_times = Array.from({length: cycles + 1}, (_, i) => i);
+            const kp_times = Array.from({length: cycles + 1}, (_, i) => i * cycle_period_ms);
             const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
             const pt_kp_init_shifted = {
                 x: pt_kp_init.x + shift,
@@ -8587,30 +8642,34 @@ export const Dashboard = ({ view }) => {
                 const f_traces = [0, 1, 2];
 
                 if (showTimebase) {
+                    const speed = row[speedCol] || 3600;
+                    const T_frame = 60000 / Math.max(10, speed);
+                    const tb_x_time = theta_tb.map(t => (t / (2 * Math.PI)) * T_frame);
+                    const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
                     const tb_x = theta_tb.map(t => {
                         const c = t / (2 * Math.PI);
-                        if (Math.abs(c - Math.round(c)) < 0.06) return null;
+                        const dist = Math.round(c) - c;
+                        if (dist > 0 && dist < 0.06) return null;
                         return ax * Math.cos(t - px);
                     });
                     const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
                     
-                    f_data.push({ y: tb_x });
-                    f_data.push({ y: kp_x });
+                    f_data.push({ x: tb_x_time, y: tb_x });
+                    f_data.push({ x: kp_times_frame, y: kp_x });
                     f_traces.push(3, 4);
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => {
                             const c = t / (2 * Math.PI);
-                            if (Math.abs(c - Math.round(c)) < 0.06) return null;
+                            const dist = Math.round(c) - c;
+                            if (dist > 0 && dist < 0.06) return null;
                             return ay * Math.cos(t - py);
                         });
                         const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
                         
-                        f_data.push({ y: tb_y });
-                        f_data.push({ y: kp_y });
+                        f_data.push({ x: tb_x_time, y: tb_y });
+                        f_data.push({ x: kp_times_frame, y: kp_y });
                         f_traces.push(5, 6);
-                    }
-                }
-
+                    }                }
                 frames.push({
                     name: `f_${f_idx}_slot_${slotIdx}`,
                     data: f_data,
