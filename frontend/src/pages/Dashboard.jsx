@@ -8218,7 +8218,7 @@ export const Dashboard = ({ view }) => {
                 if (ay > maxVal) maxVal = ay;
             });
             
-            const limit = maxVal * 1.4;
+            const limit = maxVal + 1.0;
             let finalLimit = limit;
             if (!limits.autoScale) {
                 if (limits.max !== null) finalLimit = Math.abs(limits.max);
@@ -8458,6 +8458,12 @@ export const Dashboard = ({ view }) => {
             ];
 
             const first_row = df_frames[0];
+            // Refine theta range to generate clean gaps around Keyphasor dot (large gap before dot, small gap after)
+            const theta_orbit = Array.from({length: 64}, (_, i) => {
+                const t_min = 0.08;
+                const t_max = 2 * Math.PI - 0.25;
+                return t_min + (i / 63) * (t_max - t_min);
+            });
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             
             const ax_i = first_row[cols.x.amp_1x];
@@ -8465,18 +8471,8 @@ export const Dashboard = ({ view }) => {
             const px_i = first_row[cols.x.phase_1x] * Math.PI / 180;
             const py_i = first_row[cols.y.phase_1x] * Math.PI / 180;
             
-            const x_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x);
-            const y_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y);
-
-            // Introduce rotation direction indicator gap (Keyphasor Gap)
-            if (x_init.length > 2) {
-                x_init[x_init.length - 2] = null;
-                y_init[y_init.length - 2] = null;
-            }
-
-            // Shift initial data to positive quadrant
-            const x_init_shifted = x_init.map(v => v === null ? null : v + shift);
-            const y_init_shifted = y_init.map(v => v === null ? null : v + shift);
+            const x_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift);
+            const y_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift);
 
             // Timebase waveforms
             const tb_steps = 100 * cycles;
@@ -8569,20 +8565,10 @@ export const Dashboard = ({ view }) => {
                 const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
                 const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
 
-                const ox = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x);
-                const oy = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y);
+                const ox_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + shift);
+                const oy_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + shift);
 
                 const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
-
-                // Introduce rotation direction indicator gap (Keyphasor Gap)
-                if (ox.length > 2) {
-                    ox[ox.length - 2] = null;
-                    oy[oy.length - 2] = null;
-                }
-
-                // Shift frame coordinates to positive quadrant
-                const ox_shifted = ox.map(v => v === null ? null : v + shift);
-                const oy_shifted = oy.map(v => v === null ? null : v + shift);
                 const pt_kp_x_shifted = pt_kp.x + shift;
                 const pt_kp_y_shifted = pt_kp.y + shift;
 
