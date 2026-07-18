@@ -8209,31 +8209,37 @@ export const Dashboard = ({ view }) => {
             const C = window.bearingClearance || 12.0;
             const boundary_r = C;
             
-            let maxVal = 0.1;
-            clean_df.forEach(row => {
-                const ax = Math.abs(row[cols.x.amp_1x]) || 0;
-                const ay = Math.abs(row[cols.y.amp_1x]) || 0;
-                if (ax > maxVal) maxVal = ax;
-                if (ay > maxVal) maxVal = ay;
-            });
-            
-            const limit = maxVal + 1.0;
-            let finalLimit = limit;
+            // Dynamically calculate the active peak of the current cursor time point or first row
+            const activeRow = clean_df[activeCursorIndex] || clean_df[0];
+            const activeAx = activeRow ? (Math.abs(activeRow[cols.x.amp_1x]) || 0.1) : 0.1;
+            const activeAy = activeRow ? (Math.abs(activeRow[cols.y.amp_1x]) || 0.1) : 0.1;
+            const activePeak = Math.max(activeAx, activeAy);
+
+            let finalLimit = activePeak > 0 ? (activePeak * 1.15) : 0.1;
             if (!limits.autoScale) {
                 if (limits.max !== null) finalLimit = Math.abs(limits.max);
                 else if (limits.min !== null) finalLimit = Math.abs(limits.min);
             }
 
-            const first_row = df_frames[0];
-            const ax_i = first_row ? (first_row[cols.x.amp_1x] || 0.1) : 0.1;
-            const ay_i = first_row ? (first_row[cols.y.amp_1x] || 0.1) : 0.1;
-            const limitY2 = Math.max(0.1, ax_i * 1.2);
-            const limitY3 = Math.max(0.1, ay_i * 1.2);
+            let limitY2 = activeAx > 0 ? (activeAx * 1.15) : 0.1;
+            let limitY3 = activeAy > 0 ? (activeAy * 1.15) : 0.1;
+            if (!limits.autoScale) {
+                if (limits.max !== null) {
+                    limitY2 = Math.abs(limits.max);
+                    limitY3 = Math.abs(limits.max);
+                }
+            }
 
+            const first_row = df_frames[0];
+            const ax_i = activeAx;
+            const ay_i = activeAy;
             const speed_val = first_row ? (first_row[speedCol] || 3600) : 3600;
             const cycle_period_ms = 60000 / Math.max(10, speed_val);
             const total_time_ms = cycles * cycle_period_ms;
             const layout = { ...baseLayout };
+            if (showTimebase) {
+                layout.margin = { t: 25, b: 35, l: 40, r: 60 };
+            }
             layout.showlegend = false;
             layout.hovermode = 'closest';
 
@@ -8379,14 +8385,30 @@ export const Dashboard = ({ view }) => {
                     showgrid: false,
                     ...spikelineConfig
                 };
+                const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
+                const ticktextY2 = tickvalsY2.map(v => {
+                    const absVal = Math.abs(v);
+                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     range: [-limitY2, limitY2],
+                    tickvals: tickvalsY2,
+                    ticktext: ticktextY2,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
-                    linewidth: 1
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
             } else {
                 layout.grid = { rows: 2, columns: 2, pattern: 'independent' };
@@ -8439,15 +8461,31 @@ export const Dashboard = ({ view }) => {
                     showgrid: false,
                     ...spikelineConfig
                 };
+                const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
+                const ticktextY2 = tickvalsY2.map(v => {
+                    const absVal = Math.abs(v);
+                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     domain: [0.0, 0.46],
                     range: [-limitY2, limitY2],
+                    tickvals: tickvalsY2,
+                    ticktext: ticktextY2,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
-                    linewidth: 1
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
                 // Bottom-to-top layout: Top subplot (Y) shares X2 domain
                 layout.xaxis3 = {
@@ -8461,15 +8499,31 @@ export const Dashboard = ({ view }) => {
                     showgrid: false,
                     ...spikelineConfig
                 };
+                const tickvalsY3 = [-limitY3, -limitY3 / 2, 0, limitY3 / 2, limitY3];
+                const ticktextY3 = tickvalsY3.map(v => {
+                    const absVal = Math.abs(v);
+                    return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                });
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     domain: [0.54, 1.0],
                     range: [-limitY3, limitY3],
+                    tickvals: tickvalsY3,
+                    ticktext: ticktextY3,
+                    tickmode: 'array',
                     showline: true,
                     mirror: true,
                     linecolor: '#475569',
-                    linewidth: 1
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
             }
             // Rotated rectangles path helper for physical probe shapes
@@ -8522,14 +8576,24 @@ export const Dashboard = ({ view }) => {
                     font: { size: 10, color: '#000000' }
                 },
                 {
-                    x: -finalLimit * 0.96, y: finalLimit * 0.96, xref: 'x', yref: 'y',
-                    text: '<span style="border: 1px solid black; padding: 2px 5px; background: black; color: white; font-weight: bold; font-family: sans-serif; font-size: 11px;">Y</span>',
-                    showarrow: false
+                    x: -finalLimit * 0.93, y: finalLimit * 0.93, xref: 'x', yref: 'y',
+                    text: '<b>Y</b>',
+                    showarrow: false,
+                    font: { color: '#ffffff', size: 10 },
+                    bgcolor: '#000000',
+                    bordercolor: '#000000',
+                    borderwidth: 1.5,
+                    borderpad: 2.5
                 },
                 {
-                    x: finalLimit * 0.96, y: finalLimit * 0.96, xref: 'x', yref: 'y',
-                    text: '<span style="border: 1px solid black; padding: 2px 5px; background: black; color: white; font-weight: bold; font-family: sans-serif; font-size: 11px;">X</span>',
-                    showarrow: false
+                    x: finalLimit * 0.93, y: finalLimit * 0.93, xref: 'x', yref: 'y',
+                    text: '<b>X</b>',
+                    showarrow: false,
+                    font: { color: '#ffffff', size: 10 },
+                    bgcolor: '#000000',
+                    bordercolor: '#000000',
+                    borderwidth: 1.5,
+                    borderpad: 2.5
                 },
                 {
                     x: finalLimit * 1.05, y: 0, xref: 'x', yref: 'y',
@@ -8695,7 +8759,7 @@ export const Dashboard = ({ view }) => {
             });
             traces.push({
                 x: crosses_x, y: crosses_y, mode: 'markers', name: 'Grid Crosses',
-                marker: { symbol: 'circle-open', size: 6, line: { width: 1, color: '#94a3b8' } },
+                marker: { symbol: 'plus', size: 10, color: '#cbd5e1', line: { width: 1.2, color: '#cbd5e1' } },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8729,12 +8793,6 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 10: Centerline Origin Dot
-            traces.push({
-                x: [0], y: [0], mode: 'markers', name: 'Origin Dot',
-                marker: { symbol: 'circle', size: 5, color: '#000000' },
-                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
-            });
 
             const frames = [];
             df_frames.forEach((row, f_idx) => {
@@ -8793,10 +8851,45 @@ export const Dashboard = ({ view }) => {
                 f_data.push({ x: [start_tick_x], y: [start_tick_y] });
                 f_traces.push(9);
 
+                const f_layout = {};
+                if (limits.autoScale) {
+                    const framePeak = Math.max(ax, ay);
+                    const frameLimit = framePeak > 0 ? (framePeak * 1.15) : 0.1;
+                    const frameTickvals = [-frameLimit, -frameLimit / 2, 0, frameLimit / 2, frameLimit];
+                    const frameTicktext = frameTickvals.map(v => {
+                        const absVal = Math.abs(v);
+                        return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                    });
+                    
+                    f_layout.xaxis = { range: [-frameLimit, frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    f_layout.yaxis = { range: [-frameLimit, frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    
+                    if (showTimebase) {
+                        const frameLimitY2 = ax > 0 ? (ax * 1.15) : 0.1;
+                        const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
+                        const frameTicktextY2 = frameTickvalsY2.map(v => {
+                            const absVal = Math.abs(v);
+                            return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                        });
+                        f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
+                        
+                        if (showTrace2) {
+                            const frameLimitY3 = ay > 0 ? (ay * 1.15) : 0.1;
+                            const frameTickvalsY3 = [-frameLimitY3, -frameLimitY3 / 2, 0, frameLimitY3 / 2, frameLimitY3];
+                            const frameTicktextY3 = frameTickvalsY3.map(v => {
+                                const absVal = Math.abs(v);
+                                return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+                            });
+                            f_layout.yaxis3 = { range: [-frameLimitY3, frameLimitY3], tickvals: frameTickvalsY3, ticktext: frameTicktextY3, tickmode: 'array' };
+                        }
+                    }
+                }
+
                 frames.push({
                     name: `f_${f_idx}_slot_${slotIdx}`,
                     data: f_data,
-                    traces: f_traces
+                    traces: f_traces,
+                    layout: f_layout
                 });
             });
 
