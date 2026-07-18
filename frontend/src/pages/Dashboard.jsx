@@ -8225,6 +8225,12 @@ export const Dashboard = ({ view }) => {
                 else if (limits.min !== null) finalLimit = Math.abs(limits.min);
             }
 
+            const first_row = df_frames[0];
+            const ax_i = first_row ? (first_row[cols.x.amp_1x] || 0.1) : 0.1;
+            const ay_i = first_row ? (first_row[cols.y.amp_1x] || 0.1) : 0.1;
+            const limitY2 = Math.max(0.1, ax_i * 1.2);
+            const limitY3 = Math.max(0.1, ay_i * 1.2);
+
             const layout = { ...baseLayout };
             layout.showlegend = false;
             layout.hovermode = 'closest';
@@ -8296,7 +8302,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [-finalLimit, finalLimit]
+                    range: [-limitY2, limitY2]
                 };
             } else {
                 layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
@@ -8329,7 +8335,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [-finalLimit, finalLimit]
+                    range: [-limitY2, limitY2]
                 };
                 layout.xaxis3 = {
                     title: 'Rotational Cycles (Y)',
@@ -8340,7 +8346,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [-finalLimit, finalLimit]
+                    range: [-limitY3, limitY3]
                 };
             }
 
@@ -8457,7 +8463,6 @@ export const Dashboard = ({ view }) => {
                 }
             ];
 
-            const first_row = df_frames[0];
             // Refine theta range to generate clean gaps around Keyphasor dot (large gap before dot, small gap after)
             const theta_orbit = Array.from({length: 64}, (_, i) => {
                 const t_min = 0.08;
@@ -8466,37 +8471,41 @@ export const Dashboard = ({ view }) => {
             });
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             
-            const ax_i = first_row[cols.x.amp_1x];
-            const ay_i = first_row[cols.y.amp_1x];
             const px_i = first_row[cols.x.phase_1x] * Math.PI / 180;
             const py_i = first_row[cols.y.phase_1x] * Math.PI / 180;
             
             const x_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift);
             const y_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift);
-
-            // Timebase waveforms
+            // Timebase waveforms (raw single-channel signals, with gaps around Keyphasor dots)
             const tb_steps = 100 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
-            const tb_x_init_val = theta_tb.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), 0).x);
             const tb_x_init_time = theta_tb.map(t => t / (2 * Math.PI));
-            const tb_y_init_val = theta_tb.map(t => convertProbesToPhysical(0, ay_i * Math.cos(t - py_i)).y);
             const tb_y_init_time = tb_x_init_time;
 
-            const tb_x_init_val_shifted = tb_x_init_val.map(v => v + shift);
-            const tb_y_init_val_shifted = tb_y_init_val.map(v => v + shift);
+            const tb_x_init_val_shifted = theta_tb.map(t => {
+                const c = t / (2 * Math.PI);
+                const cycle_frac = c - Math.floor(c);
+                // Create a gap in the line before and after the Keyphasor trigger event
+                if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                return ax_i * Math.cos(t - px_i);
+            });
 
-            // Keyphasor dots (once per cycle)
+            const tb_y_init_val_shifted = theta_tb.map(t => {
+                const c = t / (2 * Math.PI);
+                const cycle_frac = c - Math.floor(c);
+                if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                return ay_i * Math.cos(t - py_i);
+            });
+
+            // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
             const kp_times = Array.from({length: cycles}, (_, i) => i);
             const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
             const pt_kp_init_shifted = {
                 x: pt_kp_init.x + shift,
                 y: pt_kp_init.y + shift
             };
-            const kp_x_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(ax_i * Math.cos(-px_i), 0).x);
-            const kp_y_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay_i * Math.cos(-py_i)).y);
-
-            const kp_x_init_val_shifted = kp_x_init_val.map(v => v + shift);
-            const kp_y_init_val_shifted = kp_y_init_val.map(v => v + shift);
+            const kp_x_init_val_shifted = Array.from({length: cycles}, () => ax_i * Math.cos(px_i));
+            const kp_y_init_val_shifted = Array.from({length: cycles}, () => ay_i * Math.cos(py_i));
 
             const traces = [];
 
@@ -8577,29 +8586,31 @@ export const Dashboard = ({ view }) => {
                     {}, // Trace 1 (static)
                     { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] }
                 ];
-
                 const f_traces = [0, 1, 2];
 
                 if (showTimebase) {
-                    const tb_x = theta_tb.map(t => convertProbesToPhysical(ax * Math.cos(t - px), 0).x);
-                    const kp_x = Array.from({length: cycles}, () => convertProbesToPhysical(ax * Math.cos(-px), 0).x);
+                    const tb_x = theta_tb.map(t => {
+                        const c = t / (2 * Math.PI);
+                        const cycle_frac = c - Math.floor(c);
+                        if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                        return ax * Math.cos(t - px);
+                    });
+                    const kp_x = Array.from({length: cycles}, () => ax * Math.cos(px));
                     
-                    const tb_x_shifted = tb_x.map(v => v + shift);
-                    const kp_x_shifted = kp_x.map(v => v + shift);
-
-                    f_data.push({ y: tb_x_shifted });
-                    f_data.push({ y: kp_x_shifted });
+                    f_data.push({ y: tb_x });
+                    f_data.push({ y: kp_x });
                     f_traces.push(3, 4);
-
                     if (showTrace2) {
-                        const tb_y = theta_tb.map(t => convertProbesToPhysical(0, ay * Math.cos(t - py)).y);
-                        const kp_y = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay * Math.cos(-py)).y);
+                        const tb_y = theta_tb.map(t => {
+                            const c = t / (2 * Math.PI);
+                            const cycle_frac = c - Math.floor(c);
+                            if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                            return ay * Math.cos(t - py);
+                        });
+                        const kp_y = Array.from({length: cycles}, () => ay * Math.cos(py));
                         
-                        const tb_y_shifted = tb_y.map(v => v + shift);
-                        const kp_y_shifted = kp_y.map(v => v + shift);
-
-                        f_data.push({ y: tb_y_shifted });
-                        f_data.push({ y: kp_y_shifted });
+                        f_data.push({ y: tb_y });
+                        f_data.push({ y: kp_y });
                         f_traces.push(5, 6);
                     }
                 }
