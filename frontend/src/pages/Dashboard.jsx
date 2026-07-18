@@ -8238,21 +8238,31 @@ export const Dashboard = ({ view }) => {
                 spikecolor: 'var(--text-muted)'
             };
 
-            const shift = finalLimit;
+            const tickvals = [-finalLimit, -finalLimit / 2, 0, finalLimit / 2, finalLimit];
+            const ticktext = tickvals.map(v => {
+                const absVal = Math.abs(v);
+                return absVal === 0 ? '0.0' : Number(absVal.toFixed(3)).toString();
+            });
+
+            const shift = 0;
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
             } else if (!showTrace2) {
@@ -8262,7 +8272,9 @@ export const Dashboard = ({ view }) => {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     domain: [0, 0.43],
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
                 layout.yaxis = {
@@ -8270,7 +8282,9 @@ export const Dashboard = ({ view }) => {
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
                 layout.xaxis2 = {
@@ -8282,7 +8296,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [0, 2 * finalLimit]
+                    range: [-finalLimit, finalLimit]
                 };
             } else {
                 layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
@@ -8291,7 +8305,9 @@ export const Dashboard = ({ view }) => {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     domain: [0, 0.30],
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
                 layout.yaxis = {
@@ -8299,7 +8315,9 @@ export const Dashboard = ({ view }) => {
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
-                    range: [0, 2 * finalLimit],
+                    range: [-finalLimit, finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
                     ...spikelineConfig
                 };
                 layout.xaxis2 = {
@@ -8311,7 +8329,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [0, 2 * finalLimit]
+                    range: [-finalLimit, finalLimit]
                 };
                 layout.xaxis3 = {
                     title: 'Rotational Cycles (Y)',
@@ -8322,7 +8340,7 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    range: [0, 2 * finalLimit]
+                    range: [-finalLimit, finalLimit]
                 };
             }
 
@@ -8405,9 +8423,37 @@ export const Dashboard = ({ view }) => {
                     font: { size: 9, color: 'var(--text-color)' }
                 },
                 {
-                    x: shift, y: shift + boundary_r * 1.15, xref: 'x', yref: 'y',
-                    text: '<b>TDC</b>', showarrow: false,
-                    font: { size: 9, color: '#ef4444' }
+                    x: 0, y: finalLimit * 1.05, xref: 'x', yref: 'y',
+                    text: '<b>Up</b>', showarrow: false,
+                    font: { size: 9, color: 'var(--text-color)' }
+                },
+                {
+                    x: -finalLimit * 0.9, y: finalLimit * 0.9, xref: 'x', yref: 'y',
+                    text: '<span style="border: 1px solid var(--text-color); padding: 2px 5px; background: var(--card-color); font-weight: bold; font-family: sans-serif; border-radius: 2px;">Y</span>',
+                    showarrow: false
+                },
+                {
+                    x: finalLimit * 0.9, y: finalLimit * 0.9, xref: 'x', yref: 'y',
+                    text: '<span style="border: 1px solid var(--text-color); padding: 2px 5px; background: var(--card-color); font-weight: bold; font-family: sans-serif; border-radius: 2px;">X</span>',
+                    showarrow: false
+                },
+                {
+                    x: finalLimit * 1.05, y: 0, xref: 'x', yref: 'y',
+                    text: 'AC COUPLED', textangle: 90, showarrow: false,
+                    font: { size: 9, color: 'var(--text-muted)' }
+                },
+                // Counter-clockwise rotation arrow in the second quadrant
+                {
+                    x: -finalLimit * 0.4, y: finalLimit * 0.7,
+                    ax: -finalLimit * 0.8, ay: finalLimit * 0.1,
+                    xref: 'x', yref: 'y',
+                    axref: 'x', ayref: 'y',
+                    showarrow: true,
+                    arrowhead: 2,
+                    arrowsize: 1.5,
+                    arrowwidth: 2,
+                    arrowcolor: 'var(--text-color)',
+                    text: ''
                 }
             ];
 
@@ -8475,12 +8521,12 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 2: Keyphasor Dot on Orbit
+            // Trace 2: Keyphasor Dot on Orbit (Blue marker)
             traces.push({
                 x: [pt_kp_init_shifted.x],
                 y: [pt_kp_init_shifted.y],
                 mode: 'markers', name: 'Keyphasor Dot',
-                marker: { size: 8, color: '#f59e0b', symbol: 'circle' },
+                marker: { size: 8, color: '#2563eb', symbol: 'circle' },
                 hoverinfo: 'x+y', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8492,10 +8538,10 @@ export const Dashboard = ({ view }) => {
                     xaxis: 'x2', yaxis: 'y2'
                 });
 
-                // Trace 4: Keyphasor Dots on X Timebase
+                // Trace 4: Keyphasor Dots on X Timebase (Blue marker)
                 traces.push({
                     x: kp_times, y: kp_x_init_val_shifted, mode: 'markers', name: 'KP Dots X',
-                    marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'x+y',
+                    marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
                     xaxis: 'x2', yaxis: 'y2'
                 });
 
@@ -8507,10 +8553,10 @@ export const Dashboard = ({ view }) => {
                         xaxis: 'x3', yaxis: 'y3'
                     });
 
-                    // Trace 6: Keyphasor Dots on Y Timebase
+                    // Trace 6: Keyphasor Dots on Y Timebase (Blue marker)
                     traces.push({
                         x: kp_times, y: kp_y_init_val_shifted, mode: 'markers', name: 'KP Dots Y',
-                        marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'x+y',
+                        marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
                         xaxis: 'x3', yaxis: 'y3'
                     });
                 }
