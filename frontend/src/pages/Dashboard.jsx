@@ -8376,6 +8376,7 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#475569',
                     linewidth: 1,
+                    showgrid: false,
                     ...spikelineConfig
                 };
                 layout.yaxis2 = {
@@ -8435,6 +8436,7 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#475569',
                     linewidth: 1,
+                    showgrid: false,
                     ...spikelineConfig
                 };
                 layout.yaxis2 = {
@@ -8456,6 +8458,7 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#475569',
                     linewidth: 1,
+                    showgrid: false,
                     ...spikelineConfig
                 };
                 layout.yaxis3 = {
@@ -8504,7 +8507,7 @@ export const Dashboard = ({ view }) => {
                         y0: 0,
                         y1: 1,
                         line: {
-                            color: '#cbd5e1',
+                            color: '#94a3b8',
                             width: 1,
                             dash: 'dash'
                         }
@@ -8602,14 +8605,14 @@ export const Dashboard = ({ view }) => {
             const tb_x_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
                 const dist = c - Math.round(c);
-                if (dist > 0 && dist < 0.03) return null;
+                if (dist >= -0.04 && dist < 0) return null;
                 return ax_i * Math.cos(t - px_i);
             });
 
             const tb_y_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
                 const dist = c - Math.round(c);
-                if (dist > 0 && dist < 0.03) return null;
+                if (dist >= -0.04 && dist < 0) return null;
                 return ay_i * Math.cos(t - py_i);
             });
             // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
@@ -8692,7 +8695,7 @@ export const Dashboard = ({ view }) => {
             });
             traces.push({
                 x: crosses_x, y: crosses_y, mode: 'markers', name: 'Grid Crosses',
-                marker: { symbol: 'plus', size: 10, color: '#cbd5e1', line: { width: 1.5, color: '#94a3b8' } },
+                marker: { symbol: 'circle-open', size: 6, line: { width: 1, color: '#94a3b8' } },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8723,6 +8726,13 @@ export const Dashboard = ({ view }) => {
                 y: [y_init_shifted[Math.floor(y_init_shifted.length * 0.75)]],
                 mode: 'markers', name: 'Start Tick',
                 marker: { symbol: 'plus', size: 7, color: '#000000', line: { width: 1.5, color: '#000000' } },
+                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+            });
+
+            // Trace 10: Centerline Origin Dot
+            traces.push({
+                x: [0], y: [0], mode: 'markers', name: 'Origin Dot',
+                marker: { symbol: 'circle', size: 5, color: '#000000' },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8758,7 +8768,7 @@ export const Dashboard = ({ view }) => {
                     const tb_x = theta_tb.map(t => {
                         const c = t / (2 * Math.PI);
                         const dist = c - Math.round(c);
-                        if (dist > 0 && dist < 0.03) return null;
+                        if (dist >= -0.04 && dist < 0) return null;
                         return ax * Math.cos(t - px);
                     });
                     const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
@@ -8770,7 +8780,7 @@ export const Dashboard = ({ view }) => {
                         const tb_y = theta_tb.map(t => {
                             const c = t / (2 * Math.PI);
                             const dist = c - Math.round(c);
-                            if (dist > 0 && dist < 0.03) return null;
+                            if (dist >= -0.04 && dist < 0) return null;
                             return ay * Math.cos(t - py);
                         });
                         const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
