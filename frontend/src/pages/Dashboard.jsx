@@ -4931,6 +4931,33 @@ export const Dashboard = ({ view }) => {
                     htmlParts.push(`<span><b>Y Gap:</b> ${yGap}</span>`);
                 }
                 box.innerHTML = htmlParts.join('\n');
+            } else if (config.category === 'orbit') {
+                const cols = getBearingPairColumns(ch);
+                const ampUnitX = getChannelUnit(chX, 'amp', 'mils');
+                const ampUnitY = getChannelUnit(chY, 'amp', 'mils');
+                
+                let xDirect = cols.x.direct && row[cols.x.direct] !== undefined && row[cols.x.direct] !== null ? `${row[cols.x.direct].toFixed(3)} ${ampUnitX}` : 'N/A';
+                let yDirect = cols.y.direct && row[cols.y.direct] !== undefined && row[cols.y.direct] !== null ? `${row[cols.y.direct].toFixed(3)} ${ampUnitY}` : 'N/A';
+                
+                let xAmp = cols.x.amp_1x && row[cols.x.amp_1x] !== undefined && row[cols.x.amp_1x] !== null ? `${row[cols.x.amp_1x].toFixed(3)} ${ampUnitX}` : 'N/A';
+                let yAmp = cols.y.amp_1x && row[cols.y.amp_1x] !== undefined && row[cols.y.amp_1x] !== null ? `${row[cols.y.amp_1x].toFixed(3)} ${ampUnitY}` : 'N/A';
+                
+                let xPhase = cols.x.phase_1x && row[cols.x.phase_1x] !== undefined && row[cols.x.phase_1x] !== null ? `${row[cols.x.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
+                let yPhase = cols.y.phase_1x && row[cols.y.phase_1x] !== undefined && row[cols.y.phase_1x] !== null ? `${row[cols.y.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
+                
+                let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
+                let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
+
+                box.innerHTML = `
+                    <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
+                    <span><b>RPM:</b> ${speedText}</span>
+                    <span><b>X Direct:</b> ${xDirect}</span>
+                    <span><b>Y Direct:</b> ${yDirect}</span>
+                    <span><b>X 1X:</b> ${xAmp} @ ${xPhase}</span>
+                    <span><b>Y 1X:</b> ${yAmp} @ ${yPhase}</span>
+                    <span><b>X Gap:</b> ${xGap}</span>
+                    <span><b>Y Gap:</b> ${yGap}</span>
+                `;
             } else {
                 box.innerHTML = `
                     <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
@@ -8098,7 +8125,7 @@ export const Dashboard = ({ view }) => {
                     x: ox, y: oy,
                     mode: 'lines',
                     name: `1X Orbit @ ${speed.toFixed(0)} RPM`,
-                    line: { color: orbitColors[i % orbitColors.length], width: 1.5 },
+                    line: { color: '#f43f5e', width: 1.5 },
                     hoverinfo: 'none'
                 });
             });
@@ -8200,139 +8227,189 @@ export const Dashboard = ({ view }) => {
 
             const layout = { ...baseLayout };
             layout.showlegend = false;
+            layout.hovermode = 'closest';
+
+            const spikelineConfig = {
+                showspikes: true,
+                spikemode: 'across',
+                spikesnap: 'cursor',
+                spikedash: 'dash',
+                spikethickness: 1,
+                spikecolor: 'var(--text-muted)'
+            };
+
+            const shift = finalLimit;
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor
+                    gridcolor: baseLayout.xaxis.gridcolor,
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
-                    scaleanchor: 'x', scaleratio: 1
+                    scaleanchor: 'x', scaleratio: 1,
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
-                if (!limits.autoScale) {
-                    layout.xaxis.range = [-finalLimit, finalLimit];
-                    layout.yaxis.range = [-finalLimit, finalLimit];
-                }
             } else if (!showTrace2) {
                 layout.grid = { rows: 1, columns: 2, pattern: 'independent' };
                 layout.column_widths = [0.45, 0.55];
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    domain: [0, 0.43]
+                    domain: [0, 0.43],
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
-                    domain: [0, 1.0]
+                    domain: [0, 1.0],
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
                 layout.xaxis2 = {
                     title: 'Rotational Cycles',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.55, 1.0]
+                    domain: [0.55, 1.0],
+                    ...spikelineConfig
                 };
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    range: [0, 2 * finalLimit]
                 };
-                if (!limits.autoScale) {
-                    layout.xaxis.range = [-finalLimit, finalLimit];
-                    layout.yaxis.range = [-finalLimit, finalLimit];
-                    layout.yaxis2.range = [-finalLimit, finalLimit];
-                }
             } else {
                 layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
                 layout.column_widths = [0.34, 0.33, 0.33];
                 layout.xaxis = {
                     title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.xaxis.gridcolor,
-                    domain: [0, 0.30]
+                    domain: [0, 0.30],
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
                     title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
                     gridcolor: baseLayout.yaxis.gridcolor,
                     scaleanchor: 'x', scaleratio: 1,
-                    domain: [0, 1.0]
+                    domain: [0, 1.0],
+                    range: [0, 2 * finalLimit],
+                    ...spikelineConfig
                 };
                 layout.xaxis2 = {
                     title: 'Rotational Cycles (X)',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.38, 0.66]
+                    domain: [0.38, 0.66],
+                    ...spikelineConfig
                 };
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    range: [0, 2 * finalLimit]
                 };
                 layout.xaxis3 = {
                     title: 'Rotational Cycles (Y)',
                     gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.72, 1.0]
+                    domain: [0.72, 1.0],
+                    ...spikelineConfig
                 };
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    range: [0, 2 * finalLimit]
                 };
-                if (!limits.autoScale) {
-                    layout.xaxis.range = [-finalLimit, finalLimit];
-                    layout.yaxis.range = [-finalLimit, finalLimit];
-                    layout.yaxis2.range = [-finalLimit, finalLimit];
-                    layout.yaxis3.range = [-finalLimit, finalLimit];
+            }
+
+            // Rotated rectangles path helper for physical probe shapes
+            function getRotatedRectPath(cx, cy, r0, r1, w, angleDegrees) {
+                const rad = angleDegrees * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                const x1 = cx + r0 * cos - (w / 2) * sin;
+                const y1 = cy + r0 * sin + (w / 2) * cos;
+                
+                const x2 = cx + r1 * cos - (w / 2) * sin;
+                const y2 = cy + r1 * sin + (w / 2) * cos;
+                
+                const x3 = cx + r1 * cos + (w / 2) * sin;
+                const y3 = cy + r1 * sin - (w / 2) * cos;
+                
+                const x4 = cx + r0 * cos + (w / 2) * sin;
+                const y4 = cy + r0 * sin - (w / 2) * cos;
+                
+                return `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
+            }
+
+            const angleXInput = document.getElementById('probe-angle-x-input');
+            const angleYInput = document.getElementById('probe-angle-y-input');
+            const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+
+            // Custom probe shapes pointing to physical angles, centered at (shift, shift)
+            layout.shapes = [
+                // X Probe body (grey cylinder)
+                {
+                    type: 'path', xref: 'x', yref: 'y',
+                    path: getRotatedRectPath(shift, shift, boundary_r * 1.05, boundary_r * 1.35, boundary_r * 0.16, probeXAngle),
+                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
+                },
+                // X Probe tip (gold)
+                {
+                    type: 'path', xref: 'x', yref: 'y',
+                    path: getRotatedRectPath(shift, shift, boundary_r * 1.01, boundary_r * 1.05, boundary_r * 0.1, probeXAngle),
+                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
+                },
+                // Y Probe body (grey cylinder)
+                {
+                    type: 'path', xref: 'x', yref: 'y',
+                    path: getRotatedRectPath(shift, shift, boundary_r * 1.05, boundary_r * 1.35, boundary_r * 0.16, probeYAngle),
+                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
+                },
+                // Y Probe tip (gold)
+                {
+                    type: 'path', xref: 'x', yref: 'y',
+                    path: getRotatedRectPath(shift, shift, boundary_r * 1.01, boundary_r * 1.05, boundary_r * 0.1, probeYAngle),
+                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
+                },
+                // TDC alignment tick mark (red vertical line)
+                {
+                    type: 'line', xref: 'x', yref: 'y',
+                    x0: shift, y0: shift + boundary_r,
+                    x1: shift, y1: shift + boundary_r * 1.06,
+                    line: { color: '#ef4444', width: 2 }
                 }
-            }
+            ];
 
-            if (!limits.autoScale) {
-                // Custom probe shapes and annotations
-                layout.shapes = [
-                    // X Probe body (grey cylinder)
-                    {
-                        type: 'rect', xref: 'x', yref: 'y',
-                        x0: boundary_r * 1.05, y0: -boundary_r * 0.08,
-                        x1: boundary_r * 1.35, y1: boundary_r * 0.08,
-                        fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                    },
-                    // X Probe tip (gold)
-                    {
-                        type: 'rect', xref: 'x', yref: 'y',
-                        x0: boundary_r * 1.01, y0: -boundary_r * 0.05,
-                        x1: boundary_r * 1.05, y1: boundary_r * 0.05,
-                        fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                    },
-                    // Y Probe body (grey cylinder)
-                    {
-                        type: 'rect', xref: 'x', yref: 'y',
-                        x0: -boundary_r * 0.08, y0: boundary_r * 1.05,
-                        x1: boundary_r * 0.08, y1: boundary_r * 1.35,
-                        fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                    },
-                    // Y Probe tip (gold)
-                    {
-                        type: 'rect', xref: 'x', yref: 'y',
-                        x0: -boundary_r * 0.05, y0: boundary_r * 1.01,
-                        x1: boundary_r * 0.05, y1: boundary_r * 1.05,
-                        fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                    }
-                ];
+            const annotX_x = shift + boundary_r * 1.45 * Math.cos(probeXAngle * Math.PI / 180);
+            const annotX_y = shift + boundary_r * 1.45 * Math.sin(probeXAngle * Math.PI / 180);
+            
+            const annotY_x = shift + boundary_r * 1.45 * Math.cos(probeYAngle * Math.PI / 180);
+            const annotY_y = shift + boundary_r * 1.45 * Math.sin(probeYAngle * Math.PI / 180);
 
-                layout.annotations = [
-                    {
-                        x: boundary_r * 1.45, y: 0, xref: 'x', yref: 'y',
-                        text: '<b>X Probe</b>', showarrow: false,
-                        font: { size: 9, color: 'var(--text-color)' }
-                    },
-                    {
-                        x: 0, y: boundary_r * 1.45, xref: 'x', yref: 'y',
-                        text: '<b>Y Probe</b>', showarrow: false,
-                        font: { size: 9, color: 'var(--text-color)' }
-                    }
-                ];
-            } else {
-                layout.shapes = [];
-                layout.annotations = [];
-            }
+            layout.annotations = [
+                {
+                    x: annotX_x, y: annotX_y, xref: 'x', yref: 'y',
+                    text: `<b>X Probe (${probeXAngle}°)</b>`, showarrow: false,
+                    font: { size: 9, color: 'var(--text-color)' }
+                },
+                {
+                    x: annotY_x, y: annotY_y, xref: 'x', yref: 'y',
+                    text: `<b>Y Probe (${probeYAngle}°)</b>`, showarrow: false,
+                    font: { size: 9, color: 'var(--text-color)' }
+                },
+                {
+                    x: shift, y: shift + boundary_r * 1.15, xref: 'x', yref: 'y',
+                    text: '<b>TDC</b>', showarrow: false,
+                    font: { size: 9, color: '#ef4444' }
+                }
+            ];
 
             const first_row = df_frames[0];
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
@@ -8345,6 +8422,16 @@ export const Dashboard = ({ view }) => {
             const x_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x);
             const y_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y);
 
+            // Introduce rotation direction indicator gap (Keyphasor Gap)
+            if (x_init.length > 2) {
+                x_init[x_init.length - 2] = null;
+                y_init[y_init.length - 2] = null;
+            }
+
+            // Shift initial data to positive quadrant
+            const x_init_shifted = x_init.map(v => v === null ? null : v + shift);
+            const y_init_shifted = y_init.map(v => v === null ? null : v + shift);
+
             // Timebase waveforms
             const tb_steps = 100 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
@@ -8353,73 +8440,77 @@ export const Dashboard = ({ view }) => {
             const tb_y_init_val = theta_tb.map(t => convertProbesToPhysical(0, ay_i * Math.cos(t - py_i)).y);
             const tb_y_init_time = tb_x_init_time;
 
+            const tb_x_init_val_shifted = tb_x_init_val.map(v => v + shift);
+            const tb_y_init_val_shifted = tb_y_init_val.map(v => v + shift);
+
             // Keyphasor dots (once per cycle)
             const kp_times = Array.from({length: cycles}, (_, i) => i);
             const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
+            const pt_kp_init_shifted = {
+                x: pt_kp_init.x + shift,
+                y: pt_kp_init.y + shift
+            };
             const kp_x_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(ax_i * Math.cos(-px_i), 0).x);
             const kp_y_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay_i * Math.cos(-py_i)).y);
+
+            const kp_x_init_val_shifted = kp_x_init_val.map(v => v + shift);
+            const kp_y_init_val_shifted = kp_y_init_val.map(v => v + shift);
 
             const traces = [];
 
             // Trace 0: Orbit Path
             traces.push({
-                x: x_init, y: y_init, mode: 'lines+markers', name: '1X Orbit',
+                x: x_init_shifted, y: y_init_shifted, mode: 'lines+markers', name: '1X Orbit',
                 line: { color: '#f43f5e', width: 2.5 },
-                marker: { size: 3, color: '#fb7185' }, hoverinfo: 'none',
+                marker: { size: 3, color: '#fb7185' }, hoverinfo: 'x+y',
                 xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 1: Clearance Boundary (only plotted for manual limits)
-            if (!limits.autoScale) {
-                traces.push({
-                    x: theta.map(t => boundary_r * Math.cos(t)),
-                    y: theta.map(t => boundary_r * Math.sin(t)),
-                    mode: 'lines', name: 'Clearance Boundary',
-                    line: { color: '#ef4444', width: 1, dash: 'dash' },
-                    hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
-                });
-            } else {
-                traces.push({
-                    x: [], y: [], mode: 'lines', showlegend: false, hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
-                });
-            }
+            // Trace 1: Clearance Boundary (shifted to positive quadrant)
+            traces.push({
+                x: theta.map(t => shift + boundary_r * Math.cos(t)),
+                y: theta.map(t => shift + boundary_r * Math.sin(t)),
+                mode: 'lines', name: 'Clearance Boundary',
+                line: { color: '#ef4444', width: 1, dash: 'dash' },
+                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+            });
 
             // Trace 2: Keyphasor Dot on Orbit
             traces.push({
-                x: [pt_kp_init.x],
-                y: [pt_kp_init.y],
+                x: [pt_kp_init_shifted.x],
+                y: [pt_kp_init_shifted.y],
                 mode: 'markers', name: 'Keyphasor Dot',
                 marker: { size: 8, color: '#f59e0b', symbol: 'circle' },
-                hoverinfo: 'none', xaxis: 'x', yaxis: 'y'
+                hoverinfo: 'x+y', xaxis: 'x', yaxis: 'y'
             });
 
             if (showTimebase) {
                 // Trace 3: X Timebase waveform
                 traces.push({
-                    x: tb_x_init_time, y: tb_x_init_val, mode: 'lines', name: 'X Waveform',
-                    line: { color: '#0ea5e9', width: 2 }, hoverinfo: 'none',
+                    x: tb_x_init_time, y: tb_x_init_val_shifted, mode: 'lines', name: 'X Waveform',
+                    line: { color: '#0ea5e9', width: 2 }, hoverinfo: 'x+y',
                     xaxis: 'x2', yaxis: 'y2'
                 });
 
                 // Trace 4: Keyphasor Dots on X Timebase
                 traces.push({
-                    x: kp_times, y: kp_x_init_val, mode: 'markers', name: 'KP Dots X',
-                    marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'none',
+                    x: kp_times, y: kp_x_init_val_shifted, mode: 'markers', name: 'KP Dots X',
+                    marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'x+y',
                     xaxis: 'x2', yaxis: 'y2'
                 });
 
                 if (showTrace2) {
                     // Trace 5: Y Timebase waveform
                     traces.push({
-                        x: tb_y_init_time, y: tb_y_init_val, mode: 'lines', name: 'Y Waveform',
-                        line: { color: '#10b981', width: 2 }, hoverinfo: 'none',
+                        x: tb_y_init_time, y: tb_y_init_val_shifted, mode: 'lines', name: 'Y Waveform',
+                        line: { color: '#10b981', width: 2 }, hoverinfo: 'x+y',
                         xaxis: 'x3', yaxis: 'y3'
                     });
 
                     // Trace 6: Keyphasor Dots on Y Timebase
                     traces.push({
-                        x: kp_times, y: kp_y_init_val, mode: 'markers', name: 'KP Dots Y',
-                        marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'none',
+                        x: kp_times, y: kp_y_init_val_shifted, mode: 'markers', name: 'KP Dots Y',
+                        marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'x+y',
                         xaxis: 'x3', yaxis: 'y3'
                     });
                 }
@@ -8437,10 +8528,22 @@ export const Dashboard = ({ view }) => {
 
                 const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
 
+                // Introduce rotation direction indicator gap (Keyphasor Gap)
+                if (ox.length > 2) {
+                    ox[ox.length - 2] = null;
+                    oy[oy.length - 2] = null;
+                }
+
+                // Shift frame coordinates to positive quadrant
+                const ox_shifted = ox.map(v => v === null ? null : v + shift);
+                const oy_shifted = oy.map(v => v === null ? null : v + shift);
+                const pt_kp_x_shifted = pt_kp.x + shift;
+                const pt_kp_y_shifted = pt_kp.y + shift;
+
                 const f_data = [
-                    { x: ox, y: oy },
+                    { x: ox_shifted, y: oy_shifted },
                     {}, // Trace 1 (static)
-                    { x: [pt_kp.x], y: [pt_kp.y] }
+                    { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] }
                 ];
 
                 const f_traces = [0, 1, 2];
@@ -8448,15 +8551,23 @@ export const Dashboard = ({ view }) => {
                 if (showTimebase) {
                     const tb_x = theta_tb.map(t => convertProbesToPhysical(ax * Math.cos(t - px), 0).x);
                     const kp_x = Array.from({length: cycles}, () => convertProbesToPhysical(ax * Math.cos(-px), 0).x);
-                    f_data.push({ y: tb_x });
-                    f_data.push({ y: kp_x });
+                    
+                    const tb_x_shifted = tb_x.map(v => v + shift);
+                    const kp_x_shifted = kp_x.map(v => v + shift);
+
+                    f_data.push({ y: tb_x_shifted });
+                    f_data.push({ y: kp_x_shifted });
                     f_traces.push(3, 4);
 
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => convertProbesToPhysical(0, ay * Math.cos(t - py)).y);
                         const kp_y = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay * Math.cos(-py)).y);
-                        f_data.push({ y: tb_y });
-                        f_data.push({ y: kp_y });
+                        
+                        const tb_y_shifted = tb_y.map(v => v + shift);
+                        const kp_y_shifted = kp_y.map(v => v + shift);
+
+                        f_data.push({ y: tb_y_shifted });
+                        f_data.push({ y: kp_y_shifted });
                         f_traces.push(5, 6);
                     }
                 }
