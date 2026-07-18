@@ -8484,28 +8484,26 @@ export const Dashboard = ({ view }) => {
 
             const tb_x_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
-                const cycle_frac = c - Math.floor(c);
                 // Create a gap in the line before and after the Keyphasor trigger event
-                if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                if (Math.abs(c - Math.round(c)) < 0.06) return null;
                 return ax_i * Math.cos(t - px_i);
             });
 
             const tb_y_init_val_shifted = theta_tb.map(t => {
                 const c = t / (2 * Math.PI);
-                const cycle_frac = c - Math.floor(c);
-                if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                if (Math.abs(c - Math.round(c)) < 0.06) return null;
                 return ay_i * Math.cos(t - py_i);
             });
 
             // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
-            const kp_times = Array.from({length: cycles}, (_, i) => i);
+            const kp_times = Array.from({length: cycles + 1}, (_, i) => i);
             const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
             const pt_kp_init_shifted = {
                 x: pt_kp_init.x + shift,
                 y: pt_kp_init.y + shift
             };
-            const kp_x_init_val_shifted = Array.from({length: cycles}, () => ax_i * Math.cos(px_i));
-            const kp_y_init_val_shifted = Array.from({length: cycles}, () => ay_i * Math.cos(py_i));
+            const kp_x_init_val_shifted = Array.from({length: cycles + 1}, () => ax_i * Math.cos(px_i));
+            const kp_y_init_val_shifted = Array.from({length: cycles + 1}, () => ay_i * Math.cos(py_i));
 
             const traces = [];
 
@@ -8591,11 +8589,10 @@ export const Dashboard = ({ view }) => {
                 if (showTimebase) {
                     const tb_x = theta_tb.map(t => {
                         const c = t / (2 * Math.PI);
-                        const cycle_frac = c - Math.floor(c);
-                        if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                        if (Math.abs(c - Math.round(c)) < 0.06) return null;
                         return ax * Math.cos(t - px);
                     });
-                    const kp_x = Array.from({length: cycles}, () => ax * Math.cos(px));
+                    const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
                     
                     f_data.push({ y: tb_x });
                     f_data.push({ y: kp_x });
@@ -8603,11 +8600,10 @@ export const Dashboard = ({ view }) => {
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => {
                             const c = t / (2 * Math.PI);
-                            const cycle_frac = c - Math.floor(c);
-                            if (cycle_frac > 0.92 || cycle_frac < 0.03) return null;
+                            if (Math.abs(c - Math.round(c)) < 0.06) return null;
                             return ay * Math.cos(t - py);
                         });
-                        const kp_y = Array.from({length: cycles}, () => ay * Math.cos(py));
+                        const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
                         
                         f_data.push({ y: tb_y });
                         f_data.push({ y: kp_y });
