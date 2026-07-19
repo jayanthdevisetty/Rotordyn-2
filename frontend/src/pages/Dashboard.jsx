@@ -6645,7 +6645,7 @@ export const Dashboard = ({ view }) => {
                             const frameSpan = limits.autoScale ? (framePeak > 0 ? framePeak * 2.5 : 0.2) : (limits.max !== null ? Math.abs(limits.max) * 2 : 2 * C);
                             const frameShift = frameSpan / 2;
 
-                            const KEY_PHASOR_GAP_ANGLE = 0.015;
+                            const KEY_PHASOR_GAP_ANGLE = 0.04;
                             const isInKeyphasorGapLocal = (t) => {
                                 if (t <= Math.PI) return false;
                                 const delta = Math.atan2(Math.sin(t), Math.cos(t));
@@ -8349,7 +8349,7 @@ export const Dashboard = ({ view }) => {
             const active_targets = target_rpms.filter(r => r < max_rpm);
             active_targets.push(max_rpm);
             
-            const KEY_PHASOR_GAP_ANGLE = 0.015; // ~0.24% of a full revolution
+            const KEY_PHASOR_GAP_ANGLE = 0.04; // ~0.64% of a full revolution
             function isInKeyphasorGap(t) {
                 if (t <= Math.PI) return false;
                 const delta = Math.atan2(Math.sin(t), Math.cos(t));
@@ -8486,7 +8486,7 @@ export const Dashboard = ({ view }) => {
             const boundary_r = C;
 
             // Keyphasor dynamic physical angular gap configuration
-            const KEY_PHASOR_GAP_ANGLE = 0.015; // ~0.24% of a full revolution
+            const KEY_PHASOR_GAP_ANGLE = 0.04; // ~0.64% of a full revolution
             function isInKeyphasorGap(t) {
                 if (t <= Math.PI) return false; // gap is immediately before the 2*PI trigger
                 const delta = Math.atan2(Math.sin(t), Math.cos(t));
@@ -8717,14 +8717,15 @@ export const Dashboard = ({ view }) => {
                 spikecolor: 'var(--text-muted)'
             };
 
-            const tickvals = [0, finalLimit / 2, finalLimit, finalLimit * 1.5, 2 * finalLimit];
-            const ticktext = tickvals.map(v => Number(v.toFixed(3)).toString());
+            const tickvals = Array.from({length: 9}, (_, i) => i * finalLimit / 4);
+            const ticktext = tickvals.map((v, idx) => idx % 2 === 0 ? Number(v.toFixed(3)).toString() : '');
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
                     title: '',
-                    gridcolor: baseLayout.xaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     range: [0, 2 * finalLimit],
                     tickvals: tickvals,
                     ticktext: ticktext,
@@ -8733,8 +8734,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -8742,7 +8745,8 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis = {
                     title: '',
-                    gridcolor: baseLayout.yaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     scaleanchor: 'x', scaleratio: 1,
                     range: [0, 2 * finalLimit],
                     tickvals: tickvals,
@@ -8752,8 +8756,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -8764,7 +8770,8 @@ export const Dashboard = ({ view }) => {
                 layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
                     title: '',
-                    gridcolor: baseLayout.xaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     domain: [0, 0.46],
                     range: [0, 2 * finalLimit],
                     tickvals: tickvals,
@@ -8774,8 +8781,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -8783,7 +8792,8 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis = {
                     title: '',
-                    gridcolor: baseLayout.yaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
                     range: [0, 2 * finalLimit],
@@ -8794,8 +8804,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -8841,7 +8853,8 @@ export const Dashboard = ({ view }) => {
                 layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
                     title: '',
-                    gridcolor: baseLayout.xaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     domain: [0, 0.46],
                     range: [0, 2 * finalLimit],
                     tickvals: tickvals,
@@ -8851,8 +8864,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -8860,7 +8875,8 @@ export const Dashboard = ({ view }) => {
                 };
                 layout.yaxis = {
                     title: '',
-                    gridcolor: baseLayout.yaxis.gridcolor,
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     scaleanchor: 'x', scaleratio: 1,
                     domain: [0, 1.0],
                     range: [0, 2 * finalLimit],
@@ -8871,8 +8887,10 @@ export const Dashboard = ({ view }) => {
                     mirror: true,
                     linecolor: '#000000',
                     linewidth: 1,
-                    showgrid: false,
-                    zeroline: false,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
                     ticks: 'outside',
                     tickcolor: '#000000',
                     ticklen: 5,
@@ -9071,6 +9089,7 @@ export const Dashboard = ({ view }) => {
                 });
             });
             traces.push({
+                visible: false,
                 x: crosses_x, y: crosses_y, mode: 'markers', name: 'Grid Crosses',
                 marker: { symbol: 'plus', size: 7, color: '#94a3b8', line: { width: 1.0, color: '#94a3b8' } },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
@@ -9092,6 +9111,7 @@ export const Dashboard = ({ view }) => {
                 }
             }
             traces.push({
+                visible: false,
                 x: dots_x, y: dots_y, mode: 'markers', name: 'Grid Dots',
                 marker: { symbol: 'circle', size: 2, color: '#cbd5e1' },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
@@ -9169,41 +9189,16 @@ export const Dashboard = ({ view }) => {
                     }
                 }
 
-                // Generate dynamic grid crosses and dots for the frame
-                const frame_tickvals = [0, frameLimit / 2, frameLimit, frameLimit * 1.5, 2 * frameLimit];
-                const frame_crosses_x = [];
-                const frame_crosses_y = [];
-                frame_tickvals.forEach(tx => {
-                    frame_tickvals.forEach(ty => {
-                        frame_crosses_x.push(tx);
-                        frame_crosses_y.push(ty);
-                    });
-                });
-
-                const frame_dots_x = [];
-                const frame_dots_y = [];
-                const frame_dot_step = frameLimit / 8;
-                for (let i = -8; i <= 8; i++) {
-                    const dx = i * frame_dot_step + frameLimit;
-                    for (let j = -8; j <= 8; j++) {
-                        const dy = j * frame_dot_step + frameLimit;
-                        const isMajorX = Math.abs(i % 4) === 0;
-                        const isMajorY = Math.abs(j % 4) === 0;
-                        if (isMajorX && isMajorY) continue;
-                        frame_dots_x.push(dx);
-                        frame_dots_y.push(dy);
-                    }
-                }
-
-                f_data.push({ x: frame_crosses_x, y: frame_crosses_y }); // Trace 7
-                f_data.push({ x: frame_dots_x, y: frame_dots_y }); // Trace 8
+                // Keep crosses and dots traces empty as we use Plotly's native grid
+                f_data.push({ x: [], y: [] }); // Trace 7
+                f_data.push({ x: [], y: [] }); // Trace 8
                 f_data.push({ x: [], y: [] }); // Trace 9
                 f_traces.push(7, 8, 9);
 
                 const f_layout = {};
                 if (limits.autoScale) {
-                    const frameTickvals = [0, frameLimit / 2, frameLimit, frameLimit * 1.5, 2 * frameLimit];
-                    const frameTicktext = frameTickvals.map(v => Number(v.toFixed(3)).toString());
+                    const frameTickvals = Array.from({length: 9}, (_, i) => i * frameLimit / 4);
+                    const frameTicktext = frameTickvals.map((v, idx) => idx % 2 === 0 ? Number(v.toFixed(3)).toString() : '');
                     
                     f_layout.xaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
                     f_layout.yaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
