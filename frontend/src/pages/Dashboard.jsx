@@ -5776,8 +5776,54 @@ export const Dashboard = ({ view }) => {
                 cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
             } else if (config.category === 'bode2d') {
                 const cols = getChannelColumns(config.bearingOrChannel);
-                cursorX = cursorRow[speedCol];
+                const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+                cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
                 cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                
+                let cursorPhaseY = 0;
+                if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
+                    const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                    const unwrapped_phases = unwrapPhase(raw_phases);
+                    cursorPhaseY = unwrapped_phases[localIdx];
+                }
+                
+                traces.push({
+                    type: 'scatter',
+                    x: [cursorX],
+                    y: [cursorY],
+                    xaxis: 'x2',
+                    yaxis: 'y2',
+                    mode: 'markers',
+                    name: 'Cursor Marker Amp',
+                    marker: {
+                        symbol: 'cross',
+                        size: 9,
+                        color: '#ef4444',
+                        line: { width: 1.5, color: '#ef4444' }
+                    },
+                    showlegend: false,
+                    hoverinfo: 'skip'
+                });
+                
+                traces.push({
+                    type: 'scatter',
+                    x: [cursorX],
+                    y: [cursorPhaseY],
+                    xaxis: 'x',
+                    yaxis: 'y',
+                    mode: 'markers',
+                    name: 'Cursor Marker Phase',
+                    marker: {
+                        symbol: 'cross',
+                        size: 9,
+                        color: '#ef4444',
+                        line: { width: 1.5, color: '#ef4444' }
+                    },
+                    showlegend: false,
+                    hoverinfo: 'skip'
+                });
+                
+                return; // Early return for bode2d
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                 const cols = getBearingPairColumns(config.bearingOrChannel);
                 const { scaleFactor, restX, restY } = getProbeRestAndScale(config.bearingOrChannel);
@@ -5803,7 +5849,7 @@ export const Dashboard = ({ view }) => {
                     probeAngle = probeYAngle;
                 }
 
-                const markerAngle = cursorX - probeAngle;
+                const markerAngle = probeAngle - cursorX - 90;
 
                 traces.push({
                     type: 'scatterpolar',
@@ -6859,10 +6905,47 @@ export const Dashboard = ({ view }) => {
                         if (localIdx !== -1) {
                             const localRow = container.plotData[localIdx];
                             const cols = getChannelColumns(config.bearingOrChannel);
-                            cursorX = localRow[speedCol];
-                            cursorY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+                            const cursorX = (localRow[speedCol] !== undefined ? localRow[speedCol] : 0) * ratio;
+                            const cursorAmpY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                            
+                            let cursorPhaseY = 0;
+                            if (cols.phase_1x && localRow[cols.phase_1x] !== undefined) {
+                                const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                                const unwrapped_phases = unwrapPhase(raw_phases);
+                                cursorPhaseY = unwrapped_phases[localIdx];
+                            }
+                            
+                            const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker Amp');
+                            const phaseTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker Phase');
+                            
+                            if (ampTraceIdx !== -1) {
+                                Plotly.restyle(container, {
+                                    x: [[cursorX]],
+                                    y: [[cursorAmpY]]
+                                }, [ampTraceIdx]);
+                            }
+                            if (phaseTraceIdx !== -1) {
+                                Plotly.restyle(container, {
+                                    x: [[cursorX]],
+                                    y: [[cursorPhaseY]]
+                                }, [phaseTraceIdx]);
+                            }
+                            
+                            if (container.layout.shapes) {
+                                const shapes = [...container.layout.shapes];
+                                const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
+                                if (lineIdx !== -1) {
+                                    const targetX = (row[speedCol] !== undefined ? row[speedCol] : 0) * ratio;
+                                    shapes[lineIdx].x0 = targetX;
+                                    shapes[lineIdx].x1 = targetX;
+                                    Plotly.relayout(container, { shapes });
+                                }
+                            }
                         }
                     }
+                    updateSlotTelemetryBox(idx, activeCursorIndex);
+                    return; // Early return for bode2d
                 } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                     if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
@@ -6900,7 +6983,7 @@ export const Dashboard = ({ view }) => {
                         probeAngle = probeYAngle;
                     }
 
-                    const markerAngle = cursorX - probeAngle;
+                    const markerAngle = probeAngle - cursorX - 90;
 
                     // Restyle the marker angle along with coordinates
                     Plotly.restyle(container, {
