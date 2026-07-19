@@ -6651,6 +6651,16 @@ export const Dashboard = ({ view }) => {
                                 const delta = Math.atan2(Math.sin(t), Math.cos(t));
                                 return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
                             };
+                            const isInKeyphasorGapTimebaseLocal = (t, phase) => {
+                                const t_trig = Math.round(t / (2 * Math.PI)) * 2 * Math.PI;
+                                const diff = t - t_trig;
+                                if (Math.abs(diff) <= KEY_PHASOR_GAP_ANGLE) {
+                                    const val_t = Math.cos(t - phase);
+                                    const val_trig = Math.cos(-phase);
+                                    return val_t < val_trig;
+                                }
+                                return false;
+                            };
 
                             const theta_orbit_local = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
                             const theta_local = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
@@ -6686,12 +6696,12 @@ export const Dashboard = ({ view }) => {
 
                             if (showTimebase) {
                                 const T_frame = cycle_period_ms;
-                                const tb_steps = 100 * cycles;
+                                const tb_steps = 1000 * cycles;
                                 const theta_tb_local = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
                                 const tb_x_time = theta_tb_local.map(t => (t / (2 * Math.PI)) * T_frame);
                                 const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
                                 const tb_x = theta_tb_local.map(t => {
-                                    if (isInKeyphasorGapLocal(t % (2 * Math.PI))) return null;
+                                    if (isInKeyphasorGapTimebaseLocal(t % (2 * Math.PI), px)) return null;
                                     return ax * Math.cos(t - px);
                                 });
                                 const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
@@ -6702,7 +6712,7 @@ export const Dashboard = ({ view }) => {
 
                                 if (showTrace2) {
                                     const tb_y = theta_tb_local.map(t => {
-                                        if (isInKeyphasorGapLocal(t % (2 * Math.PI))) return null;
+                                        if (isInKeyphasorGapTimebaseLocal(t % (2 * Math.PI), py)) return null;
                                         return ay * Math.cos(t - py);
                                     });
                                     const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
@@ -8492,6 +8502,16 @@ export const Dashboard = ({ view }) => {
                 const delta = Math.atan2(Math.sin(t), Math.cos(t));
                 return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
             }
+            function isInKeyphasorGapTimebase(t, phase) {
+                const t_trig = Math.round(t / (2 * Math.PI)) * 2 * Math.PI;
+                const diff = t - t_trig;
+                if (Math.abs(diff) <= KEY_PHASOR_GAP_ANGLE) {
+                    const val_t = Math.cos(t - phase);
+                    const val_trig = Math.cos(-phase);
+                    return val_t < val_trig;
+                }
+                return false;
+            }
             
             // Dynamically calculate the active peak of the current cursor time point or first row
             const activeRow = clean_df[activeCursorIndex] || clean_df[0];
@@ -8993,17 +9013,17 @@ export const Dashboard = ({ view }) => {
             });
 
 
-            const tb_steps = 100 * cycles;
+            const tb_steps = 1000 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
             const tb_x_init_time = theta_tb.map(t => (t / (2 * Math.PI)) * cycle_period_ms);
             const tb_y_init_time = tb_x_init_time;
             const tb_x_init_val_shifted = theta_tb.map(t => {
-                if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
+                if (isInKeyphasorGapTimebase(t % (2 * Math.PI), px_i)) return null;
                 return ax_i * Math.cos(t - px_i);
             });
 
             const tb_y_init_val_shifted = theta_tb.map(t => {
-                if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
+                if (isInKeyphasorGapTimebase(t % (2 * Math.PI), py_i)) return null;
                 return ay_i * Math.cos(t - py_i);
             });
             // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
@@ -9168,7 +9188,7 @@ export const Dashboard = ({ view }) => {
                     const tb_x_time = theta_tb.map(t => (t / (2 * Math.PI)) * T_frame);
                     const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
                     const tb_x = theta_tb.map(t => {
-                        if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
+                        if (isInKeyphasorGapTimebase(t % (2 * Math.PI), px)) return null;
                         return ax * Math.cos(t - px);
                     });
                     const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
@@ -9178,7 +9198,7 @@ export const Dashboard = ({ view }) => {
                     f_traces.push(3, 4);
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => {
-                            if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
+                            if (isInKeyphasorGapTimebase(t % (2 * Math.PI), py)) return null;
                             return ay * Math.cos(t - py);
                         });
                         const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
