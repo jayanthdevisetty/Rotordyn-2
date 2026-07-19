@@ -5778,14 +5778,32 @@ export const Dashboard = ({ view }) => {
                 const cols = getChannelColumns(config.bearingOrChannel);
                 const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
                 cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
-                cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                
+                const activeSubplot = (container && container.activeSubplot) || 'amp';
+                let cursorY = 0;
+                let xaxis = 'x2';
+                let yaxis = 'y2';
+                
+                if (activeSubplot === 'phase') {
+                    xaxis = 'x';
+                    yaxis = 'y';
+                    if (container && container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined) {
+                        cursorY = container.unwrappedPhases[localIdx];
+                    } else if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        cursorY = unwrapped_phases[localIdx];
+                    }
+                } else {
+                    cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                }
                 
                 traces.push({
                     type: 'scatter',
                     x: [cursorX],
                     y: [cursorY],
-                    xaxis: 'x2',
-                    yaxis: 'y2',
+                    xaxis: xaxis,
+                    yaxis: yaxis,
                     mode: 'markers',
                     name: 'Cursor Marker',
                     marker: {
@@ -6882,13 +6900,33 @@ export const Dashboard = ({ view }) => {
                             const cols = getChannelColumns(config.bearingOrChannel);
                             const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
                             const cursorX = (localRow[speedCol] !== undefined ? localRow[speedCol] : 0) * ratio;
-                            const cursorAmpY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                            
+                            const activeSubplot = container.activeSubplot || 'amp';
+                            let cursorY = 0;
+                            let xaxis = 'x2';
+                            let yaxis = 'y2';
+                            
+                            if (activeSubplot === 'phase') {
+                                xaxis = 'x';
+                                yaxis = 'y';
+                                if (container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined) {
+                                    cursorY = container.unwrappedPhases[localIdx];
+                                } else if (cols.phase_1x && localRow[cols.phase_1x] !== undefined) {
+                                    const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                                    const unwrapped_phases = unwrapPhase(raw_phases);
+                                    cursorY = unwrapped_phases[localIdx];
+                                }
+                            } else {
+                                cursorY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                            }
                             
                             const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Cursor Marker Amp');
                             if (ampTraceIdx !== -1) {
                                 Plotly.restyle(container, {
                                     x: [[cursorX]],
-                                    y: [[cursorAmpY]]
+                                    y: [[cursorY]],
+                                    xaxis: [xaxis],
+                                    yaxis: [yaxis]
                                 }, [ampTraceIdx]);
                             }
                             
@@ -7012,6 +7050,20 @@ export const Dashboard = ({ view }) => {
                 }
             } else if (config.category === 'bode2d') {
                 const clickedRPM = parseFloat(pt.x);
+                if (pt.data && pt.data.name) {
+                    if (pt.data.name.toLowerCase().includes('phase')) {
+                        container.activeSubplot = 'phase';
+                    } else if (pt.data.name.toLowerCase().includes('amp')) {
+                        container.activeSubplot = 'amp';
+                    }
+                } else if (pt.yaxis) {
+                    const yId = pt.yaxis._id || '';
+                    if (yId === 'y') {
+                        container.activeSubplot = 'phase';
+                    } else if (yId === 'y2') {
+                        container.activeSubplot = 'amp';
+                    }
+                }
                 if (!isNaN(clickedRPM)) {
                     let minDiff = Infinity;
                     container.plotData.forEach(r => {
