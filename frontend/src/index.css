@@ -2420,6 +2420,11 @@ input:focus, textarea:focus {
     right: 10px !important;
 }
 
+/* Hide Plotly hover tooltips on Orbit plots while keeping hover events active */
+.orbit-chart-container .hoverlayer {
+    display: none !important;
+}
+
 
 
 
