@@ -2183,7 +2183,7 @@ export const Dashboard = ({ view }) => {
                     const mergedFilename = files.length > 1 ? `merged_${files.length}_files.csv` : files[0].name;
                     
                     cacheCSVInSession(csvText, mergedFilename);
-                    parseCSVData(csvText, mergedFilename);
+                    parseCSVData(csvText, mergedFilename, true);
                     uploadDatasetToBackend(csvText, mergedFilename);
                     
                     // Trigger dynamic self-learning unbalance diagnostics
@@ -2961,7 +2961,7 @@ export const Dashboard = ({ view }) => {
             document.body.appendChild(backdrop);
         }
 
-        function parseCSVData(csvText, filename) {
+        function parseCSVData(csvText, filename, isNewUpload = false) {
             const preprocessed = preprocessCSV(csvText);
             
             // Populate channelUnits if metadata has unit fields
@@ -3008,13 +3008,6 @@ export const Dashboard = ({ view }) => {
                         row['_date'] = parseTimestamp(raw_ts);
                         row['_time_ms'] = row['_date'] ? row['_date'].getTime() : 0;
                     });
-                    
-                    // Transition View
-                    document.getElementById('welcome-screen').style.opacity = '0';
-                    setTimeout(() => {
-                        document.getElementById('welcome-screen').style.display = 'none';
-                        document.getElementById('main-container').style.display = 'flex';
-                        navigate('/dashboard');
                         
                         // Cache rest gap values for centerline calibration
                         // Calibrate using the absolute bottom of the bearing clearance (extreme gap values)
@@ -3079,8 +3072,54 @@ export const Dashboard = ({ view }) => {
                         // Load default view slots based on user selection in modal
                         const ordered = getPriorityOrder(singlePrefixes);
                         
-                        showLoader(false);
+                        // Check if we should skip the modal because it's a cached load/refresh
+                        const savedSlots = localStorage.getItem('rotordyn_custom_slots');
+                        const savedLayout = localStorage.getItem('rotordyn_custom_layout');
                         
+                        if (!isNewUpload && savedSlots && savedLayout) {
+                            try {
+                                const parsedSlots = JSON.parse(savedSlots);
+                                if (Array.isArray(parsedSlots) && parsedSlots.length > 0) {
+                                    plotSlots = parsedSlots;
+                                    currentLayoutRef.current = savedLayout;
+                                    currentLayout = savedLayout;
+                                    setCurrentLayoutState(savedLayout);
+                                    currentGridPage = 0;
+                                    
+                                    populateSlowRollDropdown();
+                                    updateSavedSlowRollList();
+                                    
+                                    // Ensure UI elements like global speed profile timeline are visible
+                                    document.getElementById('global-timeline-bar').style.display = 'flex';
+                                    const topBtn = document.getElementById('btn-top-toggle-timeline');
+                                    if (topBtn) {
+                                        topBtn.style.display = 'inline-block';
+                                        topBtn.innerText = 'Hide Speed Profile';
+                                        topBtn.style.background = 'var(--card-color)';
+                                        topBtn.style.borderColor = 'var(--border-color)';
+                                        topBtn.style.color = '#ef4444';
+                                    }
+                                    
+                                    showLoader(false);
+                                    
+                                    // Transition view if on welcome screen
+                                    const welcome = document.getElementById('welcome-screen');
+                                    const mainCont = document.getElementById('main-container');
+                                    if (welcome) welcome.style.display = 'none';
+                                    if (mainCont) mainCont.style.display = 'flex';
+                                    
+                                    navigate('/dashboard');
+                                    setTimeout(() => {
+                                        renderGrid();
+                                        runAIDiagnostics();
+                                    }, 100);
+                                    return;
+                                }
+                            } catch (e) {
+                                console.warn("Failed to restore saved config, falling back to modal:", e);
+                            }
+                        }
+
                         showDefaultPlotSelectionModal(ordered, bearingPairs, singlePrefixes, (category, isDual, layout) => {
                             showLoader(true, "Initializing plot grid...");
                             
@@ -3133,30 +3172,12 @@ export const Dashboard = ({ view }) => {
 
                                 populateSlowRollDropdown();
                                 updateSavedSlowRollList();
-
-                                // Transition View
-                                document.getElementById('welcome-screen').style.opacity = '0';
-                                setTimeout(() => {
-                                    document.getElementById('welcome-screen').style.display = 'none';
-                                    document.getElementById('main-container').style.display = 'flex';
-                                    navigate('/dashboard');
-
-                                    setTimeout(() => {
-                                        renderGrid();
-                                        saveWorkspaceConfig();
-                                        showLoader(false);
-                                        
-                                        // Run AI critical speed detection and malfunction auto-diagnostics
-                                        runAIDiagnostics();
-                                        
-                                        // Auto-expand Sensor Navigation to guide the user on first load
-                                        selectActivityTab('tree');
-                                    }, 50);
-                                }, 500);
+                                saveWorkspaceConfig();
+                                showLoader(false);
+                                navigate('/dashboard');
                             }, 300);
                         });
-                    }, 500);
-                },
+                    },
                 error: function(err) {
                     showUploadError("Error parsing CSV: " + err.message);
                     showLoader(false);
@@ -4313,6 +4334,23 @@ export const Dashboard = ({ view }) => {
         activeSlowRollSampleId = activeSlowRollSampleId || null;
         slowRollCompensationEnabled = slowRollCompensationEnabled !== undefined ? slowRollCompensationEnabled : false;
 
+        function updateSlowRollButtonUI() {
+            const btn = document.getElementById('tl-btn-apply-slowroll');
+            if (!btn) return;
+            if (slowRollCompensationEnabled) {
+                btn.innerHTML = '✅ Slow Roll Applied';
+                btn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; // light green
+                btn.style.color = '#22c55e'; // green text
+                btn.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+            } else {
+                btn.innerHTML = '🎯 Apply Slow Roll';
+                btn.style.backgroundColor = 'rgba(14, 165, 233, 0.12)'; // default light blue
+                btn.style.color = 'var(--accent-color)'; // default accent color
+                btn.style.borderColor = 'rgba(14, 165, 233, 0.25)';
+            }
+        }
+        window.updateSlowRollButtonUI = updateSlowRollButtonUI;
+
         function populateSlowRollDropdown() {
             const selectEl = document.getElementById('slow-roll-sample-select');
             if (!selectEl) return;
@@ -4425,6 +4463,7 @@ export const Dashboard = ({ view }) => {
             const compCheckbox = document.getElementById('slow-roll-enabled');
             if (compCheckbox) compCheckbox.checked = true;
             
+            updateSlowRollButtonUI();
             updateSavedSlowRollList();
             populateSlowRollDropdown();
             
@@ -4499,6 +4538,7 @@ export const Dashboard = ({ view }) => {
             if (checkboxEl) {
                 checkboxEl.checked = checked;
             }
+            updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             renderGrid();
             if (checked) {
@@ -5255,6 +5295,7 @@ export const Dashboard = ({ view }) => {
 
         // Render CSS grid slots
         function renderGrid() {
+            updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             const filteredDf = getFilteredData();
             if (activeCursorIndex >= filteredDf.length) {
@@ -6099,6 +6140,12 @@ export const Dashboard = ({ view }) => {
                 });
             }
 
+            function ensureTimelinePlaybackPaused() {
+                if (isTimelinePlaying) {
+                    timelineTogglePlay();
+                }
+            }
+
             const container = document.getElementById('timeline-waveform-container');
             const rangeBox = document.getElementById('timeline-range-box');
             const leftHandle = document.getElementById('range-handle-left');
@@ -6110,6 +6157,7 @@ export const Dashboard = ({ view }) => {
             leftHandle.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                ensureTimelinePlaybackPaused();
                 isDraggingLeft = true;
                 container.style.cursor = 'ew-resize';
             });
@@ -6117,6 +6165,7 @@ export const Dashboard = ({ view }) => {
             rightHandle.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                ensureTimelinePlaybackPaused();
                 isDraggingRight = true;
                 container.style.cursor = 'ew-resize';
             });
@@ -6124,25 +6173,58 @@ export const Dashboard = ({ view }) => {
             cursorIndicator.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                ensureTimelinePlaybackPaused();
                 isDraggingCursor = true;
                 container.style.cursor = 'col-resize';
             });
 
+            let mouseDownX = 0;
             rangeBox.addEventListener('mousedown', (e) => {
+                const rect = rangeBox.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                
+                if (relativeY < rect.height * 0.40) {
+                    // Clicked in top 40% of range box: treat as cursor positioning/scrubbing
+                    e.stopPropagation();
+                    e.preventDefault();
+                    ensureTimelinePlaybackPaused();
+                    isDraggingCursor = true;
+                    container.style.cursor = 'col-resize';
+                    
+                    // Immediately move cursor to click position
+                    const containerRect = container.getBoundingClientRect();
+                    const clickX = e.clientX - containerRect.left;
+                    const clickPct = clickX / containerRect.width;
+                    const timelineDf = getTimelineData();
+                    if (timelineDf.length > 0) {
+                        const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
+                        const clickMs = timelineDf[0]._time_ms + clickPct * totalMs;
+                        const filteredDf = getFilteredData();
+                        const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
+                        if (closestFilteredIdx !== -1) {
+                            activeCursorIndex = closestFilteredIdx;
+                            timelineSliderInput(activeCursorIndex);
+                        }
+                    }
+                    return;
+                }
+                
+                // Otherwise: drag the entire range box (bottom 60%)
                 e.preventDefault();
+                ensureTimelinePlaybackPaused();
                 isDraggingBox = true;
                 rangeBox.style.cursor = 'grabbing';
                 dragStartX = e.clientX;
+                mouseDownX = e.clientX;
                 
-                const rect = container.getBoundingClientRect();
-                const boxRect = rangeBox.getBoundingClientRect();
-                dragStartLeftPct = ((boxRect.left - rect.left) / rect.width) * 100;
-                dragStartWidthPct = (boxRect.width / rect.width) * 100;
+                const containerRect = container.getBoundingClientRect();
+                dragStartLeftPct = ((rect.left - containerRect.left) / containerRect.width) * 100;
+                dragStartWidthPct = (rect.width / containerRect.width) * 100;
             });
 
             container.addEventListener('mousedown', (e) => {
                 if (isDraggingLeft || isDraggingRight || isDraggingBox || isDraggingCursor) return;
-                
+                ensureTimelinePlaybackPaused();
                 const rect = container.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickPct = clickX / rect.width;
@@ -6330,7 +6412,27 @@ export const Dashboard = ({ view }) => {
                     }
                 });
 
-                window.addEventListener('mouseup', () => {
+                window.addEventListener('mouseup', (e) => {
+                    if (isDraggingBox && typeof mouseDownX !== 'undefined') {
+                        const deltaX = Math.abs(e.clientX - mouseDownX);
+                        if (deltaX < 5) {
+                            const rect = container.getBoundingClientRect();
+                            const clickX = e.clientX - rect.left;
+                            const clickPct = clickX / rect.width;
+                            const timelineDf = getTimelineData();
+                            if (timelineDf.length > 0) {
+                                const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
+                                const clickMs = timelineDf[0]._time_ms + clickPct * totalMs;
+                                const filteredDf = getFilteredData();
+                                const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
+                                if (closestFilteredIdx !== -1) {
+                                    activeCursorIndex = closestFilteredIdx;
+                                    timelineSliderInput(activeCursorIndex);
+                                }
+                            }
+                        }
+                    }
+
                     isDraggingLeft = false;
                     isDraggingRight = false;
                     isDraggingBox = false;
@@ -6391,8 +6493,9 @@ export const Dashboard = ({ view }) => {
 
         function timelineNext() {
             const filteredDf = getFilteredData();
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex < filteredDf.length - 1) {
-                activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + timelineStepSize);
+                activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + step);
                 timelineSliderInput(activeCursorIndex);
             } else if (isTimelinePlaying) {
                 activeCursorIndex = 0;
@@ -6401,8 +6504,9 @@ export const Dashboard = ({ view }) => {
         }
 
         function timelinePrev() {
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex > 0) {
-                activeCursorIndex = Math.max(0, activeCursorIndex - timelineStepSize);
+                activeCursorIndex = Math.max(0, activeCursorIndex - step);
                 timelineSliderInput(activeCursorIndex);
             }
         }
@@ -6412,7 +6516,9 @@ export const Dashboard = ({ view }) => {
             const playIcon = document.getElementById('tl-play-icon');
             const playText = document.getElementById('tl-play-text');
             if (isTimelinePlaying) {
-                clearInterval(timelineIntervalId);
+                if (timelineIntervalId) {
+                    clearInterval(timelineIntervalId);
+                }
                 isTimelinePlaying = false;
                 if (playBtn) playBtn.classList.remove('playing');
                 if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
@@ -6422,6 +6528,16 @@ export const Dashboard = ({ view }) => {
                 if (playBtn) playBtn.classList.add('playing');
                 if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
                 if (playText) playText.innerText = 'Pause';
+                
+                const filteredDf = getFilteredData();
+                if (activeCursorIndex >= filteredDf.length - 1) {
+                    activeCursorIndex = 0;
+                    timelineSliderInput(activeCursorIndex);
+                }
+                
+                if (timelineIntervalId) {
+                    clearInterval(timelineIntervalId);
+                }
                 timelineIntervalId = setInterval(() => {
                     timelineNext();
                 }, timelinePlaybackDelay);
@@ -6513,19 +6629,103 @@ export const Dashboard = ({ view }) => {
                 }
 
                 if (config.category === 'orbit') {
-                    if (container.df_frames) {
-                        const localIdx = findClosestRowIndex(container.df_frames, targetTimeMs);
+                    if (container.plotData) {
+                        const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
                         if (localIdx !== -1) {
-                            const frameName = `f_${localIdx}_slot_${idx}`;
-                            Plotly.animate(container, [frameName], {
-                                frame: { duration: 0, redraw: true },
-                                mode: 'immediate',
-                                transition: { duration: 0 }
+                            const row = container.plotData[localIdx];
+                            const brg = config.bearingOrChannel;
+                            const cols = getBearingPairColumns(brg);
+                            const ax = row[cols.x.amp_1x] || 0;
+                            const ay = row[cols.y.amp_1x] || 0;
+                            const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
+                            const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
+
+                            const C = window.bearingClearance || 12.0;
+                            const framePeak = Math.max(ax, ay);
+                            const frameSpan = limits.autoScale ? (framePeak > 0 ? framePeak * 2.5 : 0.2) : (limits.max !== null ? Math.abs(limits.max) * 2 : 2 * C);
+                            const frameShift = frameSpan / 2;
+
+                            const KEY_PHASOR_GAP_ANGLE = 0.015;
+                            const isInKeyphasorGapLocal = (t) => {
+                                if (t <= Math.PI) return false;
+                                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+                            };
+
+                            const theta_orbit_local = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
+                            const theta_local = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
+
+                            const ox_shifted = theta_orbit_local.map(t => {
+                                if (isInKeyphasorGapLocal(t)) return null;
+                                return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift;
                             });
-                            // Update layout slider active index if sliders are present
-                            if (container.layout && container.layout.sliders && container.layout.sliders[0]) {
-                                container.layout.sliders[0].active = localIdx;
-                                Plotly.relayout(container, { sliders: container.layout.sliders });
+                            const oy_shifted = theta_orbit_local.map(t => {
+                                if (isInKeyphasorGapLocal(t)) return null;
+                                return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift;
+                            });
+
+                            const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
+                            const pt_kp_x_shifted = pt_kp.x + frameShift;
+                            const pt_kp_y_shifted = pt_kp.y + frameShift;
+
+                            const cx = theta_local.map(t => frameShift + C * Math.cos(t));
+                            const cy = theta_local.map(t => frameShift + C * Math.sin(t));
+
+                            const updateData = {
+                                x: [ox_shifted, cx, [pt_kp_x_shifted]],
+                                y: [oy_shifted, cy, [pt_kp_y_shifted]]
+                            };
+                            const updateTraces = [0, 1, 2];
+
+                            const cycles = config.cycles || 8;
+                            const speed = row[speedCol] || 3600;
+                            const cycle_period_ms = 60000 / Math.max(10, speed);
+                            const isOrbit = config.category === 'orbit';
+                            const showTimebase = isOrbit && config.showTimebase !== false;
+                            const showTrace2 = showTimebase && config.showTrace2 === true;
+
+                            if (showTimebase) {
+                                const T_frame = cycle_period_ms;
+                                const tb_steps = 100 * cycles;
+                                const theta_tb_local = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
+                                const tb_x_time = theta_tb_local.map(t => (t / (2 * Math.PI)) * T_frame);
+                                const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
+                                const tb_x = theta_tb_local.map(t => {
+                                    if (isInKeyphasorGapLocal(t % (2 * Math.PI))) return null;
+                                    return ax * Math.cos(t - px);
+                                });
+                                const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
+
+                                updateData.x.push(tb_x_time, kp_times_frame);
+                                updateData.y.push(tb_x, kp_x);
+                                updateTraces.push(3, 4);
+
+                                if (showTrace2) {
+                                    const tb_y = theta_tb_local.map(t => {
+                                        if (isInKeyphasorGapLocal(t % (2 * Math.PI))) return null;
+                                        return ay * Math.cos(t - py);
+                                    });
+                                    const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
+
+                                    updateData.x.push(tb_x_time, kp_times_frame);
+                                    updateData.y.push(tb_y, kp_y);
+                                    updateTraces.push(5, 6);
+                                }
+                            }
+
+                            Plotly.restyle(container, updateData, updateTraces);
+
+                            if (window.getDynamicShapesAndAnnotations) {
+                                const dynamicLayoutConfig = window.getDynamicShapesAndAnnotations(frameShift, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+                                const layoutUpdate = {
+                                    'shapes': dynamicLayoutConfig.shapes,
+                                    'annotations': dynamicLayoutConfig.annotations
+                                };
+                                if (limits.autoScale) {
+                                    layoutUpdate['xaxis.range'] = [0, frameSpan];
+                                    layoutUpdate['yaxis.range'] = [0, frameSpan];
+                                }
+                                Plotly.relayout(container, layoutUpdate);
                             }
                         }
                     }
@@ -6712,14 +6912,71 @@ export const Dashboard = ({ view }) => {
         }
 
         function getGlobalIndexFromPlotPoint(pt, container) {
-            if (pt && pt.pointIndex !== undefined && container && container.plotData) {
-                const config = plotSlots[parseInt(container.dataset.slotIndex)];
-                let row;
-                row = container.plotData[pt.pointIndex];
+            if (!pt || !container || !container.plotData) return -1;
+            
+            const config = plotSlots[parseInt(container.dataset.slotIndex)] || {};
+            const filteredDf = getFilteredData();
+            let targetRow = null;
+            
+            if (config.category === 'trend') {
+                const clickedTimeStr = String(pt.x);
+                targetRow = container.plotData.find(r => String(r._date) === clickedTimeStr || String(r._time_ms) === clickedTimeStr);
+                
+                if (!targetRow) {
+                    const clickedMs = new Date(pt.x).getTime();
+                    if (!isNaN(clickedMs)) {
+                        let minDiff = Infinity;
+                        container.plotData.forEach(r => {
+                            const rMs = new Date(r._date).getTime();
+                            const diff = Math.abs(rMs - clickedMs);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                targetRow = r;
+                            }
+                        });
+                    }
+                }
+            } else if (config.category === 'bode2d') {
+                const clickedRPM = parseFloat(pt.x);
+                if (!isNaN(clickedRPM)) {
+                    let minDiff = Infinity;
+                    container.plotData.forEach(r => {
+                        const rpm = parseFloat(r[speedCol] || 0);
+                        const diff = Math.abs(rpm - clickedRPM);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetRow = r;
+                        }
+                    });
+                }
+            } else if (config.category === 'polar') {
+                const clickedR = parseFloat(pt.r !== undefined ? pt.r : pt.y);
+                const clickedTheta = parseFloat(pt.theta !== undefined ? pt.theta : pt.x);
+                if (!isNaN(clickedR) && !isNaN(clickedTheta)) {
+                    let minDiff = Infinity;
+                    const cols = getBearingPairColumns(config.bearingOrChannel) || {};
+                    container.plotData.forEach(r => {
+                        const amp = parseFloat(r[cols.x?.amp_1x || cols.amp_1x] || 0);
+                        const phase = parseFloat(r[cols.x?.phase_1x || cols.phase_1x] || 0);
+                        const diff = Math.pow(amp - clickedR, 2) + Math.pow(phase - clickedTheta, 2);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetRow = r;
+                        }
+                    });
+                }
+            }
+            
+            if (targetRow) {
+                const targetTimeMs = targetRow._time_ms;
+                return filteredDf.findIndex(r => r._time_ms === targetTimeMs);
+            }
+            
+            // Fallback for non-split plots
+            if (pt.pointIndex !== undefined) {
+                const row = container.plotData[pt.pointIndex];
                 if (row) {
-                    const targetTimeMs = row._time_ms;
-                    const filteredDf = getFilteredData();
-                    return filteredDf.findIndex(r => r._time_ms === targetTimeMs);
+                    return filteredDf.findIndex(r => r._time_ms === row._time_ms);
                 }
             }
             return -1;
@@ -6727,7 +6984,11 @@ export const Dashboard = ({ view }) => {
 
         function handlePlotClick(eventData, container) {
             if (eventData.points && eventData.points.length > 0) {
-                const pt = eventData.points[0];
+                // Find the first clicked point that does not belong to helper/cursor traces
+                const pt = eventData.points.find(p => {
+                    const name = (p.data && p.data.name) || (p.trace && p.trace.name) || '';
+                    return !name.includes('Cursor') && !name.includes('Clearance') && !name.includes('TDC') && !name.includes('Grid');
+                }) || eventData.points[0];
                 
                 const config = plotSlots[parseInt(container.dataset.slotIndex)];
                 if (config && config.category === 'trend') {
@@ -6739,6 +7000,10 @@ export const Dashboard = ({ view }) => {
 
                 const globalIdx = getGlobalIndexFromPlotPoint(pt, container);
                 if (globalIdx !== -1) {
+                    // Pause timeline playback if it is running
+                    if (isTimelinePlaying) {
+                        timelineTogglePlay();
+                    }
                     activeCursorIndex = globalIdx;
                     updateAllCursorsThrottled();
                     const slider = document.getElementById('global-timeline-slider');
@@ -6753,10 +7018,11 @@ export const Dashboard = ({ view }) => {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
                 return;
             }
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (e.key === 'ArrowRight') {
                 const filteredDf = getFilteredData();
                 if (activeCursorIndex < filteredDf.length - 1) {
-                    activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + timelineStepSize);
+                    activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + step);
                     updateAllCursorsThrottled();
                     const slider = document.getElementById('global-timeline-slider');
                     if (slider) slider.value = activeCursorIndex;
@@ -6765,7 +7031,7 @@ export const Dashboard = ({ view }) => {
                 }
             } else if (e.key === 'ArrowLeft') {
                 if (activeCursorIndex > 0) {
-                    activeCursorIndex = Math.max(0, activeCursorIndex - timelineStepSize);
+                    activeCursorIndex = Math.max(0, activeCursorIndex - step);
                     updateAllCursorsThrottled();
                     const slider = document.getElementById('global-timeline-slider');
                     if (slider) slider.value = activeCursorIndex;
@@ -8083,7 +8349,14 @@ export const Dashboard = ({ view }) => {
             const active_targets = target_rpms.filter(r => r < max_rpm);
             active_targets.push(max_rpm);
             
-            const theta_orbit = Array.from({length: 128}, (_, i) => (i / 127) * (2 * Math.PI - 0.08));
+            const KEY_PHASOR_GAP_ANGLE = 0.015; // ~0.24% of a full revolution
+            function isInKeyphasorGap(t) {
+                if (t <= Math.PI) return false;
+                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+            }
+
+            const theta_orbit = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             const orbitColors = ['#f43f5e', '#fb923c', '#10b981', '#38bdf8', '#a855f7'];
             
@@ -8113,10 +8386,12 @@ export const Dashboard = ({ view }) => {
                 const gy_phys = pt_row.y;
                 
                 const ox = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gx_phys + pt_orb.x;
                 });
                 const oy = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gy_phys + pt_orb.y;
                 });
@@ -8209,6 +8484,14 @@ export const Dashboard = ({ view }) => {
             
             const C = window.bearingClearance || 12.0;
             const boundary_r = C;
+
+            // Keyphasor dynamic physical angular gap configuration
+            const KEY_PHASOR_GAP_ANGLE = 0.015; // ~0.24% of a full revolution
+            function isInKeyphasorGap(t) {
+                if (t <= Math.PI) return false; // gap is immediately before the 2*PI trigger
+                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+            }
             
             // Dynamically calculate the active peak of the current cursor time point or first row
             const activeRow = clean_df[activeCursorIndex] || clean_df[0];
@@ -8216,11 +8499,21 @@ export const Dashboard = ({ view }) => {
             const activeAy = activeRow ? (Math.abs(activeRow[cols.y.amp_1x]) || 0.1) : 0.1;
             const activePeak = Math.max(activeAx, activeAy);
 
-            let finalLimit = activePeak > 0 ? (activePeak * 1.15) : 0.1;
+            // Engineering Note: In auto-scale mode, the viewport scales tightly to the orbit amplitude
+            // (final_span = activePeak * 2.5) to make the orbit fill the majority of the plot.
+            // This intentionally leaves the physically larger clearance boundary (C) outside the viewport,
+            // matching ADRE behavior. In manual-scale mode (or if auto-scale is disabled),
+            // final_span is set to 2 * C, showing the full clearance circle and orbit.
+            let final_span = activePeak > 0 ? (activePeak * 2.5) : 0.2;
+            let shift = final_span / 2;
             if (!limits.autoScale) {
-                if (limits.max !== null) finalLimit = Math.abs(limits.max);
-                else if (limits.min !== null) finalLimit = Math.abs(limits.min);
+                let limitMax = C;
+                if (limits.max !== null) limitMax = Math.abs(limits.max);
+                else if (limits.min !== null) limitMax = Math.abs(limits.min);
+                final_span = 2 * limitMax;
+                shift = limitMax;
             }
+            const finalLimit = shift;
 
             let limitY2 = activeAx > 0 ? (activeAx * 1.15) : 0.1;
             let limitY3 = activeAy > 0 ? (activeAy * 1.15) : 0.1;
@@ -8239,7 +8532,9 @@ export const Dashboard = ({ view }) => {
             const total_time_ms = cycles * cycle_period_ms;
             const layout = { ...baseLayout };
             if (showTimebase) {
-                layout.margin = { t: 25, b: 35, l: 40, r: 60 };
+                layout.margin = { t: 45, b: 35, l: 40, r: 60 };
+            } else {
+                layout.margin = { t: 45, b: 35, l: 40, r: 40 };
             }
             layout.showlegend = false;
             layout.hovermode = 'closest';
@@ -8273,16 +8568,16 @@ export const Dashboard = ({ view }) => {
                     {
                         type: 'path',
                         xref: 'x', yref: 'y',
-                        path: getRotatedRectPath(limit, limit, limit * 1.02, limit * 1.35, limit * 0.08, 135),
-                        fillcolor: '#e2e8f0',
-                        line: { color: '#475569', width: 1.5 }
+                        path: getRotatedRectPath(limit, limit, limit * 1.01, limit * 1.15, limit * 0.03, 135),
+                        fillcolor: 'rgba(148, 163, 184, 0.4)',
+                        line: { color: '#475569', width: 1 }
                     },
                     {
                         type: 'path',
                         xref: 'x', yref: 'y',
-                        path: getRotatedRectPath(limit, limit, limit * 1.02, limit * 1.35, limit * 0.08, 45),
-                        fillcolor: '#e2e8f0',
-                        line: { color: '#475569', width: 1.5 }
+                        path: getRotatedRectPath(limit, limit, limit * 1.01, limit * 1.15, limit * 0.03, 45),
+                        fillcolor: 'rgba(148, 163, 184, 0.4)',
+                        line: { color: '#475569', width: 1 }
                     }
                 ];
 
@@ -8308,21 +8603,18 @@ export const Dashboard = ({ view }) => {
 
                 const annotations = [
                     {
-                        x: limit, y: limit * 1.82, xref: 'x', yref: 'y',
-                        text: '<b>Up</b>', showarrow: false,
-                        yanchor: 'top',
-                        font: { size: 10, color: '#000000' }
-                    },
-                    {
-                        x: limit, y: limit * 2.05, xref: 'x', yref: 'y',
+                        x: limit, y: 2.01 * limit, xref: 'x', yref: 'y',
                         text: '<b>TDC</b>', showarrow: false,
+                        xanchor: 'center',
                         yanchor: 'bottom',
                         font: { size: 10, color: '#000000' }
                     },
                     {
-                        x: limit * 0.07, y: limit * 1.93, xref: 'x', yref: 'y',
-                        text: '<b>Y</b>',
+                        x: 0, y: 2 * limit, xref: 'x', yref: 'y',
+                        text: '<b>X</b>',
                         showarrow: false,
+                        xanchor: 'left',
+                        yanchor: 'bottom',
                         font: { color: '#ffffff', size: 10 },
                         bgcolor: '#000000',
                         bordercolor: '#000000',
@@ -8330,9 +8622,11 @@ export const Dashboard = ({ view }) => {
                         borderpad: 2.5
                     },
                     {
-                        x: limit * 1.93, y: limit * 1.93, xref: 'x', yref: 'y',
-                        text: '<b>X</b>',
+                        x: 2 * limit, y: 2 * limit, xref: 'x', yref: 'y',
+                        text: '<b>Y</b>',
                         showarrow: false,
+                        xanchor: 'right',
+                        yanchor: 'bottom',
                         font: { color: '#ffffff', size: 10 },
                         bgcolor: '#000000',
                         bordercolor: '#000000',
@@ -8345,19 +8639,24 @@ export const Dashboard = ({ view }) => {
                         font: { size: 9, color: '#000000' }
                     },
                     {
-                        x: limit * 0.6, y: limit * 1.7,
-                        ax: limit * 0.2, ay: limit * 1.1,
+                        x: limit * 0.70, y: limit * 1.85,
+                        ax: limit * 0.40, ay: limit * 1.80,
                         xref: 'x', yref: 'y',
                         axref: 'x', ayref: 'y',
                         showarrow: true,
                         arrowhead: 2,
-                        arrowsize: 1.5,
-                        arrowwidth: 2,
+                        arrowsize: 1.2,
+                        arrowwidth: 1.5,
                         arrowcolor: '#000000',
                         text: ''
                     },
                     {
-                        x: limit * 0.02, y: limit * 1.95, xref: 'x', yref: 'y',
+                        x: limit * 0.55, y: limit * 1.90, xref: 'x', yref: 'y',
+                        text: 'ROTATION', showarrow: false,
+                        font: { size: 8, color: '#475569', weight: 'bold' }
+                    },
+                    {
+                        x: limit * 0.08, y: 2.01 * limit, xref: 'x', yref: 'y',
                         text: '<b>X Probe (135°)</b>',
                         showarrow: false,
                         xanchor: 'left',
@@ -8365,7 +8664,7 @@ export const Dashboard = ({ view }) => {
                         font: { size: 9, color: '#475569' }
                     },
                     {
-                        x: limit * 1.98, y: limit * 1.95, xref: 'x', yref: 'y',
+                        x: limit * 1.92, y: 2.01 * limit, xref: 'x', yref: 'y',
                         text: '<b>Y Probe (45°)</b>',
                         showarrow: false,
                         xanchor: 'right',
@@ -8407,6 +8706,7 @@ export const Dashboard = ({ view }) => {
 
                 return { shapes, annotations };
             }
+            window.getDynamicShapesAndAnnotations = getDynamicShapesAndAnnotations;
 
             const spikelineConfig = {
                 showspikes: true,
@@ -8419,8 +8719,6 @@ export const Dashboard = ({ view }) => {
 
             const tickvals = [0, finalLimit / 2, finalLimit, finalLimit * 1.5, 2 * finalLimit];
             const ticktext = tickvals.map(v => Number(v.toFixed(3)).toString());
-
-            const shift = finalLimit;
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
@@ -8661,14 +8959,20 @@ export const Dashboard = ({ view }) => {
             layout.annotations = dynamicLayoutConfig.annotations;
 
             // Refine theta range to generate clean gaps around Keyphasor dot (gap immediately before the dot)
-            const theta_orbit = Array.from({length: 128}, (_, i) => (i / 127) * (2 * Math.PI - 0.08));
+            const theta_orbit = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             
             const px_i = first_row ? ((first_row[cols.x.phase_1x] || 0) * Math.PI / 180) : 0;
             const py_i = first_row ? ((first_row[cols.y.phase_1x] || 0) * Math.PI / 180) : 0;
             
-            const x_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift);
-            const y_init_shifted = theta_orbit.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift);
+            const x_init_shifted = theta_orbit.map(t => {
+                if (isInKeyphasorGap(t)) return null;
+                return convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift;
+            });
+            const y_init_shifted = theta_orbit.map(t => {
+                if (isInKeyphasorGap(t)) return null;
+                return convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift;
+            });
 
 
             const tb_steps = 100 * cycles;
@@ -8676,16 +8980,12 @@ export const Dashboard = ({ view }) => {
             const tb_x_init_time = theta_tb.map(t => (t / (2 * Math.PI)) * cycle_period_ms);
             const tb_y_init_time = tb_x_init_time;
             const tb_x_init_val_shifted = theta_tb.map(t => {
-                const c = t / (2 * Math.PI);
-                const dist = c - Math.round(c);
-                if (dist >= -0.04 && dist < 0) return null;
+                if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
                 return ax_i * Math.cos(t - px_i);
             });
 
             const tb_y_init_val_shifted = theta_tb.map(t => {
-                const c = t / (2 * Math.PI);
-                const dist = c - Math.round(c);
-                if (dist >= -0.04 && dist < 0) return null;
+                if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
                 return ay_i * Math.cos(t - py_i);
             });
             // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
@@ -8703,14 +9003,14 @@ export const Dashboard = ({ view }) => {
             // Trace 0: Orbit Path
             traces.push({
                 x: x_init_shifted, y: y_init_shifted, mode: 'lines', name: '1X Orbit',
-                line: { color: '#f43f5e', width: 2 }, hoverinfo: 'x+y',
+                line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
                 xaxis: 'x', yaxis: 'y'
             });
 
             // Trace 1: Clearance Boundary (circular, centered)
             traces.push({
-                x: theta.map(t => shift + finalLimit * Math.cos(t)),
-                y: theta.map(t => shift + finalLimit * Math.sin(t)),
+                x: theta.map(t => shift + C * Math.cos(t)),
+                y: theta.map(t => shift + C * Math.sin(t)),
                 mode: 'lines', name: 'Clearance Boundary',
                 visible: true,
                 line: { color: '#ef4444', width: 1.2, dash: 'dash' },
@@ -8772,7 +9072,7 @@ export const Dashboard = ({ view }) => {
             });
             traces.push({
                 x: crosses_x, y: crosses_y, mode: 'markers', name: 'Grid Crosses',
-                marker: { symbol: 'plus', size: 10, color: '#cbd5e1', line: { width: 1.2, color: '#cbd5e1' } },
+                marker: { symbol: 'plus', size: 7, color: '#94a3b8', line: { width: 1.0, color: '#94a3b8' } },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8793,7 +9093,7 @@ export const Dashboard = ({ view }) => {
             }
             traces.push({
                 x: dots_x, y: dots_y, mode: 'markers', name: 'Grid Dots',
-                marker: { symbol: 'circle', size: 2.5, color: '#cbd5e1' },
+                marker: { symbol: 'circle', size: 2, color: '#cbd5e1' },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
@@ -8814,24 +9114,29 @@ export const Dashboard = ({ view }) => {
                 const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
                 const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
 
-                const frameLimit = limits.autoScale ? (Math.max(ax, ay) * 1.15 || 0.1) : finalLimit;
-                const frameShift = frameLimit;
+                const framePeak = Math.max(ax, ay);
+                const frameSpan = limits.autoScale ? (framePeak > 0 ? framePeak * 2.5 : 0.2) : (limits.max !== null ? Math.abs(limits.max) * 2 : 2 * C);
+                const frameShift = frameSpan / 2;
+                const frameLimit = frameShift;
 
-                const ox_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift);
-                const oy_shifted = theta_orbit.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift);
+                const ox_shifted = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
+                    return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift;
+                });
+                const oy_shifted = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
+                    return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift;
+                });
 
                 const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
                 const pt_kp_x_shifted = pt_kp.x + frameShift;
                 const pt_kp_y_shifted = pt_kp.y + frameShift;
 
-                const start_tick_x = ox_shifted[Math.floor(ox_shifted.length * 0.75)];
-                const start_tick_y = oy_shifted[Math.floor(oy_shifted.length * 0.75)];
-
                 const f_data = [
                     { x: ox_shifted, y: oy_shifted }, // Trace 0
                     {
-                        x: theta.map(t => frameShift + frameLimit * Math.cos(t)),
-                        y: theta.map(t => frameShift + frameLimit * Math.sin(t))
+                        x: theta.map(t => frameShift + C * Math.cos(t)),
+                        y: theta.map(t => frameShift + C * Math.sin(t))
                     }, // Trace 1
                     { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] } // Trace 2
                 ];
@@ -8843,9 +9148,7 @@ export const Dashboard = ({ view }) => {
                     const tb_x_time = theta_tb.map(t => (t / (2 * Math.PI)) * T_frame);
                     const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
                     const tb_x = theta_tb.map(t => {
-                        const c = t / (2 * Math.PI);
-                        const dist = c - Math.round(c);
-                        if (dist >= -0.04 && dist < 0) return null;
+                        if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
                         return ax * Math.cos(t - px);
                     });
                     const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
@@ -8855,9 +9158,7 @@ export const Dashboard = ({ view }) => {
                     f_traces.push(3, 4);
                     if (showTrace2) {
                         const tb_y = theta_tb.map(t => {
-                            const c = t / (2 * Math.PI);
-                            const dist = c - Math.round(c);
-                            if (dist >= -0.04 && dist < 0) return null;
+                            if (isInKeyphasorGap(t % (2 * Math.PI))) return null;
                             return ay * Math.cos(t - py);
                         });
                         const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
@@ -9609,6 +9910,7 @@ export const Dashboard = ({ view }) => {
             if (checkboxEl) {
                 checkboxEl.checked = false;
             }
+            updateSlowRollButtonUI();
             if (timelineIntervalId) {
                 clearInterval(timelineIntervalId);
             }

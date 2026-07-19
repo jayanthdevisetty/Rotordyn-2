@@ -12,21 +12,34 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || (
 );
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [loading, setLoading] = useState(true);
+    const [token, setToken] = useState(() => localStorage.getItem('token'));
+    const [user, setUser] = useState(() => {
+        try {
+            const cached = localStorage.getItem('user_profile');
+            return cached ? JSON.parse(cached) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+    const [loading, setLoading] = useState(() => {
+        const hasToken = !!localStorage.getItem('token');
+        const hasProfile = !!localStorage.getItem('user_profile');
+        return hasToken && !hasProfile;
+    });
     const verifyingTokenRef = useRef(null);
 
     const verifySession = async (currentToken) => {
         if (!currentToken) {
             verifyingTokenRef.current = null;
             setUser(null);
+            localStorage.removeItem('user_profile');
             setLoading(false);
             return;
         }
 
         if (verifyingTokenRef.current === currentToken) {
             console.log("verifySession: Token already verifying/verified, skipping duplicate.");
+            setLoading(false);
             return;
         }
         verifyingTokenRef.current = currentToken;
@@ -64,6 +77,7 @@ export const AuthProvider = ({ children }) => {
                 subscription_status: authUser.user_metadata?.subscription_status || profile.subscription_status || 'free-tier',
                 report_generation_count: parseInt(authUser.user_metadata?.report_generation_count || profile.report_generation_count || 0, 10)
             };
+            localStorage.setItem('user_profile', JSON.stringify(mergedProfile));
             setUser(mergedProfile);
         } catch (err) {
             console.error('verifySession: Error checking session:', err);
@@ -73,25 +87,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        // Sync initial session on mount
-        const initSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const currentToken = session.access_token;
-                localStorage.setItem('token', currentToken);
-                setToken(currentToken);
-                await verifySession(currentToken);
-            } else {
-                localStorage.removeItem('token');
-                setToken(null);
-                setUser(null);
-                setLoading(false);
-            }
-        };
-
-        initSession();
-
         // Register listener for session changes
+        // Note: supabase.auth.onAuthStateChange automatically fires an event (INITIAL_SESSION or SIGNED_IN/SIGNED_OUT)
+        // on subscription, which synchronizes our initial session. Relying solely on this prevents concurrent
+        // session validation requests that can trigger race conditions/hangs on page load.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log("onAuthStateChange: Auth event fired:", event);
             if (session) {
@@ -102,6 +101,7 @@ export const AuthProvider = ({ children }) => {
             } else {
                 verifyingTokenRef.current = null;
                 localStorage.removeItem('token');
+                localStorage.removeItem('user_profile');
                 setToken(null);
                 setUser(null);
                 setLoading(false);
@@ -161,8 +161,11 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         verifyingTokenRef.current = null;
-        await supabase.auth.signOut();
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {}
         localStorage.removeItem('token');
+        localStorage.removeItem('user_profile');
         setToken(null);
         setUser(null);
     };
@@ -171,6 +174,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', newToken);
         setToken(newToken);
         if (newUser) {
+            localStorage.setItem('user_profile', JSON.stringify(newUser));
             setUser(newUser);
         }
     };
