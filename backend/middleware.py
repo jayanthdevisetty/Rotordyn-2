@@ -50,7 +50,7 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
         # 3. Rate Limiting (Skip rate limiting for health check endpoint to prevent telemetry degradation)
         if request.url.path != "/health" and is_rate_limited(ip_address):
             log_audit_action(
-                user_id="00000000-0000-0000-0000-000000000000",
+                user_id=None,
                 action="RATE_LIMIT_EXCEEDED",
                 details={"path": request.url.path, "ip": ip_address}
             )
@@ -117,7 +117,7 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
             
             # Write secure audit log
             log_audit_action(
-                user_id=user_id or "00000000-0000-0000-0000-000000000000",
+                user_id=user_id,
                 action="SERVER_INTERNAL_ERROR",
                 details={"path": request.url.path, "error": str(exc), "request_id": request_id},
                 ip_address=ip_address

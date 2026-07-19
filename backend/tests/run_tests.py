@@ -1,6 +1,16 @@
 import asyncio
 import sys
 import os
+import httpx
+
+# Monkeypatch httpx.Client.__init__ to strip unexpected 'app' parameter passed by Starlette TestClient
+original_init = httpx.Client.__init__
+def patched_init(self, *args, **kwargs):
+    if "app" in kwargs:
+        kwargs.pop("app")
+    original_init(self, *args, **kwargs)
+httpx.Client.__init__ = patched_init
+
 from fastapi.testclient import TestClient
 
 # Set search path to backend

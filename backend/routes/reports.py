@@ -7,7 +7,7 @@ import re
 import docx
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
@@ -157,6 +157,7 @@ class DocxReportRequest(BaseModel):
 @router.post("/download_docx")
 async def download_docx(
     payload: DocxReportRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_approved_user)
 ):
     if current_user.get("subscription_status", "free-tier") != "premium":
@@ -282,6 +283,8 @@ async def download_docx(
             "bearing_name": payload.bearing_name,
             "has_images": len(payload.images) > 0
         })
+        
+        background_tasks.add_task(os.remove, temp_file_path)
         
         return FileResponse(
             path=temp_file_path,

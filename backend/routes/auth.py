@@ -91,13 +91,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
                 }
         except jwt.ExpiredSignatureError as e:
             log_audit_action(
-                user_id="00000000-0000-0000-0000-000000000000",
+                user_id=None,
                 action="JWT_TOKEN_EXPIRED",
                 details={"reason": str(e)}
             )
         except JWTError as e:
             log_audit_action(
-                user_id="00000000-0000-0000-0000-000000000000",
+                user_id=None,
                 action="JWT_DECODE_FAILED",
                 details={"reason": str(e)}
             )
@@ -309,7 +309,7 @@ async def login(user_in: UserLogin):
         }
     except Exception as e:
         log_audit_action(
-            user_id="00000000-0000-0000-0000-000000000000",
+            user_id=None,
             action="USER_LOGIN_FAILED",
             details={"email_masked": mask_email(user_in.email), "reason": str(e)}
         )
