@@ -11639,47 +11639,56 @@ export const Dashboard = ({ view }) => {
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('trend')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        {/* Beautiful repeating sine wave for Timebase/Waveform */}
+                        <path d="M2 12 C 5 2, 8 22, 11 12 C 14 2, 17 22, 20 12 L 22 12"></path>
                     </svg>
                     <span className="tooltip">Trend Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('polar')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <circle cx="12" cy="12" r="6"></circle>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <line x1="12" y1="2" x2="12" y2="22"></line>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Concentric polar grid and wrapping vector trace */}
+                        <circle cx="12" cy="12" r="10" strokeDasharray="2,2"></circle>
+                        <circle cx="12" cy="12" r="5" strokeDasharray="2,2"></circle>
+                        <line x1="12" y1="2" x2="12" y2="22" strokeDasharray="2,2"></line>
+                        <line x1="2" y1="12" x2="22" y2="12" strokeDasharray="2,2"></line>
+                        <path d="M12 12 C 14 11, 15 8, 18 10" strokeWidth="2" stroke="currentColor"></path>
+                        <circle cx="18" cy="10" r="1.5" fill="currentColor"></circle>
                     </svg>
                     <span className="tooltip">1X Polar Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('bode2d')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3v18h18"></path>
-                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
-                        <circle cx="18.7" cy="8" r="1.5" fill="currentColor"></circle>
-                        <circle cx="13.6" cy="13.2" r="1.5" fill="currentColor"></circle>
-                        <circle cx="10.8" cy="10.5" r="1.5" fill="currentColor"></circle>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Stacked subplots representing Amplitude (with resonance peak) and Phase */}
+                        <line x1="3" y1="2" x2="3" y2="21"></line>
+                        <line x1="3" y1="21" x2="22" y2="21"></line>
+                        <path d="M3 9 L 8 9 Q 11 3 13 3 Q 15 3 18 9 L 22 9" strokeWidth="2"></path>
+                        <path d="M3 18 L 10 18 C 12 18, 14 14, 16 14 L 22 14" strokeWidth="2"></path>
                     </svg>
                     <span className="tooltip">Bode Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('centerline')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" strokeDasharray="3,3"></circle>
-                        <circle cx="10" cy="9" r="1.5" fill="currentColor"></circle>
-                        <path d="M12 2v20M2 12h20"></path>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Bearing clearance circle (dashed) and centerline displacement trajectory */}
+                        <circle cx="12" cy="12" r="9" strokeDasharray="2,2"></circle>
+                        <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3,3" opacity="0.4"></line>
+                        <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3,3" opacity="0.4"></line>
+                        <path d="M12 12 Q 10 15, 8 13" strokeWidth="2.5" stroke="currentColor"></path>
+                        <circle cx="8" cy="13" r="2" fill="currentColor"></circle>
                     </svg>
                     <span className="tooltip">Shaft Centerline</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="3" y1="20" x2="3" y2="4"></line>
-                        <line x1="3" y1="20" x2="21" y2="20"></line>
-                        <polyline points="3 20 6 14 9 17 12 8 15 12 18 6 21 20"></polyline>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Vertical discrete amplitude spectral bins (FFT spikes) */}
+                        <line x1="3" y1="2" x2="3" y2="21"></line>
+                        <line x1="3" y1="21" x2="22" y2="21"></line>
+                        <line x1="7" y1="21" x2="7" y2="12" strokeWidth="2.5"></line>
+                        <line x1="12" y1="21" x2="12" y2="5" strokeWidth="2.5"></line>
+                        <line x1="17" y1="21" x2="17" y2="16" strokeWidth="2.5"></line>
                     </svg>
                     <span className="tooltip">FFT Spectrum</span>
                 </button>
