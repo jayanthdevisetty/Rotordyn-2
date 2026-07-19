@@ -114,6 +114,14 @@ let timelineStepSize = 1;
 let timelinePlaybackDelay = 200;
 let timelinePlotlyContainer = null;
 
+let channelUnits = {}; 
+let defaultUnits = {
+    speed: 'RPM',
+    amp: 'mils',
+    phase: 'deg',
+    temp: '°C'
+};
+
 export const Dashboard = ({ view }) => {
     const {user, setUser, token, logout, API_BASE_URL} = useAuth();
     const navigate = useNavigate();
@@ -872,13 +880,6 @@ export const Dashboard = ({ view }) => {
             return { x, y };
         }
 
-        let channelUnits = {}; 
-        let defaultUnits = {
-            speed: 'RPM',
-            amp: 'mils',
-            phase: 'deg',
-            temp: '°C'
-        };
 
         function getChannelUnit(ch, category, defaultVal) {
             if (ch && channelUnits[ch] && channelUnits[ch][category]) {
@@ -4907,6 +4908,10 @@ export const Dashboard = ({ view }) => {
                 const parts = ch.split('/');
                 chX = parts[0];
                 chY = parts[1];
+            } else if (config.isDual || config.category === 'orbit' || config.category === 'centerline' || config.category === 'centerline_orbit') {
+                const mapping = bearingPairsMapping && bearingPairsMapping[ch];
+                chX = mapping ? mapping.x : (ch + 'X');
+                chY = mapping ? mapping.y : (ch + 'Y');
             }
             const speedUnit = getChannelUnit(chX, 'speed', 'RPM');
             const ampUnit = getChannelUnit(chX, 'amp', 'mils');
@@ -4974,6 +4979,8 @@ export const Dashboard = ({ view }) => {
                 const cols = getBearingPairColumns(ch);
                 const ampUnitX = getChannelUnit(chX, 'amp', 'mils');
                 const ampUnitY = getChannelUnit(chY, 'amp', 'mils');
+                const tempUnitX = getChannelUnit(chX, 'temp', '°C');
+                const tempUnitY = getChannelUnit(chY, 'temp', '°C');
                 
                 let xDirect = cols.x.direct && row[cols.x.direct] !== undefined && row[cols.x.direct] !== null ? `${row[cols.x.direct].toFixed(3)} ${ampUnitX}` : 'N/A';
                 let yDirect = cols.y.direct && row[cols.y.direct] !== undefined && row[cols.y.direct] !== null ? `${row[cols.y.direct].toFixed(3)} ${ampUnitY}` : 'N/A';
@@ -4986,16 +4993,31 @@ export const Dashboard = ({ view }) => {
                 
                 let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
                 let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
+                
+                let xTemp = cols.x.temp && row[cols.x.temp] !== undefined && row[cols.x.temp] !== null ? `${row[cols.x.temp].toFixed(1)} ${tempUnitX}` : 'N/A';
+                let yTemp = cols.y.temp && row[cols.y.temp] !== undefined && row[cols.y.temp] !== null ? `${row[cols.y.temp].toFixed(1)} ${tempUnitY}` : 'N/A';
 
                 box.innerHTML = `
-                    <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>X Direct:</b> ${xDirect}</span>
-                    <span><b>Y Direct:</b> ${yDirect}</span>
-                    <span><b>X 1X:</b> ${xAmp} @ ${xPhase}</span>
-                    <span><b>Y 1X:</b> ${yAmp} @ ${yPhase}</span>
-                    <span><b>X Gap:</b> ${xGap}</span>
-                    <span><b>Y Gap:</b> ${yGap}</span>
+                    <div style="display: flex; flex-direction: column; width: 100%; gap: 4px;">
+                        <div style="display: flex; justify-content: flex-start; gap: 24px;">
+                            <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
+                            <span><b>RPM:</b> ${speedText}</span>
+                        </div>
+                        <div style="display: flex; justify-content: flex-start; gap: 24px; border-top: 1px dashed var(--border-color); padding-top: 2px;">
+                            <span style="font-weight: 700; color: var(--accent-color); min-width: 50px;">X Probe:</span>
+                            <span><b>Direct:</b> ${xDirect}</span>
+                            <span><b>1X:</b> ${xAmp} @ ${xPhase}</span>
+                            <span><b>Gap:</b> ${xGap}</span>
+                            <span><b>Temp:</b> ${xTemp}</span>
+                        </div>
+                        <div style="display: flex; justify-content: flex-start; gap: 24px;">
+                            <span style="font-weight: 700; color: var(--accent-color); min-width: 50px;">Y Probe:</span>
+                            <span><b>Direct:</b> ${yDirect}</span>
+                            <span><b>1X:</b> ${yAmp} @ ${yPhase}</span>
+                            <span><b>Gap:</b> ${yGap}</span>
+                            <span><b>Temp:</b> ${yTemp}</span>
+                        </div>
+                    </div>
                 `;
             } else {
                 box.innerHTML = `
@@ -9268,6 +9290,22 @@ export const Dashboard = ({ view }) => {
             safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false }).then(() => {
                 Plotly.addFrames(container, frames);
             });
+
+            container.on('plotly_click', (data) => handlePlotClick(data, container));
+            container.on('plotly_hover', function(data) {
+                if (data.points && data.points.length > 0) {
+                    const globalIdx = getGlobalIndexFromPlotPoint(data.points[0], container);
+                    if (globalIdx !== -1) {
+                        updateSlotTelemetryBox(slotIdx, globalIdx);
+                        updateTelemetryReadoutForIndex(globalIdx);
+                    }
+                }
+            });
+            container.on('plotly_unhover', function(data) {
+                updateSlotTelemetryBox(slotIdx, activeCursorIndex);
+                updateTelemetryReadoutForIndex(activeCursorIndex);
+            });
+            updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
 
         function renderModeShapeInSlot(slotIdx, container, filteredDf, baseLayout, limits) {
