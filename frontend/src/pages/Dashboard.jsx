@@ -4998,25 +4998,21 @@ export const Dashboard = ({ view }) => {
                 let yTemp = cols.y.temp && row[cols.y.temp] !== undefined && row[cols.y.temp] !== null ? `${row[cols.y.temp].toFixed(1)} ${tempUnitY}` : 'N/A';
 
                 box.innerHTML = `
-                    <div style="display: flex; flex-direction: column; width: 100%; gap: 4px;">
-                        <div style="display: flex; justify-content: flex-start; gap: 24px;">
-                            <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
-                            <span><b>RPM:</b> ${speedText}</span>
-                        </div>
-                        <div style="display: flex; justify-content: flex-start; gap: 24px; border-top: 1px dashed var(--border-color); padding-top: 2px;">
-                            <span style="font-weight: 700; color: var(--accent-color); min-width: 50px;">X Probe:</span>
-                            <span><b>Direct:</b> ${xDirect}</span>
-                            <span><b>1X:</b> ${xAmp} @ ${xPhase}</span>
-                            <span><b>Gap:</b> ${xGap}</span>
-                            <span><b>Temp:</b> ${xTemp}</span>
-                        </div>
-                        <div style="display: flex; justify-content: flex-start; gap: 24px;">
-                            <span style="font-weight: 700; color: var(--accent-color); min-width: 50px;">Y Probe:</span>
-                            <span><b>Direct:</b> ${yDirect}</span>
-                            <span><b>1X:</b> ${yAmp} @ ${yPhase}</span>
-                            <span><b>Gap:</b> ${yGap}</span>
-                            <span><b>Temp:</b> ${yTemp}</span>
-                        </div>
+                    <div style="display: flex; align-items: center; width: 100%; gap: 16px; font-size: 0.7rem; color: var(--text-color); font-family: var(--font-family, sans-serif); overflow-x: auto; white-space: nowrap;">
+                        <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
+                        <span><b>RPM:</b> ${speedText}</span>
+                        <span style="color: var(--border-color);">|</span>
+                        <span style="font-weight: 700; color: var(--accent-color);">X Probe:</span>
+                        <span><b>Direct:</b> ${xDirect}</span>
+                        <span><b>1X:</b> ${xAmp} @ ${xPhase}</span>
+                        <span><b>Gap:</b> ${xGap}</span>
+                        <span><b>Temp:</b> ${xTemp}</span>
+                        <span style="color: var(--border-color);">|</span>
+                        <span style="font-weight: 700; color: var(--accent-color);">Y Probe:</span>
+                        <span><b>Direct:</b> ${yDirect}</span>
+                        <span><b>1X:</b> ${yAmp} @ ${yPhase}</span>
+                        <span><b>Gap:</b> ${yGap}</span>
+                        <span><b>Temp:</b> ${yTemp}</span>
                     </div>
                 `;
             } else {
@@ -9063,7 +9059,7 @@ export const Dashboard = ({ view }) => {
             // Trace 0: Orbit Path
             traces.push({
                 x: x_init_shifted, y: y_init_shifted, mode: 'lines', name: '1X Orbit',
-                line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                line: { color: '#3b82f6', width: 2 }, hoverinfo: 'none',
                 xaxis: 'x', yaxis: 'y'
             });
 
@@ -9083,7 +9079,7 @@ export const Dashboard = ({ view }) => {
                 y: [pt_kp_init_shifted.y],
                 mode: 'markers', name: 'Keyphasor Dot',
                 marker: { size: 9, color: '#f97316', symbol: 'circle', line: { width: 1.2, color: '#000000' } },
-                hoverinfo: 'x+y', xaxis: 'x', yaxis: 'y'
+                hoverinfo: 'none', xaxis: 'x', yaxis: 'y'
             });
 
             if (showTimebase) {
@@ -9093,14 +9089,14 @@ export const Dashboard = ({ view }) => {
                 // Trace 3: X Timebase waveform
                 traces.push({
                     x: tb_x_init_time, y: tb_x_init_val_shifted, mode: 'lines', name: 'X Waveform',
-                    line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                    line: { color: '#3b82f6', width: 2 }, hoverinfo: 'none',
                     xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
                 // Trace 4: Keyphasor Dots on X Timebase (Blue marker)
                 traces.push({
                     x: kp_times, y: kp_x_init_val_shifted, mode: 'markers', name: 'KP Dots X',
-                    marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
+                    marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'none',
                     xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
@@ -9108,14 +9104,14 @@ export const Dashboard = ({ view }) => {
                     // Trace 5: Y Timebase waveform
                     traces.push({
                         x: tb_y_init_time, y: tb_y_init_val_shifted, mode: 'lines', name: 'Y Waveform',
-                        line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                        line: { color: '#3b82f6', width: 2 }, hoverinfo: 'none',
                         xaxis: 'x2', yaxis: 'y2'
                     });
 
                     // Trace 6: Keyphasor Dots on Y Timebase (Blue marker)
                     traces.push({
                         x: kp_times, y: kp_y_init_val_shifted, mode: 'markers', name: 'KP Dots Y',
-                        marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
+                        marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'none',
                         xaxis: 'x2', yaxis: 'y2'
                     });
                 }
