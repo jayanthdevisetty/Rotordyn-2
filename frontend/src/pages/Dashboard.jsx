@@ -5780,13 +5780,6 @@ export const Dashboard = ({ view }) => {
                 cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
                 cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
                 
-                let cursorPhaseY = 0;
-                if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
-                    const raw_phases = localDf.map(r => r[cols.phase_1x]);
-                    const unwrapped_phases = unwrapPhase(raw_phases);
-                    cursorPhaseY = unwrapped_phases[localIdx];
-                }
-                
                 traces.push({
                     type: 'scatter',
                     x: [cursorX],
@@ -5794,25 +5787,7 @@ export const Dashboard = ({ view }) => {
                     xaxis: 'x2',
                     yaxis: 'y2',
                     mode: 'markers',
-                    name: 'Cursor Marker Amp',
-                    marker: {
-                        symbol: 'cross',
-                        size: 9,
-                        color: '#ef4444',
-                        line: { width: 1.5, color: '#ef4444' }
-                    },
-                    showlegend: false,
-                    hoverinfo: 'skip'
-                });
-                
-                traces.push({
-                    type: 'scatter',
-                    x: [cursorX],
-                    y: [cursorPhaseY],
-                    xaxis: 'x',
-                    yaxis: 'y',
-                    mode: 'markers',
-                    name: 'Cursor Marker Phase',
+                    name: 'Cursor Marker',
                     marker: {
                         symbol: 'cross',
                         size: 9,
@@ -6909,27 +6884,12 @@ export const Dashboard = ({ view }) => {
                             const cursorX = (localRow[speedCol] !== undefined ? localRow[speedCol] : 0) * ratio;
                             const cursorAmpY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
                             
-                            let cursorPhaseY = 0;
-                            if (cols.phase_1x && localRow[cols.phase_1x] !== undefined) {
-                                const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
-                                const unwrapped_phases = unwrapPhase(raw_phases);
-                                cursorPhaseY = unwrapped_phases[localIdx];
-                            }
-                            
-                            const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker Amp');
-                            const phaseTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker Phase');
-                            
+                            const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Cursor Marker Amp');
                             if (ampTraceIdx !== -1) {
                                 Plotly.restyle(container, {
                                     x: [[cursorX]],
                                     y: [[cursorAmpY]]
                                 }, [ampTraceIdx]);
-                            }
-                            if (phaseTraceIdx !== -1) {
-                                Plotly.restyle(container, {
-                                    x: [[cursorX]],
-                                    y: [[cursorPhaseY]]
-                                }, [phaseTraceIdx]);
                             }
                             
                             if (container.layout.shapes) {
@@ -7064,14 +7024,20 @@ export const Dashboard = ({ view }) => {
                     });
                 }
             } else if (config.category === 'polar') {
+                if (pt.pointIndex !== undefined && (pt.curveNumber === 0 || pt.curveNumber === undefined)) {
+                    const row = container.plotData[pt.pointIndex];
+                    if (row) {
+                        return filteredDf.findIndex(r => r._time_ms === row._time_ms);
+                    }
+                }
                 const clickedR = parseFloat(pt.r !== undefined ? pt.r : pt.y);
                 const clickedTheta = parseFloat(pt.theta !== undefined ? pt.theta : pt.x);
                 if (!isNaN(clickedR) && !isNaN(clickedTheta)) {
                     let minDiff = Infinity;
-                    const cols = getBearingPairColumns(config.bearingOrChannel) || {};
+                    const cols = getChannelColumns(config.bearingOrChannel) || {};
                     container.plotData.forEach(r => {
-                        const amp = parseFloat(r[cols.x?.amp_1x || cols.amp_1x] || 0);
-                        const phase = parseFloat(r[cols.x?.phase_1x || cols.phase_1x] || 0);
+                        const amp = parseFloat(r[cols.amp_1x] || 0);
+                        const phase = parseFloat(r[cols.phase_1x] || 0);
                         const diff = Math.pow(amp - clickedR, 2) + Math.pow(phase - clickedTheta, 2);
                         if (diff < minDiff) {
                             minDiff = diff;
@@ -8210,6 +8176,7 @@ export const Dashboard = ({ view }) => {
             addCursorToSlot(slotIdx, traces, layout, clean_df);
             
             container.plotData = clean_df;
+            container.unwrappedPhases = unwrapped_phases;
             container.dataset.slotIndex = slotIdx;
 
             safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
