@@ -29,14 +29,15 @@ export const OAuthCallback = ({ provider }) => {
         // 2. If auth state is still loading, wait for it
         if (loading) return;
 
-        // 3. Extract PKCE code parameter
+        // 3. If token is already present (exchanged by SDK or cached), wait for user profile to load
+        if (token) {
+            console.log("OAuthCallback: Token present, waiting for user profile to load...");
+            return;
+        }
+
+        // 4. Extract PKCE code parameter
         const code = searchParams.get('code');
         if (!code) {
-            // If the URL code was already consumed by Supabase client, the session should be loading or active
-            if (token) {
-                console.log("OAuthCallback: Token present but user profile is loading. Waiting...");
-                return;
-            }
             setError('Missing authorization code from provider.');
             return;
         }
@@ -82,6 +83,10 @@ export const OAuthCallback = ({ provider }) => {
                 }
             } catch (err) {
                 console.error(err);
+                if (localStorage.getItem('token')) {
+                    console.log("OAuthCallback: Session token is already active, ignoring callback error.");
+                    return;
+                }
                 setError(err.message || 'An unexpected authentication error occurred.');
             }
         };
