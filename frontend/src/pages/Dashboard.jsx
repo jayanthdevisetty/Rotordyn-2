@@ -8971,7 +8971,7 @@ export const Dashboard = ({ view }) => {
                 };
                 const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
                 const ticktextY2 = tickvalsY2.map(v => {
-                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                 });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
@@ -9055,7 +9055,7 @@ export const Dashboard = ({ view }) => {
                 };
                 const tickvalsY2 = [-limitY3, -limitY3 / 2, 0, limitY3 / 2, limitY3];
                 const ticktextY2 = tickvalsY2.map(v => {
-                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                 });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
@@ -9092,7 +9092,7 @@ export const Dashboard = ({ view }) => {
                 };
                 const tickvalsY3 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
                 const ticktextY3 = tickvalsY3.map(v => {
-                    return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                 });
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
@@ -9354,7 +9354,7 @@ export const Dashboard = ({ view }) => {
                             const frameLimitY3 = ax > 0 ? (ax * 1.15) : 0.1;
                             const frameTickvalsY3 = [-frameLimitY3, -frameLimitY3 / 2, 0, frameLimitY3 / 2, frameLimitY3];
                             const frameTicktextY3 = frameTickvalsY3.map(v => {
-                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                             });
                             f_layout.yaxis3 = { range: [-frameLimitY3, frameLimitY3], tickvals: frameTickvalsY3, ticktext: frameTicktextY3, tickmode: 'array' };
 
@@ -9362,7 +9362,7 @@ export const Dashboard = ({ view }) => {
                             const frameLimitY2 = ay > 0 ? (ay * 1.15) : 0.1;
                             const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
                             const frameTicktextY2 = frameTickvalsY2.map(v => {
-                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                             });
                             f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
                         } else {
@@ -9370,7 +9370,7 @@ export const Dashboard = ({ view }) => {
                             const frameLimitY2 = ax > 0 ? (ax * 1.15) : 0.1;
                             const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
                             const frameTicktextY2 = frameTickvalsY2.map(v => {
-                                return v === 0 ? '0.0' : Number(v.toFixed(3)).toString();
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
                             });
                             f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
                         }
