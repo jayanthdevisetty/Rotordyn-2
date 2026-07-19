@@ -6943,6 +6943,9 @@ export const Dashboard = ({ view }) => {
             if (!pt || !container || !container.plotData) return -1;
             
             const config = plotSlots[parseInt(container.dataset.slotIndex)] || {};
+            if (config.category === 'orbit') {
+                return activeCursorIndex;
+            }
             const filteredDf = getFilteredData();
             let targetRow = null;
             
@@ -8507,6 +8510,7 @@ export const Dashboard = ({ view }) => {
             const clean_df = filteredDf.filter(r => isNumber(r[cols.x.amp_1x]) && isNumber(r[cols.y.amp_1x]) && isNumber(r[cols.x.phase_1x]) && isNumber(r[cols.y.phase_1x]) && isNumber(r[speedCol]));
             if (checkEmptyData(container, clean_df)) return;
             container.classList.add('orbit-chart-container');
+            container.plotData = clean_df;
             
             const df_chrono = [...clean_df].sort((a,b) => a._time_ms - b._time_ms);
             let df_frames = df_chrono.filter((_, i) => i % Math.max(1, Math.floor(df_chrono.length / 50)) === 0);
