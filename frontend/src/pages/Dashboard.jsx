@@ -5047,6 +5047,54 @@ export const Dashboard = ({ view }) => {
             const activeBtn = document.getElementById(btnMap[layout]);
             if (activeBtn) activeBtn.classList.add('active');
             
+            // Re-populate plots up to the selected layout's capacity
+            let category = 'trend';
+            for (let i = 0; i < plotSlots.length; i++) {
+                if (plotSlots[i] && plotSlots[i].category) {
+                    category = plotSlots[i].category;
+                    break;
+                }
+            }
+            
+            const capacity = layout === '1' ? 1 :
+                             (layout === '2H' || layout === '2V') ? 2 :
+                             layout === '4' ? 4 :
+                             layout === '6' ? 6 : 8;
+                             
+            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
+            let isSingle = !bearingPairCategories.includes(category);
+            
+            let targets = [];
+            if (isSingle) {
+                if (singlePrefixes && singlePrefixes.length > 0) {
+                    targets = getPriorityOrder(singlePrefixes);
+                }
+            } else {
+                if (bearingPairs && bearingPairs.length > 0) {
+                    targets = bearingPairs;
+                }
+            }
+            
+            const N_plots = targets.length;
+            const N = Math.min(N_plots, capacity);
+            
+            plotSlots = [];
+            for (let i = 0; i < capacity; i++) {
+                if (i < N) {
+                    plotSlots.push({
+                        bearingOrChannel: targets[i],
+                        category: category,
+                        isDual: !isSingle,
+                        layoutLimits: { min: null, max: null, autoScale: true },
+                        showTimebase: true,
+                        showTrace2: false,
+                        cycles: 8
+                    });
+                } else {
+                    plotSlots.push(null);
+                }
+            }
+            
             currentGridPage = 0;
             renderGrid();
             saveWorkspaceConfig();
