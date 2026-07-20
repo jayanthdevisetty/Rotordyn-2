@@ -11230,9 +11230,6 @@ export const Dashboard = ({ view }) => {
                             <input 
                                 type="range" 
                                 id="global-timeline-slider" 
-                                min="0" 
-                                max="0" 
-                                defaultValue="0" 
                                 style={{
                                     width: "100%",
                                     height: "6px",
