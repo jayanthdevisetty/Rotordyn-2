@@ -94,6 +94,7 @@ let timeSyncCursor = true;
 let activeCursorIndex = 0;
 let selectedTrendCurveName = 'Direct';
 let colorCodeByStateEnabled = true;
+let activeBodeSubplot = 'phase';
 const stateFormats = {
     startup: { color: '#10b981', width: 2.0, dash: 'solid' },
     shutdown: { color: '#ef4444', width: 2.0, dash: 'dash' },
@@ -5820,7 +5821,7 @@ export const Dashboard = ({ view }) => {
                 const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
                 cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
                 
-                const activeSubplot = (container && container.activeSubplot) || 'amp';
+                const activeSubplot = activeBodeSubplot;
                 let cursorY = 0;
                 let xaxis = 'x2';
                 let yaxis = 'y2';
@@ -6942,7 +6943,7 @@ export const Dashboard = ({ view }) => {
                             const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
                             const cursorX = (localRow[speedCol] !== undefined ? localRow[speedCol] : 0) * ratio;
                             
-                            const activeSubplot = container.activeSubplot || 'amp';
+                            const activeSubplot = activeBodeSubplot;
                             let cursorY = 0;
                             let xaxis = 'x2';
                             let yaxis = 'y2';
@@ -7094,15 +7095,19 @@ export const Dashboard = ({ view }) => {
                 if (pt.data && pt.data.name) {
                     if (pt.data.name.toLowerCase().includes('phase')) {
                         container.activeSubplot = 'phase';
+                        activeBodeSubplot = 'phase';
                     } else if (pt.data.name.toLowerCase().includes('amp')) {
                         container.activeSubplot = 'amp';
+                        activeBodeSubplot = 'amp';
                     }
                 } else if (pt.yaxis) {
                     const yId = pt.yaxis._id || '';
                     if (yId === 'y') {
                         container.activeSubplot = 'phase';
+                        activeBodeSubplot = 'phase';
                     } else if (yId === 'y2') {
                         container.activeSubplot = 'amp';
+                        activeBodeSubplot = 'amp';
                     }
                 }
                 if (!isNaN(clickedRPM)) {
