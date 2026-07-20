@@ -6174,14 +6174,33 @@ export const Dashboard = ({ view }) => {
                 <div id="timeline-plotly-chart" style="width: 100%; height: 38px;"></div>
                 <div id="timeline-range-selector" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
                     <!-- Highlighted range box (purely visual, non-interactive) -->
-                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: none; cursor: default; box-sizing: border-box;"></div>
+                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 38px; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: none; cursor: default; box-sizing: border-box;"></div>
                     <!-- Current cursor playback vertical line indicator (purely visual, non-interactive) -->
-                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: none; cursor: default; z-index: 12; box-sizing: border-box; display: none;">
+                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 38px; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: none; cursor: default; z-index: 12; box-sizing: border-box; display: none;">
                         <!-- Circular handle at top of yellow cursor line (purely visual) -->
                         <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #fbbf24, #d97706); border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); pointer-events: none;"></div>
                     </div>
                 </div>
+                <!-- Standard range slider generated dynamically inside the speed profile container -->
+                <div style="width: 100%; height: 16px; display: flex; align-items: center; padding: 0 2px; box-sizing: border-box; margin-top: 2px;">
+                    <input 
+                        type="range" 
+                        id="global-timeline-slider" 
+                        style="width: 100%; height: 6px; accent-color: #0ea5e9; background: #cbd5e1; border-radius: 3px; outline: none; cursor: pointer; margin: 0; padding: 0;"
+                    />
+                </div>
             `;
+            
+            const slider = document.getElementById('global-timeline-slider');
+            if (slider) {
+                const handleSliderInput = (e) => {
+                    if (window.timelineSliderInput) {
+                        window.timelineSliderInput(e.target.value);
+                    }
+                };
+                slider.addEventListener('input', handleSliderInput);
+                slider.addEventListener('change', handleSliderInput);
+            }
             
             timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
             
@@ -11222,27 +11241,8 @@ export const Dashboard = ({ view }) => {
                 <div className="timeline-player-bar" id="global-timeline-bar" style={{display: "none"}}>
                     {/* Row 1: Full-Width Waveform Timeline Navigator & Range Slider */}
                     <div style={{width: "100%", display: "flex", flexDirection: "column", gap: "4px"}}>
-                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "default", overflow: "visible"}}>
+                        <div id="timeline-waveform-container" style={{width: "100%", height: "54px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "default", overflow: "visible"}}>
                             <div style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.75rem"}}>Loading Speed Waveform...</div>
-                        </div>
-                        {/* Interactive Timeline Scrubbing Slider */}
-                        <div style={{width: "100%", display: "flex", alignItems: "center", padding: "0 2px"}}>
-                            <input 
-                                type="range" 
-                                id="global-timeline-slider" 
-                                style={{
-                                    width: "100%",
-                                    height: "6px",
-                                    accentColor: "var(--accent-color, #0ea5e9)",
-                                    background: "var(--border-color, #cbd5e1)",
-                                    borderRadius: "3px",
-                                    outline: "none",
-                                    cursor: "pointer",
-                                    margin: "4px 0"
-                                }} 
-                                onChange={(e) => window.timelineSliderInput && window.timelineSliderInput(e.target.value)} 
-                                onInput={(e) => window.timelineSliderInput && window.timelineSliderInput(e.target.value)} 
-                            />
                         </div>
                         <div style={{display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "var(--text-muted)", padding: "0 4px", fontWeight: 500, lineHeight: 1}}>
                             <span>Start</span>
