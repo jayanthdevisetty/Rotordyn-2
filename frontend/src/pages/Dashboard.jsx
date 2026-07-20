@@ -4139,16 +4139,13 @@ export const Dashboard = ({ view }) => {
                 (currentLayout === '2H' || currentLayout === '2V') ? 2 :
                 currentLayout === '4' ? 4 :
                 currentLayout === '6' ? 6 : 8
-            ) : 8;
+            ) : 2; // Default to 2
             
             const N_plots = targets.length;
-            const N = Math.min(N_plots, 8); // cap available plots at 8
-            
-            // Keep current layout capacity if it fits N, otherwise expand to fit N
-            const totalSlots = Math.max(capacity, N);
+            const N = Math.min(N_plots, capacity);
             
             plotSlots = [];
-            for (let i = 0; i < totalSlots; i++) {
+            for (let i = 0; i < capacity; i++) {
                 if (i < N) {
                     plotSlots.push({
                         bearingOrChannel: targets[i],
@@ -4164,14 +4161,7 @@ export const Dashboard = ({ view }) => {
                 }
             }
             
-            let layout = currentLayout || '8';
-            if (N > capacity) {
-                if (N === 1) layout = '1';
-                else if (N === 2) layout = '2V';
-                else if (N <= 4) layout = '4';
-                else if (N <= 6) layout = '6';
-                else layout = '8';
-            }
+            let layout = currentLayout || '2V';
             if (layout === '2H') {
                 layout = '2V';
             }
@@ -4180,7 +4170,7 @@ export const Dashboard = ({ view }) => {
             currentLayoutRef.current = layout;
             setCurrentLayoutState(layout);
             
-            if (activeSlotIndex >= totalSlots) {
+            if (activeSlotIndex >= capacity) {
                 activeSlotIndex = 0;
             }
             
