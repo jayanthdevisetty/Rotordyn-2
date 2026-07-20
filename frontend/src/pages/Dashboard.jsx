@@ -3135,20 +3135,16 @@ export const Dashboard = ({ view }) => {
 
                                 const N = Math.min(targets.length, capacity);
                                 plotSlots = [];
-                                for (let i = 0; i < capacity; i++) {
-                                    if (i < N) {
-                                        plotSlots.push({
-                                            bearingOrChannel: targets[i],
-                                            category: category,
-                                            isDual: isDual,
-                                            layoutLimits: { min: null, max: null, autoScale: true },
-                                            showTimebase: true,
-                                            showTrace2: false,
-                                            cycles: 8
-                                        });
-                                    } else {
-                                        plotSlots.push(null); // Leave empty slots
-                                    }
+                                for (let i = 0; i < targets.length; i++) {
+                                    plotSlots.push({
+                                        bearingOrChannel: targets[i],
+                                        category: category,
+                                        isDual: isDual,
+                                        layoutLimits: { min: null, max: null, autoScale: true },
+                                        showTimebase: true,
+                                        showTrace2: false,
+                                        cycles: 8
+                                    });
                                 }
 
                                 activeSlotIndex = 0;
@@ -4149,20 +4145,16 @@ export const Dashboard = ({ view }) => {
             const N = Math.min(N_plots, capacity);
             
             plotSlots = [];
-            for (let i = 0; i < capacity; i++) {
-                if (i < N) {
-                    plotSlots.push({
-                        bearingOrChannel: targets[i],
-                        category: category,
-                        isDual: !isSingle,
-                        layoutLimits: { min: null, max: null, autoScale: true },
-                        showTimebase: true,
-                        showTrace2: false,
-                        cycles: 8
-                    });
-                } else {
-                    plotSlots.push(null); // Leave empty slots
-                }
+            for (let i = 0; i < targets.length; i++) {
+                plotSlots.push({
+                    bearingOrChannel: targets[i],
+                    category: category,
+                    isDual: !isSingle,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                });
             }
             
             let layout = currentLayout || '2V';
@@ -5103,20 +5095,16 @@ export const Dashboard = ({ view }) => {
             const N = Math.min(N_plots, capacity);
             
             plotSlots = [];
-            for (let i = 0; i < capacity; i++) {
-                if (i < N) {
-                    plotSlots.push({
-                        bearingOrChannel: targets[i],
-                        category: category,
-                        isDual: !isSingle,
-                        layoutLimits: { min: null, max: null, autoScale: true },
-                        showTimebase: true,
-                        showTrace2: false,
-                        cycles: 8
-                    });
-                } else {
-                    plotSlots.push(null);
-                }
+            for (let i = 0; i < targets.length; i++) {
+                plotSlots.push({
+                    bearingOrChannel: targets[i],
+                    category: category,
+                    isDual: !isSingle,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                });
             }
             
             currentGridPage = 0;
@@ -5442,12 +5430,21 @@ export const Dashboard = ({ view }) => {
                 gridEl.style.gridTemplateRows = 'repeat(4, 1fr)';
             }
             
-            const startIndex = currentGridPage * pageSize;
-            const endIndex = startIndex + pageSize;
-            
+            let startIndex = currentGridPage * pageSize;
             const totalSlots = Math.max(plotSlots.length, 1);
             const totalPages = Math.ceil(totalSlots / pageSize);
-            if (currentGridPage >= totalPages) currentGridPage = Math.max(0, totalPages - 1);
+            if (currentGridPage >= totalPages) {
+                currentGridPage = Math.max(0, totalPages - 1);
+                startIndex = currentGridPage * pageSize;
+            }
+            const endIndex = startIndex + pageSize;
+            
+            // Ensure activeSlotIndex is on the current visible page
+            const newStartIndex = startIndex;
+            const newEndIndex = Math.min(newStartIndex + pageSize, totalSlots);
+            if (activeSlotIndex < newStartIndex || activeSlotIndex >= newEndIndex) {
+                activeSlotIndex = newStartIndex;
+            }
             
             const controlsEl = document.querySelector('.grid-page-controls');
             if (controlsEl) {
