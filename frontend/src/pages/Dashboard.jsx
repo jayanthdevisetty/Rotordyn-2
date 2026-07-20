@@ -11364,7 +11364,7 @@ export const Dashboard = ({ view }) => {
             
             {/* Right-side Toolbar (Extensible Layout & Cursor controls) */}
             <button id="right-toolbar-toggle-btn" className="right-toolbar-toggle" type="button" onClick={() => window.toggleRightToolbar && window.toggleRightToolbar()} title="Collapse Toolbar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{width:"16px",height:"16px",display:"block",margin:"auto"}}><polyline points="9 18 15 12 9 6"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:"16px",height:"16px",display:"block",margin:"auto"}}><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             <div className="right-toolbar">
                 <button className={`toolbar-btn ${currentLayoutState === '1' ? 'active' : ''}`} id="btn-layout-1" type="button" onClick={() => window.setLayout && window.setLayout('1')}>
