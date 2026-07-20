@@ -91,7 +91,17 @@ export const OAuthCallback = ({ provider }) => {
             }
         };
 
-        exchangeCode();
+        // Delay manual exchange to allow client SDK automatic exchange to finish first
+        const timer = setTimeout(() => {
+            if (localStorage.getItem('token')) {
+                console.log("OAuthCallback: Session token is already active, skipping manual exchange.");
+                return;
+            }
+            console.log("OAuthCallback: Initiating manual code exchange...");
+            exchangeCode();
+        }, 1200);
+
+        return () => clearTimeout(timer);
     }, [searchParams, provider, API_BASE_URL, saveToken, navigate, token, user, loading]);
 
     return (
