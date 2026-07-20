@@ -4335,7 +4335,19 @@ export const Dashboard = ({ view }) => {
         function updateSlowRollButtonUI() {
             const btn = document.getElementById('tl-btn-apply-slowroll');
             if (!btn) return;
-            if (slowRollCompensationEnabled) {
+            
+            // Check if there is an applied slow roll at the current index
+            const filteredDf = getFilteredData();
+            let isAppliedAtCurrent = false;
+            if (filteredDf && filteredDf.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
+                const targetRow = filteredDf[activeCursorIndex];
+                if (targetRow) {
+                    const targetTimeMs = targetRow._time_ms || 0;
+                    isAppliedAtCurrent = savedSlowRollSamples.some(s => s.id === targetTimeMs);
+                }
+            }
+
+            if (slowRollCompensationEnabled && isAppliedAtCurrent) {
                 btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #22c55e;"><polyline points="20 6 9 17 4 12"/></svg> Slow Roll Applied';
                 btn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; // light green
                 btn.style.color = '#22c55e'; // green text
@@ -4442,24 +4454,42 @@ export const Dashboard = ({ view }) => {
             if (!targetRow) return;
             
             const targetTimeMs = targetRow._time_ms || 0;
-            const rpm = Math.round(targetRow[speedCol]) || 0;
-            const name = `Slow Roll ${rpm} RPM`;
             
-            const newSample = {
-                id: targetTimeMs,
-                name: name,
-                row: targetRow
-            };
-            
-            if (!savedSlowRollSamples.find(s => s.id === targetTimeMs)) {
+            // Check if already applied at this index/timestamp
+            const existingIndex = savedSlowRollSamples.findIndex(s => s.id === targetTimeMs);
+            if (existingIndex !== -1) {
+                // Toggle off / remove the sample
+                savedSlowRollSamples.splice(existingIndex, 1);
+                
+                // If it was the active sample, select another one or reset to null
+                if (activeSlowRollSampleId === targetTimeMs) {
+                    activeSlowRollSampleId = savedSlowRollSamples[0] ? savedSlowRollSamples[0].id : null;
+                }
+                
+                // If there are no more active slow roll samples, disable compensation
+                if (!activeSlowRollSampleId) {
+                    slowRollCompensationEnabled = false;
+                    const compCheckbox = document.getElementById('slow-roll-enabled');
+                    if (compCheckbox) compCheckbox.checked = false;
+                }
+            } else {
+                // Apply slow roll
+                const rpm = Math.round(targetRow[speedCol]) || 0;
+                const name = `Slow Roll ${rpm} RPM`;
+                const newSample = {
+                    id: targetTimeMs,
+                    name: name,
+                    row: targetRow
+                };
+                
                 savedSlowRollSamples.push(newSample);
+                activeSlowRollSampleId = targetTimeMs;
+                
+                // Enable compensation
+                slowRollCompensationEnabled = true;
+                const compCheckbox = document.getElementById('slow-roll-enabled');
+                if (compCheckbox) compCheckbox.checked = true;
             }
-            activeSlowRollSampleId = targetTimeMs;
-            
-            // Enable compensation
-            slowRollCompensationEnabled = true;
-            const compCheckbox = document.getElementById('slow-roll-enabled');
-            if (compCheckbox) compCheckbox.checked = true;
             
             updateSlowRollButtonUI();
             updateSavedSlowRollList();
@@ -6287,6 +6317,7 @@ export const Dashboard = ({ view }) => {
                 stateEl.className = 'state-badge ' + state.toLowerCase();
             }
             document.getElementById('tl-val-index').innerText = `${idx + 1} / ${filteredDf.length}`;
+            updateSlowRollButtonUI();
         }
 
         function timelineSliderInput(val) {
