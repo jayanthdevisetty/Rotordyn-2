@@ -4925,7 +4925,7 @@ export const Dashboard = ({ view }) => {
                 const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                 const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
                 const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-                const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+                const showTemp = false;
 
                 let htmlParts = [
                     `<span><b>Time:</b> ${t_part.slice(0, 8)}</span>`,
@@ -5732,9 +5732,9 @@ export const Dashboard = ({ view }) => {
                 const cols = getChannelColumns(config.bearingOrChannel);
                 const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                 const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-                const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
+                const show2X = false;
                 const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-                const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+                const showTemp = false;
                 
                 let resolvedY = null;
                 let resolvedAxis = 'y2';
@@ -6396,49 +6396,83 @@ export const Dashboard = ({ view }) => {
                     if (isDraggingLeft) {
                         const mouseX = e.clientX - rect.left;
                         let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
+
                         const endMs = parseTimestamp(activeEndTime).getTime();
                         const maxStartMs = endMs - 1000;
                         const targetMs = timelineDf[0]._time_ms + pct * totalMs;
                         const clampedMs = Math.min(targetMs, maxStartMs);
-                        
+
                         const startIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
                         if (startIdx !== -1) {
+                            const currentFiltered = getFilteredData();
+                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
+                                ? currentFiltered[activeCursorIndex]._time_ms 
+                                : null;
+
                             activeStartTime = timelineDf[startIdx][tsCol];
                             selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                            
+
                             const presetSelect = document.getElementById('filter-time-window');
                             if (presetSelect) presetSelect.value = 'custom';
-                            
-                            activeCursorIndex = 0;
+
+                            invalidateFilteredDataCache();
+                            const newFiltered = getFilteredData();
+                            if (newFiltered.length > 0) {
+                                if (prevCursorMs !== null) {
+                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
+                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
+                                } else {
+                                    activeCursorIndex = 0;
+                                }
+                            } else {
+                                activeCursorIndex = 0;
+                            }
+
                             requestRenderGrid();
-                            updateTimelineRangeUI();
+                            timelineSliderInput(activeCursorIndex);
                         }
                     } else if (isDraggingRight) {
                         const mouseX = e.clientX - rect.left;
                         let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
+
                         const startMs = parseTimestamp(activeStartTime).getTime();
                         const minEndMs = startMs + 1000;
                         const targetMs = timelineDf[0]._time_ms + pct * totalMs;
                         const clampedMs = Math.max(targetMs, minEndMs);
-                        
+
                         const endIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
                         if (endIdx !== -1) {
+                            const currentFiltered = getFilteredData();
+                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
+                                ? currentFiltered[activeCursorIndex]._time_ms 
+                                : null;
+
                             activeEndTime = timelineDf[endIdx][tsCol];
                             selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-                            
+
                             const presetSelect = document.getElementById('filter-time-window');
                             if (presetSelect) presetSelect.value = 'custom';
-                            
-                            activeCursorIndex = 0;
+
+                            invalidateFilteredDataCache();
+                            const newFiltered = getFilteredData();
+                            if (newFiltered.length > 0) {
+                                if (prevCursorMs !== null) {
+                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
+                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
+                                } else {
+                                    activeCursorIndex = 0;
+                                }
+                            } else {
+                                activeCursorIndex = 0;
+                            }
+
                             requestRenderGrid();
-                            updateTimelineRangeUI();
+                            timelineSliderInput(activeCursorIndex);
                         }
                     } else if (isDraggingBox) {
                         const deltaX = e.clientX - dragStartX;
                         const deltaPct = (deltaX / rect.width) * 100;
-                        
+
                         let newLeftPct = dragStartLeftPct + deltaPct;
                         if (newLeftPct < 0) {
                             newLeftPct = 0;
@@ -6447,38 +6481,55 @@ export const Dashboard = ({ view }) => {
                             newLeftPct = 100 - dragStartWidthPct;
                             dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
                         }
-                        
+
                         const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
                         const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
-                        
+
                         const startIdx = findClosestRowIndexByMs(timelineDf, startMs);
                         const endIdx = findClosestRowIndexByMs(timelineDf, endMs);
-                        
+
                         if (startIdx !== -1 && endIdx !== -1) {
+                            const currentFiltered = getFilteredData();
+                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
+                                ? currentFiltered[activeCursorIndex]._time_ms 
+                                : null;
+
                             activeStartTime = timelineDf[startIdx][tsCol];
                             activeEndTime = timelineDf[endIdx][tsCol];
-                            
+
                             selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
                             selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-                            
+
                             const presetSelect = document.getElementById('filter-time-window');
                             if (presetSelect && presetSelect.value === 'all') {
                                 presetSelect.value = 'custom';
                             }
-                            
-                            activeCursorIndex = 0;
+
+                            invalidateFilteredDataCache();
+                            const newFiltered = getFilteredData();
+                            if (newFiltered.length > 0) {
+                                if (prevCursorMs !== null) {
+                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
+                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
+                                } else {
+                                    activeCursorIndex = 0;
+                                }
+                            } else {
+                                activeCursorIndex = 0;
+                            }
+
                             requestRenderGrid();
-                            updateTimelineRangeUI();
+                            timelineSliderInput(activeCursorIndex);
                         }
                     } else if (isDraggingCursor) {
                         const mouseX = e.clientX - rect.left;
                         let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
+
                         const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        
+
                         const startMs = parseTimestamp(activeStartTime).getTime();
                         const endMs = parseTimestamp(activeEndTime).getTime();
-                        
+
                         if (targetMs < startMs || targetMs > endMs) {
                             const durationMs = endMs - startMs;
                             const newStartMs = Math.max(timelineDf[0]._time_ms, Math.min(timelineDf[timelineDf.length - 1]._time_ms - durationMs, targetMs - durationMs / 2));
@@ -6497,8 +6548,8 @@ export const Dashboard = ({ view }) => {
                                 const presetSelect = document.getElementById('filter-time-window');
                                 if (presetSelect) presetSelect.value = 'custom';
 
+                                invalidateFilteredDataCache();
                                 requestRenderGrid();
-                                updateTimelineRangeUI();
                             }
                         }
 
@@ -6853,9 +6904,9 @@ export const Dashboard = ({ view }) => {
                     const cols = getChannelColumns(config.bearingOrChannel);
                     const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                     const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-                    const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
+                    const show2X = false;
                     const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-                    const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+                    const showTemp = false;
                     
                     let resolvedY = null;
                     let resolvedAxis = 'y2';
@@ -7233,9 +7284,9 @@ export const Dashboard = ({ view }) => {
             // Read checkboxes
             const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
             const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-            const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
+            const show2X = false;
             const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-            const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+            const showTemp = false;
 
             const hasPhaseTraces = (show1X && cols.phase_1x && filteredDf[0][cols.phase_1x] !== undefined) ||
                                    (show2X && cols.phase_2x && filteredDf[0][cols.phase_2x] !== undefined);
@@ -11300,16 +11351,8 @@ export const Dashboard = ({ view }) => {
                                     1X Amp & Phase
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-2x" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
-                                    2X Amp & Phase
-                                </label>
-                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-gap" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
+                                    <input type="checkbox" id="show-trend-gap" onChange={() => window.renderGrid && window.renderGrid()} />
                                     Average Gap
-                                </label>
-                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-temp" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
-                                    Temperature
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
                                     <input type="checkbox" id="show-iso-limits" onChange={() => { window.renderGrid && window.renderGrid(); if (document.getElementById('show-iso-limits').checked) { window.dispatchEvent(new CustomEvent('rody_iso_toggled')); } }} />
@@ -11325,10 +11368,8 @@ export const Dashboard = ({ view }) => {
                                 <select id="format-signal-select" onChange={(e) => window.loadSignalFormat && window.loadSignalFormat(e.target.value)} style={{padding: "4px", fontSize: "0.75rem"}}>
                                     <option value="direct">Direct Vibration</option>
                                     <option value="amp_1x">1X Amplitude & Phase</option>
-                                    <option value="amp_2x">2X Amplitude & Phase</option>
                                     <option value="amp_nx">nX Amplitude & Phase</option>
                                     <option value="gap">Avg Gap</option>
-                                    <option value="temp">Temperature</option>
                                     <option value="speed">Speed</option>
                                     <option value="load">Load</option>
                                 </select>

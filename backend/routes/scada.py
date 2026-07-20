@@ -73,12 +73,10 @@ async def scada_stream(websocket: WebSocket):
             # Simulate speed profile
             if count < 50:
                 # Run-up phase
-                rpm = 500 + count * 35
+                rpm = 500 + count * 62
             else:
                 # Steady state + slight fluctuation
-                rpm = 2250 + (count - 50) * 20
-                if rpm > 3612:
-                    rpm = 3612 + math.sin(count * 0.1) * 15
+                rpm = 3600 + math.sin(count * 0.1) * 15
             
             # Amplitude resonant peak at 1800 RPM (Critical speed)
             amp_factor = math.exp(-pow(rpm - 1800, 2) / 120000)
