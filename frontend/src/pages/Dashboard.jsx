@@ -3122,7 +3122,8 @@ export const Dashboard = ({ view }) => {
                             }
                         }
 
-                        showDefaultPlotSelectionModal(ordered, bearingPairs, singlePrefixes, (category, isDual, layout) => {
+                        // Automatically initialize the grid with defaults ('trend' plot, 2V layout) without asking
+                        const initPlotGridWithDefaults = (category, isDual, layout) => {
                             showLoader(true, "Initializing plot grid...");
                             
                             setTimeout(() => {
@@ -3178,7 +3179,9 @@ export const Dashboard = ({ view }) => {
                                 showLoader(false);
                                 navigate('/dashboard');
                             }, 300);
-                        });
+                        };
+
+                        initPlotGridWithDefaults('trend', false, '2V');
                     },
                 error: function(err) {
                     showUploadError("Error parsing CSV: " + err.message);
@@ -6147,6 +6150,14 @@ export const Dashboard = ({ view }) => {
                     cursorIndicator.style.display = 'block';
                     cursorIndicator.style.left = `${cursorPct}%`;
                 }
+
+                // Sync the range slider values
+                const slider = document.getElementById('global-timeline-slider');
+                if (slider) {
+                    slider.min = 0;
+                    slider.max = filteredDf.length - 1;
+                    slider.value = activeCursorIndex;
+                }
             } else {
                 if (cursorIndicator) cursorIndicator.style.display = 'none';
             }
@@ -6162,21 +6173,14 @@ export const Dashboard = ({ view }) => {
             container.innerHTML = `
                 <div id="timeline-plotly-chart" style="width: 100%; height: 38px;"></div>
                 <div id="timeline-range-selector" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
-                    <!-- Draggable highlighted range box -->
-                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
-                        <!-- Left drag handle -->
-                        <div id="range-handle-left" style="width: 10px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                        <!-- Right drag handle -->
-                        <div id="range-handle-right" style="width: 10px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                    </div>
-                    <!-- Current cursor playback vertical line indicator -->
-                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
-                        <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #fbbf24, #d97706); border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); cursor: col-resize; transition: transform 0.15s ease-in-out; pointer-events: auto;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>
+                    <!-- Highlighted range box (purely visual, non-interactive) -->
+                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: none; cursor: default; box-sizing: border-box;"></div>
+                    <!-- Current cursor playback vertical line indicator (purely visual, non-interactive) -->
+                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: none; cursor: default; z-index: 12; box-sizing: border-box; display: none;">
+                        <!-- Circular handle at top of yellow cursor line (purely visual) -->
+                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #fbbf24, #d97706); border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); pointer-events: none;"></div>
                     </div>
                 </div>
-                <!-- Hidden range input for back-compatibility with other scripts -->
-                <input type="range" id="global-timeline-slider" style="display: none;">
             `;
             
             timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
@@ -6229,375 +6233,7 @@ export const Dashboard = ({ view }) => {
         }
 
         function initTimelineDragEvents() {
-            let renderGridPending = false;
-            function requestRenderGrid() {
-                if (renderGridPending) return;
-                renderGridPending = true;
-                requestAnimationFrame(() => {
-                    renderGrid();
-                    renderGridPending = false;
-                });
-            }
-
-            function ensureTimelinePlaybackPaused() {
-                if (isTimelinePlaying) {
-                    timelineTogglePlay();
-                }
-            }
-
-            const container = document.getElementById('timeline-waveform-container');
-            const rangeBox = document.getElementById('timeline-range-box');
-            const leftHandle = document.getElementById('range-handle-left');
-            const rightHandle = document.getElementById('range-handle-right');
-            const cursorIndicator = document.getElementById('timeline-cursor-indicator');
-
-            if (!container || !rangeBox || !leftHandle || !rightHandle) return;
-
-            leftHandle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                ensureTimelinePlaybackPaused();
-                isDraggingLeft = true;
-                container.style.cursor = 'ew-resize';
-            });
-
-            rightHandle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                ensureTimelinePlaybackPaused();
-                isDraggingRight = true;
-                container.style.cursor = 'ew-resize';
-            });
-
-            cursorIndicator.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                ensureTimelinePlaybackPaused();
-                isDraggingCursor = true;
-                container.style.cursor = 'col-resize';
-            });
-
-            let mouseDownX = 0;
-            rangeBox.addEventListener('mousedown', (e) => {
-                const rect = rangeBox.getBoundingClientRect();
-                const relativeY = e.clientY - rect.top;
-                
-                if (relativeY < rect.height * 0.40) {
-                    // Clicked in top 40% of range box: treat as cursor positioning/scrubbing
-                    e.stopPropagation();
-                    e.preventDefault();
-                    ensureTimelinePlaybackPaused();
-                    isDraggingCursor = true;
-                    container.style.cursor = 'col-resize';
-                    
-                    // Immediately move cursor to click position
-                    const containerRect = container.getBoundingClientRect();
-                    const clickX = e.clientX - containerRect.left;
-                    const clickPct = clickX / containerRect.width;
-                    const timelineDf = getTimelineData();
-                    if (timelineDf.length > 0) {
-                        const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
-                        const clickMs = timelineDf[0]._time_ms + clickPct * totalMs;
-                        const filteredDf = getFilteredData();
-                        const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
-                        if (closestFilteredIdx !== -1) {
-                            activeCursorIndex = closestFilteredIdx;
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    }
-                    return;
-                }
-                
-                // Otherwise: drag the entire range box (bottom 60%)
-                e.preventDefault();
-                ensureTimelinePlaybackPaused();
-                isDraggingBox = true;
-                rangeBox.style.cursor = 'grabbing';
-                dragStartX = e.clientX;
-                mouseDownX = e.clientX;
-                
-                const containerRect = container.getBoundingClientRect();
-                dragStartLeftPct = ((rect.left - containerRect.left) / containerRect.width) * 100;
-                dragStartWidthPct = (rect.width / containerRect.width) * 100;
-            });
-
-            container.addEventListener('mousedown', (e) => {
-                if (isDraggingLeft || isDraggingRight || isDraggingBox || isDraggingCursor) return;
-                ensureTimelinePlaybackPaused();
-                const rect = container.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickPct = clickX / rect.width;
-                
-                const timelineDf = getTimelineData();
-                if (timelineDf.length === 0) return;
-
-                const startMs = parseTimestamp(activeStartTime).getTime();
-                const endMs = parseTimestamp(activeEndTime).getTime();
-                const firstMs = timelineDf[0]._time_ms;
-                const lastMs = timelineDf[timelineDf.length - 1]._time_ms;
-                const totalMs = lastMs - firstMs;
-
-                const clickMs = firstMs + clickPct * totalMs;
-
-                if (clickMs >= startMs && clickMs <= endMs) {
-                    const filteredDf = getFilteredData();
-                    const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
-                    if (closestFilteredIdx !== -1) {
-                        activeCursorIndex = closestFilteredIdx;
-                        timelineSliderInput(activeCursorIndex);
-                        
-                        isDraggingCursor = true;
-                        container.style.cursor = 'col-resize';
-                    }
-                } else {
-                    const durationMs = endMs - startMs;
-                    const newStartMs = Math.max(firstMs, Math.min(lastMs - durationMs, clickMs - durationMs / 2));
-                    const newEndMs = newStartMs + durationMs;
-
-                    const startIdx = findClosestRowIndexByMs(timelineDf, newStartMs);
-                    const endIdx = findClosestRowIndexByMs(timelineDf, newEndMs);
-
-                    if (startIdx !== -1 && endIdx !== -1) {
-                        activeStartTime = timelineDf[startIdx][tsCol];
-                        activeEndTime = timelineDf[endIdx][tsCol];
-
-                        selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                        selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-
-                        const presetSelect = document.getElementById('filter-time-window');
-                        if (presetSelect && presetSelect.value === 'all') {
-                            presetSelect.value = 'custom';
-                        }
-
-                        activeCursorIndex = 0;
-                        renderGrid();
-                        updateTimelineRangeUI();
-                        
-                        isDraggingCursor = true;
-                        container.style.cursor = 'col-resize';
-                    }
-                }
-            });
-
-            if (!window.timelineListenersBound) {
-                window.addEventListener('mousemove', (e) => {
-                    if (!isDraggingLeft && !isDraggingRight && !isDraggingBox && !isDraggingCursor) return;
-                    
-                    const container = document.getElementById('timeline-waveform-container');
-                    const rangeBox = document.getElementById('timeline-range-box');
-                    if (!container || !rangeBox) return;
-                    
-                    const rect = container.getBoundingClientRect();
-                    const timelineDf = getTimelineData();
-                    if (timelineDf.length === 0) return;
-
-                    const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
-
-                    if (isDraggingLeft) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-
-                        const endMs = parseTimestamp(activeEndTime).getTime();
-                        const maxStartMs = endMs - 1000;
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        const clampedMs = Math.min(targetMs, maxStartMs);
-
-                        const startIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                        if (startIdx !== -1) {
-                            const currentFiltered = getFilteredData();
-                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
-                                ? currentFiltered[activeCursorIndex]._time_ms 
-                                : null;
-
-                            activeStartTime = timelineDf[startIdx][tsCol];
-                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect) presetSelect.value = 'custom';
-
-                            invalidateFilteredDataCache();
-                            const newFiltered = getFilteredData();
-                            if (newFiltered.length > 0) {
-                                if (prevCursorMs !== null) {
-                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
-                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
-                                } else {
-                                    activeCursorIndex = 0;
-                                }
-                            } else {
-                                activeCursorIndex = 0;
-                            }
-
-                            requestRenderGrid();
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    } else if (isDraggingRight) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-
-                        const startMs = parseTimestamp(activeStartTime).getTime();
-                        const minEndMs = startMs + 1000;
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        const clampedMs = Math.max(targetMs, minEndMs);
-
-                        const endIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                        if (endIdx !== -1) {
-                            const currentFiltered = getFilteredData();
-                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
-                                ? currentFiltered[activeCursorIndex]._time_ms 
-                                : null;
-
-                            activeEndTime = timelineDf[endIdx][tsCol];
-                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect) presetSelect.value = 'custom';
-
-                            invalidateFilteredDataCache();
-                            const newFiltered = getFilteredData();
-                            if (newFiltered.length > 0) {
-                                if (prevCursorMs !== null) {
-                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
-                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
-                                } else {
-                                    activeCursorIndex = 0;
-                                }
-                            } else {
-                                activeCursorIndex = 0;
-                            }
-
-                            requestRenderGrid();
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    } else if (isDraggingBox) {
-                        const deltaX = e.clientX - dragStartX;
-                        const deltaPct = (deltaX / rect.width) * 100;
-
-                        let newLeftPct = dragStartLeftPct + deltaPct;
-                        if (newLeftPct < 0) {
-                            newLeftPct = 0;
-                            dragStartX = e.clientX + (dragStartLeftPct / 100) * rect.width;
-                        } else if (newLeftPct > 100 - dragStartWidthPct) {
-                            newLeftPct = 100 - dragStartWidthPct;
-                            dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
-                        }
-
-                        const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
-                        const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
-
-                        const startIdx = findClosestRowIndexByMs(timelineDf, startMs);
-                        const endIdx = findClosestRowIndexByMs(timelineDf, endMs);
-
-                        if (startIdx !== -1 && endIdx !== -1) {
-                            const currentFiltered = getFilteredData();
-                            const prevCursorMs = (currentFiltered.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < currentFiltered.length) 
-                                ? currentFiltered[activeCursorIndex]._time_ms 
-                                : null;
-
-                            activeStartTime = timelineDf[startIdx][tsCol];
-                            activeEndTime = timelineDf[endIdx][tsCol];
-
-                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect && presetSelect.value === 'all') {
-                                presetSelect.value = 'custom';
-                            }
-
-                            invalidateFilteredDataCache();
-                            const newFiltered = getFilteredData();
-                            if (newFiltered.length > 0) {
-                                if (prevCursorMs !== null) {
-                                    const closestIdx = findClosestRowIndexByMs(newFiltered, prevCursorMs);
-                                    activeCursorIndex = closestIdx !== -1 ? closestIdx : 0;
-                                } else {
-                                    activeCursorIndex = 0;
-                                }
-                            } else {
-                                activeCursorIndex = 0;
-                            }
-
-                            requestRenderGrid();
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    } else if (isDraggingCursor) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-
-                        const startMs = parseTimestamp(activeStartTime).getTime();
-                        const endMs = parseTimestamp(activeEndTime).getTime();
-
-                        if (targetMs < startMs || targetMs > endMs) {
-                            const durationMs = endMs - startMs;
-                            const newStartMs = Math.max(timelineDf[0]._time_ms, Math.min(timelineDf[timelineDf.length - 1]._time_ms - durationMs, targetMs - durationMs / 2));
-                            const newEndMs = newStartMs + durationMs;
-
-                            const startIdx = findClosestRowIndexByMs(timelineDf, newStartMs);
-                            const endIdx = findClosestRowIndexByMs(timelineDf, newEndMs);
-
-                            if (startIdx !== -1 && endIdx !== -1) {
-                                activeStartTime = timelineDf[startIdx][tsCol];
-                                activeEndTime = timelineDf[endIdx][tsCol];
-
-                                selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                                selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-
-                                const presetSelect = document.getElementById('filter-time-window');
-                                if (presetSelect) presetSelect.value = 'custom';
-
-                                invalidateFilteredDataCache();
-                                requestRenderGrid();
-                            }
-                        }
-
-                        const filteredDf = getFilteredData();
-                        const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, targetMs);
-                        if (closestFilteredIdx !== -1) {
-                            activeCursorIndex = closestFilteredIdx;
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    }
-                });
-
-                window.addEventListener('mouseup', (e) => {
-                    if (isDraggingBox && typeof mouseDownX !== 'undefined') {
-                        const deltaX = Math.abs(e.clientX - mouseDownX);
-                        if (deltaX < 5) {
-                            const rect = container.getBoundingClientRect();
-                            const clickX = e.clientX - rect.left;
-                            const clickPct = clickX / rect.width;
-                            const timelineDf = getTimelineData();
-                            if (timelineDf.length > 0) {
-                                const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
-                                const clickMs = timelineDf[0]._time_ms + clickPct * totalMs;
-                                const filteredDf = getFilteredData();
-                                const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
-                                if (closestFilteredIdx !== -1) {
-                                    activeCursorIndex = closestFilteredIdx;
-                                    timelineSliderInput(activeCursorIndex);
-                                }
-                            }
-                        }
-                    }
-
-                    isDraggingLeft = false;
-                    isDraggingRight = false;
-                    isDraggingBox = false;
-                    isDraggingCursor = false;
-                    
-                    const container = document.getElementById('timeline-waveform-container');
-                    const rangeBox = document.getElementById('timeline-range-box');
-                    const cursorIndicator = document.getElementById('timeline-cursor-indicator');
-                    
-                    if (container) container.style.cursor = 'pointer';
-                    if (rangeBox) rangeBox.style.cursor = 'grab';
-                    if (cursorIndicator) cursorIndicator.style.cursor = 'col-resize';
-                });
-                window.timelineListenersBound = true;
-            }
+            // Drag events are removed. Timeline scrubbing is handled exclusively by the visible range slider.
         }
 
         function updateTimelineCursorLine() {
@@ -11584,14 +11220,36 @@ export const Dashboard = ({ view }) => {
 
                 {/* Unified Timeline Player Controls */}
                 <div className="timeline-player-bar" id="global-timeline-bar" style={{display: "none"}}>
-                    {/* Row 1: Full-Width Waveform Timeline Navigator */}
+                    {/* Row 1: Full-Width Waveform Timeline Navigator & Range Slider */}
                     <div style={{width: "100%", display: "flex", flexDirection: "column", gap: "4px"}}>
-                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "pointer", overflow: "visible"}}>
+                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "default", overflow: "visible"}}>
                             <div style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.75rem"}}>Loading Speed Waveform...</div>
+                        </div>
+                        {/* Interactive Timeline Scrubbing Slider */}
+                        <div style={{width: "100%", display: "flex", alignItems: "center", padding: "0 2px"}}>
+                            <input 
+                                type="range" 
+                                id="global-timeline-slider" 
+                                min="0" 
+                                max="0" 
+                                defaultValue="0" 
+                                style={{
+                                    width: "100%",
+                                    height: "6px",
+                                    accentColor: "var(--accent-color, #0ea5e9)",
+                                    background: "var(--border-color, #cbd5e1)",
+                                    borderRadius: "3px",
+                                    outline: "none",
+                                    cursor: "pointer",
+                                    margin: "4px 0"
+                                }} 
+                                onChange={(e) => window.timelineSliderInput && window.timelineSliderInput(e.target.value)} 
+                                onInput={(e) => window.timelineSliderInput && window.timelineSliderInput(e.target.value)} 
+                            />
                         </div>
                         <div style={{display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "var(--text-muted)", padding: "0 4px", fontWeight: 500, lineHeight: 1}}>
                             <span>Start</span>
-                            <span id="tl-state-track-label" style={{textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600}}>Machine Speed Profile (Click or Drag to Scrub)</span>
+                            <span id="tl-state-track-label" style={{textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600}}>Machine Speed Profile (Use Slider to Scrub)</span>
                             <span>End</span>
                         </div>
                     </div>
