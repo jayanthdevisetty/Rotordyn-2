@@ -1,7 +1,7 @@
 import React, {useEffect, useState, useRef} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut, FiTarget } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 import html2canvas from 'html2canvas';
 
@@ -87,7 +87,7 @@ let plotSlots = [
     }
 ];
 let activeSlotIndex = 0;
-let currentLayout = '2H';
+let currentLayout = '2V';
 let currentGridPage = 0;
 let customizeLayoutMode = false;
 let timeSyncCursor = true;
@@ -133,12 +133,12 @@ export const Dashboard = ({ view }) => {
     const [currentLayoutState, setCurrentLayoutState] = useState(() => {
         try {
             const saved = localStorage.getItem('rotordyn_custom_layout');
-            return saved || '2H';
+            return saved || '2V';
         } catch (e) {
-            return '2H';
+            return '2V';
         }
     });
-    const currentLayoutRef = useRef('2H');
+    const currentLayoutRef = useRef('2V');
 
     // Hook 1: Dynamic Parallel Script Loader
     useEffect(() => {
@@ -4172,6 +4172,9 @@ export const Dashboard = ({ view }) => {
                 else if (N <= 6) layout = '6';
                 else layout = '8';
             }
+            if (layout === '2H') {
+                layout = '2V';
+            }
             
             currentLayout = layout;
             currentLayoutRef.current = layout;
@@ -4339,12 +4342,12 @@ export const Dashboard = ({ view }) => {
             const btn = document.getElementById('tl-btn-apply-slowroll');
             if (!btn) return;
             if (slowRollCompensationEnabled) {
-                btn.innerHTML = '✅ Slow Roll Applied';
+                btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #22c55e;"><polyline points="20 6 9 17 4 12"/></svg> Slow Roll Applied';
                 btn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; // light green
                 btn.style.color = '#22c55e'; // green text
                 btn.style.borderColor = 'rgba(34, 197, 94, 0.3)';
             } else {
-                btn.innerHTML = '🎯 Apply Slow Roll';
+                btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: var(--accent-color);"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Apply Slow Roll';
                 btn.style.backgroundColor = 'rgba(14, 165, 233, 0.12)'; // default light blue
                 btn.style.color = 'var(--accent-color)'; // default accent color
                 btn.style.borderColor = 'rgba(14, 165, 233, 0.25)';
@@ -5242,7 +5245,7 @@ export const Dashboard = ({ view }) => {
                             <input type="number" step="any" placeholder="Min" class="grid-scale-input" value="${config.layoutLimits.min !== null ? config.layoutLimits.min : ''}" onchange="setSlotMinLimit(${idx}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                             <input type="number" step="any" placeholder="Max" class="grid-scale-input" value="${config.layoutLimits.max !== null ? config.layoutLimits.max : ''}" onchange="setSlotMaxLimit(${idx}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                         ` : ''}
-                        <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${idx})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500;">💾 Save</button>
+                        <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${idx})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
                         <button class="grid-card-btn" type="button" onclick="clearSlot(${idx})" title="Close plot" style="color: #ef4444; font-weight: bold; margin-left:5px;">✕</button>
                     `;
                 }
@@ -5451,13 +5454,13 @@ export const Dashboard = ({ view }) => {
                                 <button class="grid-card-btn" type="button" onclick="toggleAutoScale(${i})" title="Toggle Y-Axis Scale">
                                     ${config.layoutLimits.autoScale ? 'Auto-scale' : 'Manual-scale'}
                                 </button>
-                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotIn(${i})" title="Zoom In" style="margin-left: 2px;">🔍+</button>
-                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotOut(${i})" title="Zoom Out" style="margin-left: 2px;">🔍-</button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotIn(${i})" title="Zoom In" style="margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px;"><svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotOut(${i})" title="Zoom Out" style="margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px;"><svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
                                 ${!config.layoutLimits.autoScale ? `
                                     <input type="number" step="any" placeholder="Min" class="grid-scale-input" value="${config.layoutLimits.min !== null ? config.layoutLimits.min : ''}" onchange="setSlotMinLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                                     <input type="number" step="any" placeholder="Max" class="grid-scale-input" value="${config.layoutLimits.max !== null ? config.layoutLimits.max : ''}" onchange="setSlotMaxLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                                 ` : ''}
-                                <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${i})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500;">💾 Save</button>
+                                <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${i})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
                                 <button class="grid-card-btn" type="button" onclick="clearSlot(${i})" title="Close plot" style="color: #ef4444; font-weight: bold; margin-left:5px;">✕</button>
                             </div>
                         </div>
