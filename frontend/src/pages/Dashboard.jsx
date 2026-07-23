@@ -6299,22 +6299,11 @@ export const Dashboard = ({ view }) => {
                 
                 // Sync the range slider values
                 const slider = document.getElementById('global-timeline-slider');
-                let leftPos = `${cursorPct}%`;
+                let leftPos = `calc(${cursorPct}% + ${8 - 0.16 * cursorPct}px)`;
                 if (slider) {
                     slider.min = 0;
                     slider.max = timelineDf.length - 1;
                     slider.value = timelineIndex;
-                    
-                    const containerRect = container.getBoundingClientRect();
-                    const sliderRect = slider.getBoundingClientRect();
-                    const offsetLeft = sliderRect.left - containerRect.left;
-                    const sliderWidth = sliderRect.width;
-                    if (sliderWidth > 0) {
-                        const thumbRadius = 8; // 8px inset
-                        const usableWidth = sliderWidth - 2 * thumbRadius;
-                        const pixelPos = offsetLeft + thumbRadius + (cursorPct / 100) * usableWidth;
-                        leftPos = `${pixelPos}px`;
-                    }
                 }
 
                 if (cursorIndicator) {
@@ -6345,7 +6334,7 @@ export const Dashboard = ({ view }) => {
                     </div>
                 </div>
                 <!-- Standard range slider generated dynamically inside the speed profile container -->
-                <div style="width: 100%; height: 16px; display: flex; align-items: center; padding: 0 2px; box-sizing: border-box; margin-top: 2px;">
+                <div style="width: 100%; height: 16px; display: flex; align-items: center; padding: 0; box-sizing: border-box; margin-top: 2px;">
                     <input 
                         type="range" 
                         id="global-timeline-slider" 
