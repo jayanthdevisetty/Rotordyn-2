@@ -628,13 +628,13 @@ export const Dashboard = ({ view }) => {
 
         const signalFormats = {
             direct: { color: '#1e40af', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_1x: { color: '#fe0606', width: 1.8, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            gap: { color: '#fb923c', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            gap: { color: '#fb923c', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             temp: { color: '#fbbf24', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             speed: { color: '#38bdf8', width: 2.0, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             load: { color: '#c084fc', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
@@ -6437,8 +6437,7 @@ export const Dashboard = ({ view }) => {
                     showlegend: idx === 0,
                     line: {
                         ...(trace.line || {}),
-                        color: stateFmt.color,
-                        dash: stateFmt.dash
+                        color: stateFmt.color
                     }
                 };
 
@@ -6498,7 +6497,7 @@ export const Dashboard = ({ view }) => {
 
             let processedTraces = traces;
             const category = container ? container.dataset.plotCategory : '';
-            const bypassStateColoring = ['trend', 'bode2d', 'bode3d', 'spectrum', 'cascade'].includes(category);
+            const bypassStateColoring = ['bode3d', 'spectrum', 'cascade'].includes(category);
             
             if (colorCodeByStateEnabled && container && container.plotData && !bypassStateColoring) {
                 processedTraces = splitTracesByState(traces, container.plotData);
