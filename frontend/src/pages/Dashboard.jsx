@@ -8125,6 +8125,7 @@ export const Dashboard = ({ view }) => {
         }
 
         function renderBode2DInSlot(slotIdx, container, ch, filteredDf, baseLayout, limits) {
+            const config = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || {};
             const cols = getChannelColumns(ch);
             if (!cols.amp_1x || !cols.phase_1x) {
                 throw new Error("2D Bode Plot requires Amplitude and Phase columns.");
