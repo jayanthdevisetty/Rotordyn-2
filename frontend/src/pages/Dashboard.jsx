@@ -7271,7 +7271,7 @@ export const Dashboard = ({ view }) => {
                             
                             if (container.layout.shapes) {
                                 const shapes = [...container.layout.shapes];
-                                const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
+                                const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))));
                                 if (lineIdx !== -1) {
                                     const targetX = (row[speedCol] !== undefined ? row[speedCol] : 0) * ratio;
                                     shapes[lineIdx].x0 = targetX;
@@ -7397,7 +7397,7 @@ export const Dashboard = ({ view }) => {
                     // Update the layout shape directly
                     if (container.layout.shapes) {
                         const shapes = [...container.layout.shapes];
-                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead' || (s.type === 'path' && s.line && s.line.color === '#ef4444'));
+                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead' || (s.type === 'path' && s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))));
                         if (shapeIdx !== -1) {
                             shapes[shapeIdx].path = arrowheadPath;
                             shapes[shapeIdx].fillcolor = arrowFillColor;
@@ -7416,7 +7416,7 @@ export const Dashboard = ({ view }) => {
                 
                 if (container.layout.shapes) {
                     const shapes = layoutUpdate.shapes || [...container.layout.shapes];
-                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
+                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))));
                     if (lineIdx !== -1) {
                         let targetX = targetTime;
                         if (config.category === 'bode2d') {
