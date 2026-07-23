@@ -6368,7 +6368,7 @@ export const Dashboard = ({ view }) => {
             }
 
             let processedTraces = traces;
-            if (colorCodeByStateEnabled && container && container.plotData) {
+            if (colorCodeByStateEnabled && container && container.plotData && container.dataset.plotCategory !== 'trend') {
                 processedTraces = splitTracesByState(traces, container.plotData);
             }
 
