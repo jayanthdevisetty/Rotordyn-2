@@ -3829,9 +3829,9 @@ export const Dashboard = ({ view }) => {
             if (rpm.length === 0) return states;
             
             const maxSpeed = Math.max(...rpm);
-            // Steady state is defined as speeds within 5% of maximum speed,
+            // Steady state is defined as speeds within 1% of maximum speed (99% threshold),
             // but at least 100 RPM to avoid classifying zero speed as steady state.
-            const steadyThreshold = Math.max(100, maxSpeed * 0.95);
+            const steadyThreshold = Math.max(100, maxSpeed * 0.99);
             
             let first_steady = -1;
             let last_steady = -1;
@@ -6536,7 +6536,27 @@ export const Dashboard = ({ view }) => {
             timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
             
             const indices = timelineDf.map((_, i) => i);
-            const speeds = timelineDf.map(r => r[speedCol] || 0);
+            let speeds = timelineDf.map(r => r[speedCol] || 0);
+            
+            // Flatten the steady-state speeds visually to ensure the timeline waveform is flat/horizontal
+            const steadySpeeds = timelineDf
+                .filter(r => r['state'] && (String(r['state']).toLowerCase() === 'steady' || String(r['state']).toLowerCase() === 'steady_state'))
+                .map(r => r[speedCol] || 0);
+            
+            if (steadySpeeds.length > 0) {
+                const steadyVal = steadySpeeds.reduce((a, b) => a + b, 0) / steadySpeeds.length;
+                speeds = timelineDf.map(r => {
+                    const st = String(r['state'] || 'other').toLowerCase();
+                    if (st === 'steady' || st === 'steady_state') {
+                        return steadyVal;
+                    }
+                    return r[speedCol] || 0;
+                });
+            }
+            
+            const allSpeeds = df.map(r => r[speedCol] || 0);
+            const globalMaxSpeed = allSpeeds.length > 0 ? Math.max(...allSpeeds) : 3600;
+            const yRange = [0, Math.max(100, globalMaxSpeed * 1.1)];
             
             const trace = {
                 x: indices,
@@ -6567,7 +6587,8 @@ export const Dashboard = ({ view }) => {
                     visible: false,
                     showgrid: false,
                     zeroline: false,
-                    fixedrange: true
+                    fixedrange: true,
+                    range: yRange
                 },
                 showlegend: false,
                 hovermode: false
