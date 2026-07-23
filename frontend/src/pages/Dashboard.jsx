@@ -11577,6 +11577,7 @@ export const Dashboard = ({ view }) => {
                                 <select id="format-signal-select" onChange={(e) => window.loadSignalFormat && window.loadSignalFormat(e.target.value)} style={{padding: "4px", fontSize: "0.75rem"}}>
                                     <option value="direct">Direct Vibration</option>
                                     <option value="amp_1x">1X Amplitude & Phase</option>
+                                    <option value="amp_2x">2X Amplitude & Phase</option>
                                     <option value="amp_nx">nX Amplitude & Phase</option>
                                     <option value="gap">Avg Gap</option>
                                     <option value="speed">Speed</option>
