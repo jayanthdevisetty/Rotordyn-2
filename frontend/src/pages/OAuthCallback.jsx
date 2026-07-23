@@ -35,10 +35,24 @@ export const OAuthCallback = ({ provider }) => {
             return;
         }
 
-        // 4. Extract PKCE code parameter
+        // 4. Extract PKCE code parameter or check for access token in hash fragment
         const code = searchParams.get('code');
+        const hash = window.location.hash || '';
+        const hasAccessTokenInHash = hash.includes('access_token=') || hash.includes('id_token=');
+
         if (!code) {
-            setError('Missing authorization code from provider.');
+            if (hasAccessTokenInHash) {
+                console.log("OAuthCallback: Detected access token in hash. Waiting for SDK auth listener...");
+                return;
+            }
+            // Check if there is an error description in search params or hash
+            const errorMsg = searchParams.get('error_description') || 
+                             new URLSearchParams(hash.replace('#', '?')).get('error_description');
+            if (errorMsg) {
+                setError(errorMsg);
+            } else {
+                setError('Missing authorization code from provider.');
+            }
             return;
         }
 

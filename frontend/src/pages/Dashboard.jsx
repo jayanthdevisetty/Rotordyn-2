@@ -6257,33 +6257,62 @@ export const Dashboard = ({ view }) => {
 
             if (totalMs <= 0) return;
 
+            const filteredDf = getFilteredData();
+            if (filteredDf.length === 0) return;
+
+            let timelineStartIdx = 0;
+            let timelineEndIdx = timelineDf.length - 1;
+            const firstFilteredMs = filteredDf[0]._time_ms;
+            const lastFilteredMs = filteredDf[filteredDf.length - 1]._time_ms;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms >= firstFilteredMs) {
+                    timelineStartIdx = i;
+                    break;
+                }
+            }
+            for (let i = timelineDf.length - 1; i >= 0; i--) {
+                if (timelineDf[i]._time_ms <= lastFilteredMs) {
+                    timelineEndIdx = i;
+                    break;
+                }
+            }
+
             // Calculate range percentages
-            const startPct = Math.max(0, Math.min(100, ((startMs - firstMs) / totalMs) * 100));
-            const endPct = Math.max(0, Math.min(100, ((endMs - firstMs) / totalMs) * 100));
+            const startPct = timelineDf.length > 1 ? (timelineStartIdx / (timelineDf.length - 1)) * 100 : 0;
+            const endPct = timelineDf.length > 1 ? (timelineEndIdx / (timelineDf.length - 1)) * 100 : 100;
             const widthPct = Math.max(0.5, endPct - startPct);
 
             rangeBox.style.left = `${startPct}%`;
             rangeBox.style.width = `${widthPct}%`;
 
             // Calculate cursor indicator percentage
-            const filteredDf = getFilteredData();
-            if (filteredDf.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
+            if (activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
                 const cursorMs = filteredDf[activeCursorIndex]._time_ms;
-                const cursorPct = Math.max(0, Math.min(100, ((cursorMs - firstMs) / totalMs) * 100));
+                let timelineIndex = 0;
+                for (let i = 0; i < timelineDf.length; i++) {
+                    if (timelineDf[i]._time_ms === cursorMs) {
+                        timelineIndex = i;
+                        break;
+                    }
+                }
+                const cursorPct = timelineDf.length > 1 ? (timelineIndex / (timelineDf.length - 1)) * 100 : 0;
                 
                 // Sync the range slider values
                 const slider = document.getElementById('global-timeline-slider');
                 let leftPos = `${cursorPct}%`;
                 if (slider) {
                     slider.min = 0;
-                    slider.max = filteredDf.length - 1;
-                    slider.value = activeCursorIndex;
+                    slider.max = timelineDf.length - 1;
+                    slider.value = timelineIndex;
                     
-                    const sliderWidth = slider.getBoundingClientRect().width;
+                    const containerRect = container.getBoundingClientRect();
+                    const sliderRect = slider.getBoundingClientRect();
+                    const offsetLeft = sliderRect.left - containerRect.left;
+                    const sliderWidth = sliderRect.width;
                     if (sliderWidth > 0) {
                         const thumbRadius = 8; // 8px inset
                         const usableWidth = sliderWidth - 2 * thumbRadius;
-                        const pixelPos = thumbRadius + (cursorPct / 100) * usableWidth;
+                        const pixelPos = offsetLeft + thumbRadius + (cursorPct / 100) * usableWidth;
                         leftPos = `${pixelPos}px`;
                     }
                 }
@@ -6363,7 +6392,8 @@ export const Dashboard = ({ view }) => {
                     visible: false,
                     showgrid: false,
                     zeroline: false,
-                    fixedrange: true
+                    fixedrange: true,
+                    range: [0, timelineDf.length - 1]
                 },
                 yaxis: {
                     visible: false,
@@ -6424,8 +6454,66 @@ export const Dashboard = ({ view }) => {
             updateSlowRollButtonUI();
         }
 
-        function timelineSliderInput(val) {
-            activeCursorIndex = parseInt(val);
+        function getTimelineIndexForFilteredIndex(filteredIdx) {
+            const timelineDf = getTimelineData();
+            const filteredDf = getFilteredData();
+            if (filteredIdx < 0 || filteredIdx >= filteredDf.length) return 0;
+            const targetMs = filteredDf[filteredIdx]._time_ms;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms === targetMs) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        function timelineSliderInput(val, isFilteredIndex = false) {
+            const timelineDf = getTimelineData();
+            const filteredDf = getFilteredData();
+            if (timelineDf.length === 0 || filteredDf.length === 0) return;
+
+            let timelineIndex = parseInt(val);
+            if (isFilteredIndex) {
+                timelineIndex = getTimelineIndexForFilteredIndex(timelineIndex);
+            }
+
+            const firstFilteredMs = filteredDf[0]._time_ms;
+            const lastFilteredMs = filteredDf[filteredDf.length - 1]._time_ms;
+            
+            let timelineStartIdx = 0;
+            let timelineEndIdx = timelineDf.length - 1;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms >= firstFilteredMs) {
+                    timelineStartIdx = i;
+                    break;
+                }
+            }
+            for (let i = timelineDf.length - 1; i >= 0; i--) {
+                if (timelineDf[i]._time_ms <= lastFilteredMs) {
+                    timelineEndIdx = i;
+                    break;
+                }
+            }
+            
+            const clampedVal = Math.max(timelineStartIdx, Math.min(timelineEndIdx, timelineIndex));
+            
+            const slider = document.getElementById('global-timeline-slider');
+            if (slider) {
+                slider.value = clampedVal;
+            }
+            
+            const targetMs = timelineDf[clampedVal]._time_ms;
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            for (let i = 0; i < filteredDf.length; i++) {
+                const diff = Math.abs(filteredDf[i]._time_ms - targetMs);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                }
+            }
+            
+            activeCursorIndex = closestIdx;
             updateTimelineReadout(activeCursorIndex);
             updateTimelineCursorLine();
             updateAllCursorsThrottled();
@@ -6436,10 +6524,10 @@ export const Dashboard = ({ view }) => {
             const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex < filteredDf.length - 1) {
                 activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + step);
-                timelineSliderInput(activeCursorIndex);
+                timelineSliderInput(activeCursorIndex, true);
             } else if (isTimelinePlaying) {
                 activeCursorIndex = 0;
-                timelineSliderInput(activeCursorIndex);
+                timelineSliderInput(activeCursorIndex, true);
             }
         }
 
@@ -6447,7 +6535,7 @@ export const Dashboard = ({ view }) => {
             const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex > 0) {
                 activeCursorIndex = Math.max(0, activeCursorIndex - step);
-                timelineSliderInput(activeCursorIndex);
+                timelineSliderInput(activeCursorIndex, true);
             }
         }
 
@@ -6472,7 +6560,7 @@ export const Dashboard = ({ view }) => {
                 const filteredDf = getFilteredData();
                 if (activeCursorIndex >= filteredDf.length - 1) {
                     activeCursorIndex = 0;
-                    timelineSliderInput(activeCursorIndex);
+                    timelineSliderInput(activeCursorIndex, true);
                 }
                 
                 if (timelineIntervalId) {
