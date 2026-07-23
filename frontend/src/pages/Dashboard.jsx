@@ -106,6 +106,7 @@ let y_gap_rest_global = {};
 let activeActivityTab = 'tree';
 let isDrawerOpen = false;
 let cachedFilteredDf = null;
+let cachedUncompensatedDf = null;
 let savedSlowRollSamples = [];
 let activeSlowRollSampleId = null;
 let slowRollCompensationEnabled = false;
@@ -4426,10 +4427,15 @@ export const Dashboard = ({ view }) => {
                 saveBtn.style.opacity = '1';
             }
 
+            const isSlotSlowRollEnabled = activeSlot ? (activeSlot.slowRollEnabled !== false) : true;
+            if (checkboxEl) {
+                checkboxEl.checked = (slowRollCompensationEnabled && isSlotSlowRollEnabled);
+            }
+
             if (!btn) return;
             
             // Check if there is an applied slow roll at the current index
-            const filteredDf = getFilteredData();
+            const filteredDf = getFilteredData(true);
             let isAppliedAtCurrent = false;
             if (filteredDf && filteredDf.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
                 const targetRow = filteredDf[activeCursorIndex];
@@ -4439,7 +4445,7 @@ export const Dashboard = ({ view }) => {
                 }
             }
 
-            if (slowRollCompensationEnabled && isAppliedAtCurrent) {
+            if (slowRollCompensationEnabled && isAppliedAtCurrent && isSlotSlowRollEnabled) {
                 btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #22c55e;"><polyline points="20 6 9 17 4 12"/></svg> Slow Roll Applied';
                 btn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; // light green
                 btn.style.color = '#22c55e'; // green text
@@ -4627,6 +4633,28 @@ export const Dashboard = ({ view }) => {
                 
                 const label = document.createElement('span');
                 label.innerText = sample.name;
+                
+                let tooltipText = `Sample ID: ${sample.id}\n`;
+                if (sample.row) {
+                    const row = sample.row;
+                    const rpmVal = row[speedCol];
+                    const timeVal = row[tsCol];
+                    tooltipText += `Speed: ${isNumber(rpmVal) ? parseFloat(rpmVal).toFixed(1) : '-'} RPM\n`;
+                    tooltipText += `Time: ${timeVal || '-'}\n`;
+                    
+                    const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+                    const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+                    if (activeCh) {
+                        const cols = getChannelColumns(activeCh);
+                        if (cols.amp_1x && cols.phase_1x) {
+                            const amp = row[cols.amp_1x];
+                            const phase = row[cols.phase_1x];
+                            tooltipText += `Active Channel (${activeCh}):\n  1X Amp: ${isNumber(amp) ? parseFloat(amp).toFixed(2) : '-'} | 1X Phase: ${isNumber(phase) ? parseFloat(phase).toFixed(1) : '-'}°`;
+                        }
+                    }
+                }
+                item.title = tooltipText;
+
                 label.style.cursor = 'pointer';
                 label.style.fontWeight = activeSlowRollSampleId === sample.id ? '700' : 'normal';
                 label.onclick = () => {
@@ -4665,10 +4693,12 @@ export const Dashboard = ({ view }) => {
         window.updateSavedSlowRollList = updateSavedSlowRollList;
 
         function toggleSlowRoll(checked) {
-            slowRollCompensationEnabled = checked;
-            const checkboxEl = document.getElementById('slow-roll-enabled');
-            if (checkboxEl) {
-                checkboxEl.checked = checked;
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            if (activeSlot) {
+                activeSlot.slowRollEnabled = checked;
+            }
+            if (checked) {
+                slowRollCompensationEnabled = true;
             }
             updateSlowRollButtonUI();
             invalidateFilteredDataCache();
@@ -4702,15 +4732,21 @@ export const Dashboard = ({ view }) => {
         }
         window.isSeismicChannel = isSeismicChannel;
 
-        cachedFilteredDf = null;
         function invalidateFilteredDataCache() {
             cachedFilteredDf = null;
+            cachedUncompensatedDf = null;
         }
 
         // Active filters solver
-        function getFilteredData() {
-            if (cachedFilteredDf !== null) {
-                return cachedFilteredDf;
+        function getFilteredData(bypassSlowRoll = false) {
+            if (bypassSlowRoll) {
+                if (cachedUncompensatedDf !== null) {
+                    return cachedUncompensatedDf;
+                }
+            } else {
+                if (cachedFilteredDf !== null) {
+                    return cachedFilteredDf;
+                }
             }
             
             let filtered = df;
@@ -4738,7 +4774,7 @@ export const Dashboard = ({ view }) => {
                 filtered = filtered.filter(r => r['_time_ms'] <= endMs);
             }
             
-            if (slowRollCompensationEnabled && activeSlowRollSampleId) {
+            if (slowRollCompensationEnabled && activeSlowRollSampleId && !bypassSlowRoll) {
                 const slowRollSample = savedSlowRollSamples.find(s => s.id === activeSlowRollSampleId);
                 if (slowRollSample && slowRollSample.row) {
                     const srRow = slowRollSample.row;
@@ -4810,7 +4846,11 @@ export const Dashboard = ({ view }) => {
                 }
             }
 
-            cachedFilteredDf = filtered;
+            if (bypassSlowRoll) {
+                cachedUncompensatedDf = filtered;
+            } else {
+                cachedFilteredDf = filtered;
+            }
             return filtered;
         }
 
@@ -4993,7 +5033,9 @@ export const Dashboard = ({ view }) => {
         }
 
         function updateTelemetryReadoutForIndex(idx) {
-            const filteredDf = getFilteredData();
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const isSlotSlowRollEnabled = activeSlot ? (activeSlot.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             const row = filteredDf[idx];
             if (!row) return;
             
@@ -5042,7 +5084,8 @@ export const Dashboard = ({ view }) => {
             const box = document.getElementById(`plot-telemetry-box-${slotIdx}`);
             if (!box) return;
             
-            const filteredDf = getFilteredData();
+            const isSlotSlowRollEnabled = config ? (config.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             const row = filteredDf[dataIdx];
             if (!row) {
                 box.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Hover or click plot to inspect telemetry...</span>';
@@ -5631,9 +5674,20 @@ export const Dashboard = ({ view }) => {
                             titleSuffix = ` (∠${Math.abs(offset)}° ${offset >= 0 ? 'Right' : 'Left'})`;
                         }
                     }
+                    let slowRollBadge = '';
+                    const isSlotSlowRollEnabled = config ? (config.slowRollEnabled !== false) : true;
+                    if (slowRollCompensationEnabled && isSlotSlowRollEnabled && activeSlowRollSampleId && !isSeismicChannel(config.bearingOrChannel)) {
+                        const srSample = savedSlowRollSamples.find(s => s.id === activeSlowRollSampleId);
+                        if (srSample) {
+                            const srSpeed = srSample.row ? Math.round(srSample.row[speedCol]) : null;
+                            const badgeTitle = srSample.row ? `Slow-Roll compensation subtracted using ${srSample.name} (${srSpeed || '-'} RPM)` : 'Slow-Roll subtracted';
+                            slowRollBadge = `<span class="slow-roll-badge-icon" title="${badgeTitle}" style="margin-left: 6px; display: inline-flex; align-items: center; justify-content: center; background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; padding: 1px 4px; font-size: 0.6rem; font-weight: 700; cursor: help; vertical-align: middle;">SR: ${srSpeed || '-'} RPM</span>`;
+                        }
+                    }
+
                     slotCard.innerHTML = `
                         <div class="grid-card-header">
-                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}</span>
+                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}${slowRollBadge}</span>
                             <div class="grid-card-actions" id="header-actions-${i}">
                                 ${isOrbit ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
@@ -5766,7 +5820,9 @@ export const Dashboard = ({ view }) => {
             }
             container.dataset.plotCategory = category;
 
-            const filteredDf = getFilteredData();
+            const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { layoutLimits: { min: null, max: null, autoScale: true } };
+            const isSlotSlowRollEnabled = slotConfig ? (slotConfig.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             if (checkEmptyData(container, filteredDf)) return;
             
             const style = getComputedStyle(document.documentElement);
@@ -5775,7 +5831,6 @@ export const Dashboard = ({ view }) => {
             const textColor = style.getPropertyValue('--plot-text-color').trim() || style.getPropertyValue('--text-color').trim() || '#0f172a';
             const gridColor = style.getPropertyValue('--contrast-grid-color').trim() || '#e2e8f0';
             
-            const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { layoutLimits: { min: null, max: null, autoScale: true } };
             const limits = slotConfig.layoutLimits || { min: null, max: null, autoScale: true };
             
             const baseLayout = {
