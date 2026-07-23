@@ -6264,8 +6264,23 @@ export const Dashboard = ({ view }) => {
                 const domainSize = 0.76;
                 const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
 
-                const paperCenterX = 0.50;
-                const paperCenterY = 0.50;
+                let paperCenterX = 0.50;
+                let paperCenterY = 0.50;
+                let paperRx = circleRadiusPx / width;
+                let paperRy = circleRadiusPx / height;
+
+                if (container) {
+                    const bgCircle = container.querySelector('.polar .bg') || container.querySelector('.polar path.bg');
+                    if (bgCircle) {
+                        const bgRect = bgCircle.getBoundingClientRect();
+                        const xCenter = bgRect.left + bgRect.width / 2;
+                        const yCenter = bgRect.top + bgRect.height / 2;
+                        paperCenterX = (xCenter - rect.left) / width;
+                        paperCenterY = (rect.bottom - yCenter) / height;
+                        paperRx = (bgRect.width / 2) / width;
+                        paperRy = (bgRect.height / 2) / height;
+                    }
+                }
 
                 const cols = getChannelColumns(ch);
                 const amps = localDf.map(r => r[cols.amp_1x]);
@@ -6276,8 +6291,8 @@ export const Dashboard = ({ view }) => {
                 }
 
                 const rRatio = Math.max(0, Math.min(1, cursorY / (currentRMax || 1.0)));
-                const xEnd_cursor = paperCenterX + (rRatio * circleRadiusPx * Math.cos(screenAngleRad)) / width;
-                const yEnd_cursor = paperCenterY + (rRatio * circleRadiusPx * Math.sin(screenAngleRad)) / height;
+                const xEnd_cursor = paperCenterX + rRatio * paperRx * Math.cos(screenAngleRad);
+                const yEnd_cursor = paperCenterY + rRatio * paperRy * Math.sin(screenAngleRad);
 
                 const tangentAngle = screenAngleRad;
 
@@ -7332,8 +7347,21 @@ export const Dashboard = ({ view }) => {
                     const domainSize = 0.76;
                     const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
 
-                    const paperCenterX = 0.50;
-                    const paperCenterY = 0.50;
+                    let paperCenterX = 0.50;
+                    let paperCenterY = 0.50;
+                    let paperRx = circleRadiusPx / width;
+                    let paperRy = circleRadiusPx / height;
+
+                    const bgCircle = container.querySelector('.polar .bg') || container.querySelector('.polar path.bg');
+                    if (bgCircle) {
+                        const bgRect = bgCircle.getBoundingClientRect();
+                        const xCenter = bgRect.left + bgRect.width / 2;
+                        const yCenter = bgRect.top + bgRect.height / 2;
+                        paperCenterX = (xCenter - rect.left) / width;
+                        paperCenterY = (rect.bottom - yCenter) / height;
+                        paperRx = (bgRect.width / 2) / width;
+                        paperRy = (bgRect.height / 2) / height;
+                    }
 
                     // Determine maxAmp to calculate scale ratio
                     const cols = getChannelColumns(config.bearingOrChannel);
@@ -7345,8 +7373,8 @@ export const Dashboard = ({ view }) => {
                     }
 
                     const rRatio = Math.max(0, Math.min(1, cursorY / (currentRMax || 1.0)));
-                    const xEnd_cursor = paperCenterX + (rRatio * circleRadiusPx * Math.cos(screenAngleRad)) / width;
-                    const yEnd_cursor = paperCenterY + (rRatio * circleRadiusPx * Math.sin(screenAngleRad)) / height;
+                    const xEnd_cursor = paperCenterX + rRatio * paperRx * Math.cos(screenAngleRad);
+                    const yEnd_cursor = paperCenterY + rRatio * paperRy * Math.sin(screenAngleRad);
 
                     const tangentAngle = screenAngleRad;
                     const arrowLenX = arrowLength / width;
