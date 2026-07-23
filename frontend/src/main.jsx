@@ -37,18 +37,32 @@ if (import.meta.env.PROD) {
         }
     });
 
+    const blockAccess = () => {
+        document.body.innerHTML = `
+            <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;background-color:#090d16;color:#ffffff;font-family:sans-serif;text-align:center;padding:20px;">
+                <h1 style="color:#ef4444;font-size:1.8rem;margin-bottom:10px;">Security Access Alert</h1>
+                <p style="color:#9ca3af;font-size:0.95rem;">Inspection of application source code is restricted by Rotordyn.ai Security policy.</p>
+                <p style="color:#6b7280;font-size:0.8rem;margin-top:20px;">Please close Developer Tools and reload to resume normal operations.</p>
+            </div>
+        `;
+    };
+
     setInterval(() => {
+        // 1. Debugger Time-Lag check (Firefox & Safari fallback)
         const before = new Date().getTime();
         debugger;
         const after = new Date().getTime();
         if (after - before > 100) {
-            document.body.innerHTML = `
-                <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;background-color:#090d16;color:#ffffff;font-family:sans-serif;text-align:center;padding:20px;">
-                    <h1 style="color:#ef4444;font-size:1.8rem;margin-bottom:10px;">Security Access Alert</h1>
-                    <p style="color:#9ca3af;font-size:0.95rem;">Inspection of application source code is restricted by Rotordyn.ai Security policy.</p>
-                    <p style="color:#6b7280;font-size:0.8rem;margin-top:20px;">Please close Developer Tools and reload to resume normal operations.</p>
-                </div>
-            `;
+            blockAccess();
+            return;
+        }
+
+        // 2. Docked DevTools viewport dimension delta check (threshold 160px)
+        const threshold = 160;
+        const widthDev = window.outerWidth - window.innerWidth > threshold;
+        const heightDev = window.outerHeight - window.innerHeight > threshold;
+        if ((widthDev || heightDev) && !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            blockAccess();
         }
     }, 1000);
 }

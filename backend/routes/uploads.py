@@ -8,6 +8,8 @@ from database import supabase, log_audit_action
 from routes.auth import get_current_approved_user
 from services.email_service import send_upload_email
 import os
+import re
+
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -52,12 +54,32 @@ async def log_upload_metadata(
 ):
     """Records the metadata of a file uploaded directly to Supabase storage and emails the URL to admin."""
     try:
+        # Path traversal protection & filename sanitization
+        clean_filename = os.path.basename(payload.original_filename)
+        clean_filename = re.sub(r'[^a-zA-Z0-9_\.\-]', '_', clean_filename)
+        
+        # Extension validation
+        _, ext = os.path.splitext(clean_filename.lower())
+        if ext != '.csv':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unsupported file type. Only CSV files (.csv) are supported."
+            )
+            
+        # Size validation (default 50MB limit to protect database and storage boundaries)
+        MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "52428800"))
+        if payload.file_size > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds maximum allowed upload size of {MAX_UPLOAD_SIZE / (1024 * 1024):.1f}MB."
+            )
+
         # Create metadata entry in Supabase Postgres
         upload_doc = {
             "user_id": current_user["id"],
             "company": current_user.get("company", "Default Company"),
             "plant": current_user.get("plant", "Default Plant"),
-            "original_filename": payload.original_filename,
+            "original_filename": clean_filename,
             "stored_filename": payload.stored_filename,
             "file_url": payload.file_url,
             "file_size": payload.file_size,
@@ -81,11 +103,11 @@ async def log_upload_metadata(
             user_email=current_user["email"],
             company=current_user["company"],
             timestamp=upload_time_str,
-            filename=payload.original_filename,
+            filename=clean_filename,
             file_size_bytes=payload.file_size,
             file_path=payload.file_url
         )
-        log_audit_action(current_user["id"], "UPLOAD_DATASET", {"filename": payload.original_filename, "size": payload.file_size})
+        log_audit_action(current_user["id"], "UPLOAD_DATASET", {"filename": clean_filename, "size": payload.file_size})
         
         return serialize_upload(record)
     except Exception as e:

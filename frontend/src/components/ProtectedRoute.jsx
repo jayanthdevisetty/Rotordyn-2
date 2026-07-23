@@ -43,12 +43,17 @@ export const ProtectedRoute = ({ children, requireAdmin = false }) => {
         );
     }
 
+    React.useEffect(() => {
+        if (!loading && (!token || !user)) {
+            if (!requireAdmin && location.pathname !== '/auth' && location.pathname !== '/') {
+                sessionStorage.setItem('auth_redirect_target', location.pathname);
+            }
+        }
+    }, [loading, token, user, requireAdmin, location.pathname]);
+
     // Guest redirection
     if (!token || !user) {
         console.warn("ProtectedRoute: Redirecting to auth page because token or user is missing. token:", !!token, "user:", !!user);
-        if (!requireAdmin && location.pathname !== '/auth' && location.pathname !== '/') {
-            localStorage.setItem('auth_redirect_target', location.pathname);
-        }
         return <Navigate to={requireAdmin ? "/admin-login" : "/auth"} replace />;
     }
 

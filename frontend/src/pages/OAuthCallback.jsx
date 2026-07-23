@@ -12,10 +12,10 @@ export const OAuthCallback = ({ provider }) => {
         // 1. If already logged in, redirect immediately based on status
         if (token && user) {
             console.log("OAuthCallback: Session active, redirecting to appropriate workspace.");
-            const redirectUrl = localStorage.getItem('auth_redirect_target');
+            const redirectUrl = sessionStorage.getItem('auth_redirect_target');
             if (user.status === 'approved') {
                 if (redirectUrl) {
-                    localStorage.removeItem('auth_redirect_target');
+                    sessionStorage.removeItem('auth_redirect_target');
                     navigate(redirectUrl);
                 } else {
                     navigate('/dashboard');
@@ -29,15 +29,30 @@ export const OAuthCallback = ({ provider }) => {
         // 2. If auth state is still loading, wait for it
         if (loading) return;
 
-        // 3. Extract PKCE code parameter
+        // 3. If token is already present (exchanged by SDK or cached), wait for user profile to load
+        if (token) {
+            console.log("OAuthCallback: Token present, waiting for user profile to load...");
+            return;
+        }
+
+        // 4. Extract PKCE code parameter or check for access token in hash fragment
         const code = searchParams.get('code');
+        const hash = window.location.hash || '';
+        const hasAccessTokenInHash = hash.includes('access_token=') || hash.includes('id_token=');
+
         if (!code) {
-            // If the URL code was already consumed by Supabase client, the session should be loading or active
-            if (token) {
-                console.log("OAuthCallback: Token present but user profile is loading. Waiting...");
+            if (hasAccessTokenInHash) {
+                console.log("OAuthCallback: Detected access token in hash. Waiting for SDK auth listener...");
                 return;
             }
-            setError('Missing authorization code from provider.');
+            // Check if there is an error description in search params or hash
+            const errorMsg = searchParams.get('error_description') || 
+                             new URLSearchParams(hash.replace('#', '?')).get('error_description');
+            if (errorMsg) {
+                setError(errorMsg);
+            } else {
+                setError('Missing authorization code from provider.');
+            }
             return;
         }
 
@@ -69,10 +84,10 @@ export const OAuthCallback = ({ provider }) => {
                 saveToken(data.access_token, profile);
 
                 // Redirect based on user approval status
-                const redirectUrl = localStorage.getItem('auth_redirect_target');
+                const redirectUrl = sessionStorage.getItem('auth_redirect_target');
                 if (profile.status === 'approved') {
                     if (redirectUrl) {
-                        localStorage.removeItem('auth_redirect_target');
+                        sessionStorage.removeItem('auth_redirect_target');
                         navigate(redirectUrl);
                     } else {
                         navigate('/dashboard');
@@ -82,11 +97,25 @@ export const OAuthCallback = ({ provider }) => {
                 }
             } catch (err) {
                 console.error(err);
+                if (sessionStorage.getItem('token')) {
+                    console.log("OAuthCallback: Session token is already active, ignoring callback error.");
+                    return;
+                }
                 setError(err.message || 'An unexpected authentication error occurred.');
             }
         };
 
-        exchangeCode();
+        // Delay manual exchange to allow client SDK automatic exchange to finish first
+        const timer = setTimeout(() => {
+            if (sessionStorage.getItem('token')) {
+                console.log("OAuthCallback: Session token is already active, skipping manual exchange.");
+                return;
+            }
+            console.log("OAuthCallback: Initiating manual code exchange...");
+            exchangeCode();
+        }, 1200);
+
+        return () => clearTimeout(timer);
     }, [searchParams, provider, API_BASE_URL, saveToken, navigate, token, user, loading]);
 
     return (

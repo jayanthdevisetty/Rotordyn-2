@@ -15,6 +15,21 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
+def mask_email(email: str) -> str:
+    if not email or "@" not in email:
+        return "unknown"
+    try:
+        parts = email.split("@")
+        name = parts[0]
+        domain = parts[1]
+        if len(name) <= 2:
+            masked_name = name[0] + "*" * (len(name) - 1)
+        else:
+            masked_name = name[0] + "*" * (len(name) - 2) + name[-1]
+        return f"{masked_name}@{domain}"
+    except Exception:
+        return "unknown"
+
 def serialize_user(profile) -> dict:
     """Helper to convert Supabase profile record to standard user format."""
     # Ensure created_at is converted to string/isoformat if it is a datetime or string
@@ -74,8 +89,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
                     "subscription_status": metadata.get("subscription_status", "free-tier"),
                     "report_generation_count": int(metadata.get("report_generation_count", 0))
                 }
-        except JWTError:
-            pass
+        except jwt.ExpiredSignatureError as e:
+            log_audit_action(
+                user_id=None,
+                action="JWT_TOKEN_EXPIRED",
+                details={"reason": str(e)}
+            )
+        except JWTError as e:
+            log_audit_action(
+                user_id=None,
+                action="JWT_DECODE_FAILED",
+                details={"reason": str(e)}
+            )
             
     # Method 2: Call Supabase Auth endpoint as fallback (no JWT secret required)
     if not user_data:
@@ -283,6 +308,11 @@ async def login(user_in: UserLogin):
             "token_type": "bearer"
         }
     except Exception as e:
+        log_audit_action(
+            user_id=None,
+            action="USER_LOGIN_FAILED",
+            details={"email_masked": mask_email(user_in.email), "reason": str(e)}
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Authentication failed: {str(e)}"

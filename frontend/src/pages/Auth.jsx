@@ -76,10 +76,10 @@ export const Auth = () => {
             const queryParams = new URLSearchParams(location.search);
             let redirectUrl = queryParams.get('redirect');
 
-            const savedRedirect = localStorage.getItem('auth_redirect_target');
+            const savedRedirect = sessionStorage.getItem('auth_redirect_target');
             if (!redirectUrl && savedRedirect) {
                 redirectUrl = savedRedirect;
-                localStorage.removeItem('auth_redirect_target');
+                sessionStorage.removeItem('auth_redirect_target');
             }
             
             if (user.role === 'admin') {

@@ -97,3 +97,55 @@ USING (true);
 CREATE INDEX IF NOT EXISTS idx_alarms_bearing_name ON public.alarms(bearing_name);
 CREATE INDEX IF NOT EXISTS idx_alarms_status ON public.alarms(status);
 
+-- 7. Enable RLS and define policies for profiles table
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own profile"
+ON public.profiles FOR SELECT
+TO authenticated
+USING (id = auth.uid());
+
+CREATE POLICY "Users can update their own profile"
+ON public.profiles FOR UPDATE
+TO authenticated
+USING (id = auth.uid())
+WITH CHECK (id = auth.uid());
+
+CREATE POLICY "Admins can view all profiles"
+ON public.profiles FOR SELECT
+TO authenticated
+USING (
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+
+CREATE POLICY "Admins can update any profile"
+ON public.profiles FOR UPDATE
+TO authenticated
+USING (
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+
+-- 8. Enable RLS and define policies for uploads table
+ALTER TABLE public.uploads ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view uploads of same company"
+ON public.uploads FOR SELECT
+TO authenticated
+USING (
+  company = (SELECT company FROM public.profiles WHERE id = auth.uid())
+  OR 
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+
+CREATE POLICY "Users can insert their own uploads"
+ON public.uploads FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Admins can delete uploads"
+ON public.uploads FOR DELETE
+TO authenticated
+USING (
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+

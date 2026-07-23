@@ -6,8 +6,9 @@ from datetime import datetime, timezone, timedelta
 # Ensure backend directory is in python search path dynamically
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from config import settings
 from database import ping_database, supabase, log_audit_action, verify_schema_version
 from utils.metrics import metrics_collector
@@ -52,7 +53,7 @@ async def pending_approvals_reminder_loop():
                     await send_pending_approvals_reminder_email(pending_users)
                     # 3. Log reminder action so we don't send again for another 48 hours
                     log_audit_action(
-                        user_id="00000000-0000-0000-0000-000000000000",
+                        user_id=None,
                         action="ADMIN_REMINDER_SENT",
                         details={"pending_count": len(pending_users)}
                     )
@@ -120,6 +121,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -170,6 +173,8 @@ async def get_metrics():
 @app.get("/sentry-debug")
 async def trigger_error():
     """Trigger a division-by-zero exception to verify Sentry event capture reporting."""
+    if os.getenv("ENV") == "production":
+        raise HTTPException(status_code=404, detail="Not Found")
     division_by_zero = 1 / 0
 
 if __name__ == "__main__":

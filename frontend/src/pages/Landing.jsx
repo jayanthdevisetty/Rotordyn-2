@@ -26,7 +26,7 @@ export const Landing = () => {
         }
     }, [token, user, navigate]);
 
-    if (loading && localStorage.getItem('token')) {
+    if (loading && sessionStorage.getItem('token')) {
         return (
             <div style={{
                 position: 'fixed',

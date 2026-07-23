@@ -1,8 +1,9 @@
 import React, {useEffect, useState, useRef} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useNavigate} from 'react-router-dom';
-import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut } from 'react-icons/fi';
+import { FiAlertTriangle, FiFolder, FiFolderPlus, FiMoon, FiInfo, FiClock, FiLayout, FiSettings, FiSliders, FiAward, FiPrinter, FiFileText, FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiLogOut, FiTarget } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import html2canvas from 'html2canvas';
 
 
 
@@ -91,11 +92,21 @@ let currentGridPage = 0;
 let customizeLayoutMode = false;
 let timeSyncCursor = true;
 let activeCursorIndex = 0;
+let selectedTrendCurveName = 'Direct';
+let colorCodeByStateEnabled = true;
+let activeBodeSubplot = 'phase';
+const stateFormats = {
+    startup: { color: '#10b981', width: 2.0, dash: 'solid' },
+    shutdown: { color: '#ef4444', width: 2.0, dash: 'solid' },
+    steady_state: { color: '#3b82f6', width: 1.5, dash: 'solid' },
+    other: { color: '#64748b', width: 1.5, dash: 'solid' }
+};
 let x_gap_rest_global = {};
 let y_gap_rest_global = {};
 let activeActivityTab = 'tree';
 let isDrawerOpen = false;
 let cachedFilteredDf = null;
+let cachedUncompensatedDf = null;
 let savedSlowRollSamples = [];
 let activeSlowRollSampleId = null;
 let slowRollCompensationEnabled = false;
@@ -104,6 +115,14 @@ let isTimelinePlaying = false;
 let timelineStepSize = 1;
 let timelinePlaybackDelay = 200;
 let timelinePlotlyContainer = null;
+
+let channelUnits = {}; 
+let defaultUnits = {
+    speed: 'RPM',
+    amp: 'mils',
+    phase: 'deg',
+    temp: '°C'
+};
 
 export const Dashboard = ({ view }) => {
     const {user, setUser, token, logout, API_BASE_URL} = useAuth();
@@ -351,10 +370,19 @@ export const Dashboard = ({ view }) => {
             });
         }
 
+        let isLeftCollapsed = false;
+        let isRightCollapsed = false;
+
         function selectActivityTab(tabName) {
             const container = document.getElementById('main-container');
             const toggleBtn = document.getElementById('sidebar-toggle-btn');
             const toggleIconBtn = document.getElementById('act-btn-toggle');
+            
+            // If it was collapsed to 0px, expand it first
+            if (isLeftCollapsed) {
+                isLeftCollapsed = false;
+                if (container) container.classList.remove('sidebar-fully-collapsed');
+            }
             
             // If drawer is open and we click the already active tab, close it
             if (isDrawerOpen && activeActivityTab === tabName) {
@@ -392,12 +420,17 @@ export const Dashboard = ({ view }) => {
             if (tabName === 'team') {
                 fetchTeamMembers();
             }
+
+            // Load signal formatting values if switching to styles tab
+            if (tabName === 'styles') {
+                loadSignalFormat(selectedSignalFormat);
+            }
             
             // Expand drawer
-            container.style.setProperty('--sidebar-width', '320px');
+            if (container) container.style.setProperty('--sidebar-width', '320px');
             if (toggleBtn) {
                 toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
-                toggleBtn.title = "Collapse Sidebar";
+                toggleBtn.title = "Collapse Sidebar Fully";
             }
             if (toggleIconBtn) {
                 toggleIconBtn.innerHTML = `
@@ -428,10 +461,10 @@ export const Dashboard = ({ view }) => {
             });
             
             // Collapse to 60px
-            container.style.setProperty('--sidebar-width', '60px');
+            if (container) container.style.setProperty('--sidebar-width', '60px');
             if (toggleBtn) {
                 toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
-                toggleBtn.title = "Expand Sidebar";
+                toggleBtn.title = "Collapse Sidebar Fully";
             }
             if (toggleIconBtn) {
                 toggleIconBtn.innerHTML = `
@@ -446,15 +479,81 @@ export const Dashboard = ({ view }) => {
         }
 
         function toggleSidebarGlobal() {
+            if (isLeftCollapsed) {
+                toggleSidebar();
+                return;
+            }
             if (isDrawerOpen) {
                 closePanelDrawer();
             } else {
-                selectActivityTab(activeActivityTab);
+                selectActivityTab(activeActivityTab || 'tree');
             }
         }
 
         function toggleSidebar() {
-            toggleSidebarGlobal();
+            const container = document.getElementById('main-container');
+            const toggleBtn = document.getElementById('sidebar-toggle-btn');
+            
+            if (isLeftCollapsed) {
+                // Expand sidebar from 0px
+                isLeftCollapsed = false;
+                if (container) {
+                    container.classList.remove('sidebar-fully-collapsed');
+                    if (isDrawerOpen) {
+                        container.style.setProperty('--sidebar-width', '320px');
+                        if (toggleBtn) {
+                            toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
+                            toggleBtn.title = "Collapse Sidebar Fully";
+                        }
+                    } else {
+                        container.style.setProperty('--sidebar-width', '60px');
+                        if (toggleBtn) {
+                            toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                            toggleBtn.title = "Collapse Sidebar Fully";
+                        }
+                    }
+                }
+            } else {
+                // Collapse sidebar fully to 0px
+                isLeftCollapsed = true;
+                if (container) {
+                    container.classList.add('sidebar-fully-collapsed');
+                    container.style.setProperty('--sidebar-width', '0px');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                    toggleBtn.title = "Expand Sidebar";
+                }
+            }
+            
+            triggerResizeWithTimeout();
+        }
+
+        function toggleRightToolbar() {
+            const container = document.getElementById('main-container');
+            const toggleBtn = document.getElementById('right-toolbar-toggle-btn');
+            
+            if (isRightCollapsed) {
+                isRightCollapsed = false;
+                if (container) {
+                    container.classList.remove('right-fully-collapsed');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="9 18 15 12 9 6"/></svg>';
+                    toggleBtn.title = "Collapse Toolbar";
+                }
+            } else {
+                isRightCollapsed = true;
+                if (container) {
+                    container.classList.add('right-fully-collapsed');
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;margin:auto;"><polyline points="15 18 9 12 15 6"/></svg>';
+                    toggleBtn.title = "Expand Toolbar";
+                }
+            }
+            
+            triggerResizeWithTimeout();
         }
 
         function triggerResizeWithTimeout() {
@@ -463,7 +562,7 @@ export const Dashboard = ({ view }) => {
                     if (config && config.category !== 'mode_shape') {
                         const containerDiv = document.getElementById(`plotly-container-${idx}`);
                         if (containerDiv) {
-                            Plotly.Plots.resize(containerDiv);
+                            renderPlotInSlot(idx, containerDiv, config.bearingOrChannel, config.category);
                         }
                     }
                 });
@@ -528,17 +627,17 @@ export const Dashboard = ({ view }) => {
         let activeEndTime = 'all';
 
         const signalFormats = {
-            direct: { color: '#38bdf8', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_1x: { color: '#10b981', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_1x: { color: '#10b981', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_2x: { color: '#ef4444', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_2x: { color: '#ef4444', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            gap: { color: '#fb923c', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            temp: { color: '#fbbf24', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            speed: { color: '#38bdf8', width: 2.0, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            load: { color: '#c084fc', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
+            direct: { color: '#1e40af', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            gap: { color: '#fb923c', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            temp: { color: '#fbbf24', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            speed: { color: '#38bdf8', width: 2.0, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            load: { color: '#c084fc', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
         };
 
         const isNumber = (val) => typeof val === 'number' && !isNaN(val);
@@ -783,13 +882,6 @@ export const Dashboard = ({ view }) => {
             return { x, y };
         }
 
-        let channelUnits = {}; 
-        let defaultUnits = {
-            speed: 'RPM',
-            amp: 'mils',
-            phase: 'deg',
-            temp: '°C'
-        };
 
         function getChannelUnit(ch, category, defaultVal) {
             if (ch && channelUnits[ch] && channelUnits[ch][category]) {
@@ -820,11 +912,168 @@ export const Dashboard = ({ view }) => {
             handleBgInsideChange(insideColor);
         }
 
-        // Apply Curve formatting color explicitly
-        function applyCurveFormatting() {
-            const color = document.getElementById('format-color-picker').value;
-            handleFormatColorChange(color);
+        function resetColorCustomizations() {
+            // 1. Reset Workspace background CSS variables
+            document.documentElement.style.setProperty('--bg-color', '#f1f5f9');
+            document.documentElement.style.setProperty('--card-color', '#ffffff');
+            document.documentElement.style.setProperty('--border-color', '#cbd5e1');
+            document.documentElement.style.setProperty('--text-color', '#0f172a');
+            document.documentElement.style.setProperty('--text-muted', '#64748b');
+            document.documentElement.style.setProperty('--plot-bg-color', '#ffffff');
+            document.documentElement.style.setProperty('--paper-bg-color', '#ffffff');
+            document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(15, 23, 42, 0.1)');
+            document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
+
+            // 2. Reset pickers value in UI
+            const bgOutsidePicker = document.getElementById('bg-outside-picker');
+            const bgInsidePicker = document.getElementById('bg-inside-picker');
+            if (bgOutsidePicker) bgOutsidePicker.value = '#f1f5f9';
+            if (bgInsidePicker) bgInsidePicker.value = '#ffffff';
+
+            // 3. Reset all curve colors to default hexes
+            const defaultColors = {
+                direct: '#1e40af',
+                amp_1x: '#fe0606',
+                phase_1x: '#fe0606',
+                amp_2x: '#10b981',
+                phase_2x: '#10b981',
+                amp_nx: '#a855f7',
+                phase_nx: '#a855f7',
+                gap: '#fb923c',
+                temp: '#fbbf24',
+                speed: '#38bdf8',
+                load: '#c084fc'
+            };
+            Object.keys(defaultColors).forEach(key => {
+                if (signalFormats[key]) {
+                    signalFormats[key].color = defaultColors[key];
+                }
+            });
+
+            stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
+            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'solid' };
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'solid' };
+            colorCodeByStateEnabled = true;
+            
+            const stateCheckbox = document.getElementById('toggle-state-coloring');
+            if (stateCheckbox) stateCheckbox.checked = true;
+            
+            const stateSelect = document.getElementById('state-style-select');
+            if (stateSelect) stateSelect.value = 'startup';
+            
+            loadStateStyle('startup');
+
+            // 4. Update the color picker in Curve Formatting UI
+            if (typeof selectedSignalFormat !== 'undefined') {
+                loadSignalFormat(selectedSignalFormat);
+            }
+
+            // 5. Re-render Plot grid
+            renderGrid();
         }
+        window.resetColorCustomizations = resetColorCustomizations;
+
+        function handleAutoColorChange() {
+            colorCodeByStateEnabled = !colorCodeByStateEnabled;
+            
+            const stateCheckbox = document.getElementById('toggle-state-coloring');
+            if (stateCheckbox) stateCheckbox.checked = colorCodeByStateEnabled;
+            
+            const tbBtn = document.getElementById('btn-auto-color-change-toolbar');
+            if (tbBtn) {
+                if (colorCodeByStateEnabled) {
+                    tbBtn.classList.add('active');
+                } else {
+                    tbBtn.classList.remove('active');
+                }
+            }
+            
+            stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
+            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'solid' };
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'solid' };
+
+            const stateSelect = document.getElementById('state-style-select');
+            if (stateSelect) {
+                loadStateStyle(stateSelect.value);
+            }
+
+            renderGrid();
+        }
+        window.handleAutoColorChange = handleAutoColorChange;
+
+        function loadStateStyle(stateKey) {
+            const fmt = stateFormats[stateKey];
+            if (fmt) {
+                const colorPicker = document.getElementById('state-color-picker');
+                const widthInput = document.getElementById('state-width-input');
+                const widthVal = document.getElementById('state-width-val');
+                const dashSelect = document.getElementById('state-dash-select');
+                
+                if (colorPicker) colorPicker.value = fmt.color;
+                if (widthInput) {
+                    widthInput.value = fmt.width;
+                    if (widthVal) widthVal.innerText = fmt.width;
+                }
+                if (dashSelect) dashSelect.value = fmt.dash;
+            }
+        }
+
+        function handleStateColorChange(color) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].color = color;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateWidthChange(width) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].width = parseFloat(width);
+                    const widthVal = document.getElementById('state-width-val');
+                    if (widthVal) widthVal.innerText = width;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateDashChange(dash) {
+            const select = document.getElementById('state-style-select');
+            if (select) {
+                const stateKey = select.value;
+                if (stateFormats[stateKey]) {
+                    stateFormats[stateKey].dash = dash;
+                    renderGrid();
+                }
+            }
+        }
+
+        function handleStateColoringToggle(checked) {
+            colorCodeByStateEnabled = checked;
+            const tbBtn = document.getElementById('btn-auto-color-change-toolbar');
+            if (tbBtn) {
+                if (colorCodeByStateEnabled) {
+                    tbBtn.classList.add('active');
+                } else {
+                    tbBtn.classList.remove('active');
+                }
+            }
+            renderGrid();
+        }
+
+        window.loadStateStyle = loadStateStyle;
+        window.handleStateColorChange = handleStateColorChange;
+        window.handleStateWidthChange = handleStateWidthChange;
+        window.handleStateDashChange = handleStateDashChange;
+        window.handleStateColoringToggle = handleStateColoringToggle;
+
 
         // Workspace background color handlers
 
@@ -848,10 +1097,12 @@ export const Dashboard = ({ view }) => {
             document.documentElement.style.setProperty('--plot-bg-color', color);
             document.documentElement.style.setProperty('--paper-bg-color', color);
             const brightness = getBrightness(color);
-            if (brightness < 128) {
-                document.documentElement.style.setProperty('--contrast-grid-color', '#334155');
+            if (brightness < 140) {
+                document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(255, 255, 255, 0.15)');
+                document.documentElement.style.setProperty('--plot-text-color', '#f8fafc');
             } else {
-                document.documentElement.style.setProperty('--contrast-grid-color', '#e2e8f0');
+                document.documentElement.style.setProperty('--contrast-grid-color', 'rgba(15, 23, 42, 0.1)');
+                document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
             }
             renderGrid();
         }
@@ -899,9 +1150,20 @@ export const Dashboard = ({ view }) => {
             }
         }
 
+        function syncSharedFormats(key, prop, val) {
+            if (key === 'amp_1x') {
+                signalFormats['phase_1x'][prop] = val;
+            } else if (key === 'amp_2x') {
+                signalFormats['phase_2x'][prop] = val;
+            } else if (key === 'amp_nx') {
+                signalFormats['phase_nx'][prop] = val;
+            }
+        }
+
         function handleFormatColorChange(color) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].color = color;
+                syncSharedFormats(selectedSignalFormat, 'color', color);
                 renderGrid();
             }
         }
@@ -909,6 +1171,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatDashChange(dash) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].dash = dash;
+                syncSharedFormats(selectedSignalFormat, 'dash', dash);
                 renderGrid();
             }
         }
@@ -916,7 +1179,9 @@ export const Dashboard = ({ view }) => {
         function handleFormatWidthChange(width) {
             document.getElementById('format-width-val').innerText = width;
             if (signalFormats[selectedSignalFormat]) {
-                signalFormats[selectedSignalFormat].width = parseFloat(width);
+                const w = parseFloat(width);
+                signalFormats[selectedSignalFormat].width = w;
+                syncSharedFormats(selectedSignalFormat, 'width', w);
                 renderGrid();
             }
         }
@@ -924,6 +1189,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatModeChange(mode) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].mode = mode;
+                syncSharedFormats(selectedSignalFormat, 'mode', mode);
                 toggleMarkerControls(mode);
                 renderGrid();
             }
@@ -932,6 +1198,7 @@ export const Dashboard = ({ view }) => {
         function handleFormatSymbolChange(symbol) {
             if (signalFormats[selectedSignalFormat]) {
                 signalFormats[selectedSignalFormat].marker_symbol = symbol;
+                syncSharedFormats(selectedSignalFormat, 'marker_symbol', symbol);
                 renderGrid();
             }
         }
@@ -939,7 +1206,9 @@ export const Dashboard = ({ view }) => {
         function handleFormatMarkerSizeChange(size) {
             document.getElementById('format-marker-size-val').innerText = size;
             if (signalFormats[selectedSignalFormat]) {
-                signalFormats[selectedSignalFormat].marker_size = parseFloat(size);
+                const s = parseFloat(size);
+                signalFormats[selectedSignalFormat].marker_size = s;
+                syncSharedFormats(selectedSignalFormat, 'marker_size', s);
                 renderGrid();
             }
         }
@@ -1389,78 +1658,124 @@ export const Dashboard = ({ view }) => {
         }
 
         async function downloadSlotPlot(slotIdx) {
-            const container = document.getElementById(`plotly-container-${slotIdx}`);
-            if (!container || !container.data) {
-                alert("No plot data found to save.");
+            const card = document.getElementById(`grid-card-${slotIdx}`);
+            if (!card) {
+                alert("No plot card found to save.");
                 return;
             }
             const config = plotSlots[slotIdx];
             const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
             
-            if (window.outputDirHandle) {
-                try {
-                    const dataUrl = await Plotly.toImage(container, { format: 'png', width: 1200, height: 800 });
-                    const blob = dataURItoBlob(dataUrl);
+            showLoader(true, "Generating high-quality plot image...");
+            
+            const actions = document.getElementById(`header-actions-${slotIdx}`);
+            const originalDisplay = actions ? actions.style.display : '';
+            
+            try {
+                if (actions) actions.style.display = 'none';
+                
+                const canvas = await html2canvas(card, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                
+                const dataUrl = canvas.toDataURL('image/png');
+                const blob = dataURItoBlob(dataUrl);
+                
+                if (window.outputDirHandle) {
                     const success = await saveFileToLocalDirectory(filename, blob);
                     if (success) {
                         alert(`Plot successfully saved directly to output folder: ${window.outputDirHandle.name}/${filename}`);
                         return;
                     }
-                } catch (err) {
-                    console.error("Failed saving directly:", err);
                 }
+                
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert(`Plot successfully saved as '${filename}' to your browser's default Downloads folder.`);
+                
+            } catch (err) {
+                console.error("Failed to export plot image:", err);
+                alert("Failed to save plot image: " + err.message);
+            } finally {
+                if (actions) actions.style.display = originalDisplay;
+                showLoader(false);
             }
-
-            // Fallback
-            Plotly.downloadImage(container, {
-                format: 'png',
-                width: 1200,
-                height: 800,
-                filename: filename.replace('.png', '')
-            });
-            alert(`Plot successfully saved as '${filename}' to your browser's default Downloads folder (usually C:\\Users\\<Username>\\Downloads).`);
         }
 
         async function downloadAllPlots() {
             let count = 0;
             let directCount = 0;
-            for (let idx = 0; idx < plotSlots.length; idx++) {
-                const config = plotSlots[idx];
-                if (!config) continue;
-                const container = document.getElementById(`plotly-container-${idx}`);
-                if (container && container.data) {
-                    count++;
-                    const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
+            
+            showLoader(true, "Preparing to export all plots...");
+            
+            try {
+                for (let idx = 0; idx < plotSlots.length; idx++) {
+                    const config = plotSlots[idx];
+                    if (!config) continue;
                     
-                    if (window.outputDirHandle) {
+                    const card = document.getElementById(`grid-card-${idx}`);
+                    const actions = document.getElementById(`header-actions-${idx}`);
+                    
+                    if (card) {
+                        count++;
+                        const filename = `${config.bearingOrChannel}_${config.category}_plot.png`;
+                        
+                        const originalDisplay = actions ? actions.style.display : '';
+                        if (actions) actions.style.display = 'none';
+                        
                         try {
-                            const dataUrl = await Plotly.toImage(container, { format: 'png', width: 1200, height: 800 });
+                            const canvas = await html2canvas(card, {
+                                scale: 2,
+                                useCORS: true,
+                                backgroundColor: '#ffffff',
+                                logging: false
+                            });
+                            
+                            const dataUrl = canvas.toDataURL('image/png');
                             const blob = dataURItoBlob(dataUrl);
-                            const success = await saveFileToLocalDirectory(filename, blob);
-                            if (success) {
-                                directCount++;
+                            
+                            if (window.outputDirHandle) {
+                                const success = await saveFileToLocalDirectory(filename, blob);
+                                if (success) {
+                                    directCount++;
+                                }
+                            } else {
+                                const link = document.createElement('a');
+                                link.download = filename;
+                                link.href = dataUrl;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
                             }
                         } catch (err) {
-                            console.error("Failed saving directly:", err);
+                            console.error(`Failed to export plot ${filename}:`, err);
+                        } finally {
+                            if (actions) actions.style.display = originalDisplay;
                         }
-                    } else {
-                        Plotly.downloadImage(container, {
-                            format: 'png',
-                            width: 1200,
-                            height: 800,
-                            filename: filename.replace('.png', '')
-                        });
                     }
                 }
-            }
-            if (count > 0) {
-                if (window.outputDirHandle) {
-                    alert(`Successfully saved ${directCount} of ${count} plot(s) directly to output folder: ${window.outputDirHandle.name}`);
+                
+                if (count > 0) {
+                    if (window.outputDirHandle) {
+                        alert(`Successfully saved ${directCount} of ${count} plot(s) directly to output folder: ${window.outputDirHandle.name}`);
+                    } else {
+                        alert(`Successfully saved ${count} plot(s) to your browser's default Downloads folder.`);
+                    }
                 } else {
-                    alert(`Successfully saved ${count} plot(s) to your browser's default Downloads folder (usually C:\\Users\\<Username>\\Downloads).`);
+                    alert("No active plots found to save.");
                 }
-            } else {
-                alert("No active plots found to save.");
+            } catch (err) {
+                console.error("Failed download all plots:", err);
+                alert("Failed to export plots: " + err.message);
+            } finally {
+                showLoader(false);
             }
         }
 
@@ -1908,7 +2223,7 @@ export const Dashboard = ({ view }) => {
                     const mergedFilename = files.length > 1 ? `merged_${files.length}_files.csv` : files[0].name;
                     
                     cacheCSVInSession(csvText, mergedFilename);
-                    parseCSVData(csvText, mergedFilename);
+                    parseCSVData(csvText, mergedFilename, true);
                     uploadDatasetToBackend(csvText, mergedFilename);
                     
                     // Trigger dynamic self-learning unbalance diagnostics
@@ -2460,9 +2775,8 @@ export const Dashboard = ({ view }) => {
             
             return masterRows;
         }
-
         function parseTimestamp(ts) {
-            if (!ts) return null;
+            if (!ts) return new Date(0);
             if (ts instanceof Date) return ts;
             
             let str = String(ts).trim().toLowerCase();
@@ -2538,7 +2852,156 @@ export const Dashboard = ({ view }) => {
             return new Date();
         }
 
-        function parseCSVData(csvText, filename) {
+        function showDefaultPlotSelectionModal(orderedPrefixes, bearingPairs, singlePrefixes, onComplete) {
+            const backdrop = document.createElement('div');
+            backdrop.style.position = 'fixed';
+            backdrop.style.top = '0';
+            backdrop.style.left = '0';
+            backdrop.style.width = '100vw';
+            backdrop.style.height = '100vh';
+            backdrop.style.backgroundColor = 'rgba(9, 13, 22, 0.85)';
+            backdrop.style.backdropFilter = 'blur(10px)';
+            backdrop.style.display = 'flex';
+            backdrop.style.justifyContent = 'center';
+            backdrop.style.alignItems = 'center';
+            backdrop.style.zIndex = '999999';
+            backdrop.style.fontFamily = "'Outfit', 'Plus Jakarta Sans', sans-serif";
+
+            const container = document.createElement('div');
+            container.style.width = '420px';
+            container.style.padding = '30px';
+            container.style.backgroundColor = 'var(--card-color)';
+            container.style.border = '1px solid var(--border-color)';
+            container.style.borderRadius = '16px';
+            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '20px';
+            container.style.color = 'var(--text-color)';
+            container.style.textAlign = 'center';
+
+            const header = document.createElement('div');
+            header.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 10px;">📊</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-color)">Configure Default Plot Grid</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted)">Choose the default plot type to display for the loaded dataset:</p>
+            `;
+            container.appendChild(header);
+
+            const optionsList = document.createElement('div');
+            optionsList.style.display = 'grid';
+            optionsList.style.gridTemplateColumns = '1fr';
+            optionsList.style.gap = '10px';
+            optionsList.style.maxHeight = '220px';
+            optionsList.style.overflowY = 'auto';
+            optionsList.style.paddingRight = '5px';
+
+            const plotTypes = [
+                { id: 'trend', name: 'Trend Plots', isDual: false },
+                { id: 'polar', name: 'Polar Plots', isDual: false },
+                { id: 'bode2d', name: 'Bode Plots (2D)', isDual: false },
+                { id: 'centerline', name: 'Shaft Centerline Plots', isDual: true },
+                { id: 'centerline_orbit', name: 'Centerline Orbit Overlays', isDual: true },
+                { id: 'orbit', name: 'Rotor Orbit Plots', isDual: true },
+                { id: 'spectrum', name: 'FFT Spectrum Plots', isDual: false }
+            ];
+
+            let selectedCategory = 'trend';
+            let selectedIsDual = false;
+
+            const optionButtons = [];
+            plotTypes.forEach(pt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.width = '100%';
+                btn.style.padding = '12px 16px';
+                btn.style.borderRadius = '8px';
+                btn.style.border = '1px solid var(--border-color)';
+                btn.style.backgroundColor = 'var(--bg-color)';
+                btn.style.color = 'var(--text-color)';
+                btn.style.fontSize = '0.85rem';
+                btn.style.fontWeight = '600';
+                btn.style.cursor = 'pointer';
+                btn.style.textAlign = 'left';
+                btn.style.transition = 'all 0.2s';
+                btn.style.display = 'flex';
+                btn.style.justifyContent = 'space-between';
+                btn.style.alignItems = 'center';
+                
+                btn.innerHTML = `
+                    <span>${pt.name}</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); padding: 2px 6px; background: var(--card-color); border-radius: 4px; border: 1px solid var(--border-color)">
+                        ${pt.isDual ? 'Bearing Pairs' : 'Channels'}
+                    </span>
+                `;
+
+                btn.onmouseenter = () => {
+                    if (selectedCategory !== pt.id) {
+                        btn.style.borderColor = 'var(--accent-color)';
+                        btn.style.backgroundColor = 'rgba(59, 130, 246, 0.05)';
+                    }
+                };
+                btn.onmouseleave = () => {
+                    if (selectedCategory !== pt.id) {
+                        btn.style.borderColor = 'var(--border-color)';
+                        btn.style.backgroundColor = 'var(--bg-color)';
+                    }
+                };
+
+                const selectOption = () => {
+                    selectedCategory = pt.id;
+                    selectedIsDual = pt.isDual;
+                    optionButtons.forEach(otherBtn => {
+                        otherBtn.btn.style.borderColor = 'var(--border-color)';
+                        otherBtn.btn.style.backgroundColor = 'var(--bg-color)';
+                        otherBtn.btn.style.boxShadow = 'none';
+                    });
+                    btn.style.borderColor = 'var(--accent-color)';
+                    btn.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    btn.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.2)';
+                };
+
+                btn.onclick = selectOption;
+                optionsList.appendChild(btn);
+                optionButtons.push({ id: pt.id, btn, selectOption });
+            });
+
+            optionButtons[0].selectOption();
+            container.appendChild(optionsList);
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.type = 'button';
+            confirmBtn.style.width = '100%';
+            confirmBtn.style.padding = '12px';
+            confirmBtn.style.borderRadius = '50px';
+            confirmBtn.style.border = 'none';
+            confirmBtn.style.backgroundColor = 'var(--accent-color)';
+            confirmBtn.style.color = '#ffffff';
+            confirmBtn.style.fontWeight = '700';
+            confirmBtn.style.fontSize = '0.88rem';
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.3)';
+            confirmBtn.style.transition = 'all 0.2s';
+            confirmBtn.innerText = 'Render Selected Layout';
+
+            confirmBtn.onmouseenter = () => {
+                confirmBtn.style.opacity = '0.9';
+            };
+            confirmBtn.onmouseleave = () => {
+                confirmBtn.style.opacity = '1';
+            };
+
+            confirmBtn.onclick = () => {
+                backdrop.remove();
+                onComplete(selectedCategory, selectedIsDual, '2V');
+            };
+            container.appendChild(confirmBtn);
+
+            backdrop.appendChild(container);
+            document.body.appendChild(backdrop);
+        }
+
+        function parseCSVData(csvText, filename, isNewUpload = false) {
             const preprocessed = preprocessCSV(csvText);
             
             // Populate channelUnits if metadata has unit fields
@@ -2585,13 +3048,6 @@ export const Dashboard = ({ view }) => {
                         row['_date'] = parseTimestamp(raw_ts);
                         row['_time_ms'] = row['_date'] ? row['_date'].getTime() : 0;
                     });
-                    
-                    // Transition View
-                    document.getElementById('welcome-screen').style.opacity = '0';
-                    setTimeout(() => {
-                        document.getElementById('welcome-screen').style.display = 'none';
-                        document.getElementById('main-container').style.display = 'flex';
-                        navigate('/dashboard');
                         
                         // Cache rest gap values for centerline calibration
                         // Calibrate using the absolute bottom of the bearing clearance (extreme gap values)
@@ -2630,6 +3086,7 @@ export const Dashboard = ({ view }) => {
                         populateFilterControls();
                         populateSidebarTree();
                         loadSignalFormat('direct');
+                        loadStateStyle('startup');
 
                         // Populate dataset summary statistics
                         const speeds = df.map(r => r[speedCol] || 0);
@@ -2652,64 +3109,114 @@ export const Dashboard = ({ view }) => {
                         if (summaryTime) summaryTime.innerText = `${t_first} - ${t_last}`;
                         if (summaryFilename) summaryFilename.innerText = filename.split('/').pop().split('\\').pop();
 
-                        // Load default view slot
-                        plotSlots = [
-                            {
-                                bearingOrChannel: singlePrefixes[0] || 'BRG1X',
-                                category: 'trend',
-                                isDual: false,
-                                layoutLimits: { min: null, max: null, autoScale: true }
-                            },
-                            {
-                                bearingOrChannel: bearingPairs[0] || singlePrefixes[1] || 'BRG1',
-                                category: bearingPairs[0] ? 'orbit' : 'trend',
-                                isDual: false,
-                                layoutLimits: { min: null, max: null, autoScale: true },
-                                showTimebase: true,
-                                showTrace2: false,
-                                cycles: 8
+                        // Load default view slots based on user selection in modal
+                        const ordered = getPriorityOrder(singlePrefixes);
+                        
+                        // Check if we should skip the modal because it's a cached load/refresh
+                        const savedSlots = localStorage.getItem('rotordyn_custom_slots');
+                        const savedLayout = localStorage.getItem('rotordyn_custom_layout');
+                        
+                        if (!isNewUpload && savedSlots && savedLayout) {
+                            try {
+                                const parsedSlots = JSON.parse(savedSlots);
+                                if (Array.isArray(parsedSlots) && parsedSlots.length > 0) {
+                                    plotSlots = parsedSlots;
+                                    currentLayoutRef.current = savedLayout;
+                                    currentLayout = savedLayout;
+                                    setCurrentLayoutState(savedLayout);
+                                    currentGridPage = 0;
+                                    
+                                    populateSlowRollDropdown();
+                                    updateSavedSlowRollList();
+                                    
+                                    // Ensure UI elements like global speed profile timeline are visible
+                                    document.getElementById('global-timeline-bar').style.display = 'flex';
+                                    const topBtn = document.getElementById('btn-top-toggle-timeline');
+                                    if (topBtn) {
+                                        topBtn.style.display = 'inline-block';
+                                        topBtn.innerText = 'Hide Speed Profile';
+                                        topBtn.style.background = 'var(--card-color)';
+                                        topBtn.style.borderColor = 'var(--border-color)';
+                                        topBtn.style.color = '#ef4444';
+                                    }
+                                    
+                                    showLoader(false);
+                                    
+                                    // Transition view if on welcome screen
+                                    const welcome = document.getElementById('welcome-screen');
+                                    const mainCont = document.getElementById('main-container');
+                                    if (welcome) welcome.style.display = 'none';
+                                    if (mainCont) mainCont.style.display = 'flex';
+                                    
+                                    navigate('/dashboard');
+                                    setTimeout(() => {
+                                        renderGrid();
+                                        runAIDiagnostics();
+                                    }, 100);
+                                    return;
+                                }
+                            } catch (e) {
+                                console.warn("Failed to restore saved config, falling back to modal:", e);
                             }
-                        ];
-                        activeSlotIndex = 0;
-                        currentLayoutRef.current = '2V';
-                        currentLayout = '2V';
-                        setCurrentLayoutState('2V');
-                        currentGridPage = 0;
-
-                        if (timelineIntervalId) {
-                            clearInterval(timelineIntervalId);
-                            isTimelinePlaying = false;
-                            const playBtn = document.getElementById('tl-btn-play');
-                            if (playBtn) playBtn.innerText = 'Play';
-                        }
-                        document.getElementById('global-timeline-bar').style.display = 'flex';
-                        const topBtn = document.getElementById('btn-top-toggle-timeline');
-                        if (topBtn) {
-                            topBtn.style.display = 'inline-block';
-                            topBtn.innerText = 'Hide Speed Profile';
-                            topBtn.style.background = 'var(--card-color)';
-                            topBtn.style.borderColor = 'var(--border-color)';
-                            topBtn.style.color = '#ef4444';
                         }
 
-                        populateSlowRollDropdown();
-                        updateSavedSlowRollList();
+                        // Automatically initialize the grid with defaults ('trend' plot, 2V layout) without asking
+                        const initPlotGridWithDefaults = (category, isDual, layout) => {
+                            showLoader(true, "Initializing plot grid...");
+                            
+                            setTimeout(() => {
+                                const targets = isDual ? bearingPairs : ordered;
+                                const capacity = layout === '1' ? 1 :
+                                                 (layout === '2H' || layout === '2V') ? 2 :
+                                                 layout === '4' ? 4 :
+                                                 layout === '6' ? 6 : 8;
 
-                        renderGrid();
-                        saveWorkspaceConfig();
-                        showLoader(false);
-                        
-                        // Run AI critical speed detection and malfunction auto-diagnostics
-                        setTimeout(() => {
-                            runAIDiagnostics();
-                        }, 100);
-                        
-                        // Auto-expand Sensor Navigation to guide the user on first load
-                        setTimeout(() => {
-                            selectActivityTab('tree');
-                        }, 200);
-                    }, 500);
-                },
+                                const N = Math.min(targets.length, capacity);
+                                plotSlots = [];
+                                for (let i = 0; i < targets.length; i++) {
+                                    plotSlots.push({
+                                        bearingOrChannel: targets[i],
+                                        category: category,
+                                        isDual: isDual,
+                                        layoutLimits: { min: null, max: null, autoScale: true },
+                                        showTimebase: true,
+                                        showTrace2: false,
+                                        cycles: 8
+                                    });
+                                }
+
+                                activeSlotIndex = 0;
+                                currentLayoutRef.current = layout;
+                                currentLayout = layout;
+                                setCurrentLayoutState(layout);
+                                currentGridPage = 0;
+
+                                if (timelineIntervalId) {
+                                    clearInterval(timelineIntervalId);
+                                    isTimelinePlaying = false;
+                                    const playBtn = document.getElementById('tl-btn-play');
+                                    if (playBtn) playBtn.innerText = 'Play';
+                                }
+                                document.getElementById('global-timeline-bar').style.display = 'flex';
+                                const topBtn = document.getElementById('btn-top-toggle-timeline');
+                                if (topBtn) {
+                                    topBtn.style.display = 'inline-block';
+                                    topBtn.innerText = 'Hide Speed Profile';
+                                    topBtn.style.background = 'var(--card-color)';
+                                    topBtn.style.borderColor = 'var(--border-color)';
+                                    topBtn.style.color = '#ef4444';
+                                }
+
+                                populateSlowRollDropdown();
+                                updateSavedSlowRollList();
+                                saveWorkspaceConfig();
+                                showLoader(false);
+                                navigate('/dashboard');
+                            }, 300);
+                        };
+
+                        initPlotGridWithDefaults('trend', false, '2V');
+                    },
                 error: function(err) {
                     showUploadError("Error parsing CSV: " + err.message);
                     showLoader(false);
@@ -3322,9 +3829,9 @@ export const Dashboard = ({ view }) => {
             if (rpm.length === 0) return states;
             
             const maxSpeed = Math.max(...rpm);
-            // Steady state is defined as speeds within 5% of maximum speed,
+            // Steady state is defined as speeds within 1% of maximum speed (99% threshold),
             // but at least 100 RPM to avoid classifying zero speed as steady state.
-            const steadyThreshold = Math.max(100, maxSpeed * 0.95);
+            const steadyThreshold = Math.max(100, maxSpeed * 0.99);
             
             let first_steady = -1;
             let last_steady = -1;
@@ -3408,7 +3915,7 @@ export const Dashboard = ({ view }) => {
                 const dualPlots = [
                     { category: 'centerline', name: 'Shaft Centerline' },
                     { category: 'centerline_orbit', name: 'Centerline Orbit Overlay' },
-                    { category: 'orbit', name: 'Rotor Orbits (2D/3D)' }
+                    { category: 'orbit', name: 'Rotor Orbits (2D)' }
                 ];
                 
                 dualPlots.forEach(p => {
@@ -3465,9 +3972,9 @@ export const Dashboard = ({ view }) => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' },
-                        { category: 'cascade', name: '3D Waterfall Spectrum' }
+                        // { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        // { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -3509,7 +4016,7 @@ export const Dashboard = ({ view }) => {
             sysChildrenUl.id = 'tree-children-system-profile';
             
             const sysPlots = [
-                { category: 'mode_shape', name: '3D Rotor Profile' }
+                { category: 'mode_shape', name: 'Rotor Profile' }
             ];
             
             sysPlots.forEach(p => {
@@ -3576,9 +4083,9 @@ export const Dashboard = ({ view }) => {
                         { category: 'trend', name: 'Time Trend Plot' },
                         { category: 'polar', name: 'Polar Plot' },
                         { category: 'bode2d', name: 'Bode Plot (2D)' },
-                        { category: 'bode3d', name: 'Bode Plot (3D)' },
-                        { category: 'spectrum', name: 'FFT Spectrum' },
-                        { category: 'cascade', name: '3D Waterfall Spectrum' }
+                        // { category: 'bode3d', name: 'Bode Plot (3D)' },
+                        { category: 'spectrum', name: 'FFT Spectrum' }
+                        // { category: 'cascade', name: '3D Waterfall Spectrum' }
                     ];
                     
                     singlePlots.forEach(p => {
@@ -3627,86 +4134,116 @@ export const Dashboard = ({ view }) => {
 
         let activeBearingOrChannel = null;
 
-        function selectPlotType(bearingOrChannel, category, isDual) {
-            activeBearingOrChannel = bearingOrChannel;
-            if (activeSlotIndex >= plotSlots.length) {
-                while (plotSlots.length <= activeSlotIndex) {
-                    plotSlots.push(null);
-                }
+        function getPriorityOrder(prefixes) {
+            if (!prefixes || prefixes.length === 0) return [];
+            return [...prefixes].sort((a, b) => {
+                const parse = (p) => {
+                    const m = p.match(/^([a-zA-Z\s]*)(\d+)(.*)$/);
+                    if (m) {
+                        return {
+                            name: m[1],
+                            num: parseInt(m[2], 10),
+                            suffix: m[3].toLowerCase()
+                        };
+                    }
+                    return { name: p, num: 999, suffix: '' };
+                };
+                const pa = parse(a);
+                const pb = parse(b);
+                if (pa.name !== pb.name) return pa.name.localeCompare(pb.name);
+                if (pa.num !== pb.num) return pa.num - pb.num;
+                const getSuffixVal = (s) => {
+                    if (s.includes('x')) return 1;
+                    if (s.includes('y')) return 2;
+                    if (s.includes('seis')) return 3;
+                    return 4;
+                };
+                return getSuffixVal(pa.suffix) - getSuffixVal(pb.suffix);
+            });
+        }
+
+        function applyCategoryToAllSlots(category) {
+            if (!singlePrefixes || singlePrefixes.length === 0) return;
+            
+            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
+            let isSingle = !bearingPairCategories.includes(category);
+            
+            const orderedPrefixes = getPriorityOrder(singlePrefixes);
+            const targets = isSingle ? orderedPrefixes : bearingPairs;
+            
+            // Get capacity of current layout
+            const capacity = currentLayout ? (
+                currentLayout === '1' ? 1 :
+                (currentLayout === '2H' || currentLayout === '2V') ? 2 :
+                currentLayout === '4' ? 4 :
+                currentLayout === '6' ? 6 : 8
+            ) : 2; // Default to 2
+            
+            const N_plots = targets.length;
+            const N = Math.min(N_plots, capacity);
+            
+            plotSlots = [];
+            for (let i = 0; i < targets.length; i++) {
+                plotSlots.push({
+                    bearingOrChannel: targets[i],
+                    category: category,
+                    isDual: !isSingle,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                });
             }
             
-            const current = plotSlots[activeSlotIndex];
-            if (current && current.bearingOrChannel === bearingOrChannel && current.category === category) {
-                plotSlots[activeSlotIndex] = null;
-            } else {
-                plotSlots[activeSlotIndex] = {
-                    bearingOrChannel: bearingOrChannel,
-                    category: category,
-                    isDual: isDual,
-                    layoutLimits: {
-                        min: null,
-                        max: null,
-                        autoScale: true
-                    }
-                };
+            let layout = currentLayout || '2V';
+            if (layout === '2H') {
+                layout = '2V';
+            }
+            
+            currentLayout = layout;
+            currentLayoutRef.current = layout;
+            setCurrentLayoutState(layout);
+            
+            if (activeSlotIndex >= capacity) {
+                activeSlotIndex = 0;
             }
             
             renderGrid();
             saveWorkspaceConfig();
         }
 
-        function populatePlotFromToolbar(category) {
-            let targetBc = activeBearingOrChannel;
-            if (!targetBc && plotSlots[activeSlotIndex]) {
-                targetBc = plotSlots[activeSlotIndex].bearingOrChannel;
-            }
-            if (!targetBc) {
-                targetBc = bearingPairs[0] || singlePrefixes[0];
-            }
-            if (!targetBc) return; // No dataset loaded yet
+        function selectPlotType(bearingOrChannel, category, isDual) {
+            // Update ONLY the selected/active window slot instead of overwriting all slots!
+            // This enables comparing different plot types across different slots.
+            const capacity = currentLayout ? (
+                currentLayout === '1' ? 1 :
+                (currentLayout === '2H' || currentLayout === '2V') ? 2 :
+                currentLayout === '4' ? 4 :
+                currentLayout === '6' ? 6 : 8
+            ) : 8;
             
-            // Auto-correct channel/bearing compatibility for toolbar plot selection
-            const singleChannelCategories = ['polar', 'bode2d', 'bode3d', 'spectrum', 'cascade'];
-            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
-            
-            if (singleChannelCategories.includes(category) && bearingPairs.includes(targetBc)) {
-                // Auto-target the X-channel of the bearing pair (e.g., BRG1 -> BRG1X)
-                targetBc = targetBc + 'X';
-            } else if (bearingPairCategories.includes(category) && !bearingPairs.includes(targetBc)) {
-                // Auto-target the bearing pair itself (e.g., BRG1X -> BRG1)
-                const match = bearingPairs.find(bp => targetBc.startsWith(bp));
-                if (match) {
-                    targetBc = match;
-                }
+            // Ensure plotSlots is sized up to capacity to support setting slots
+            while (plotSlots.length < capacity) {
+                plotSlots.push(null);
             }
             
-            if (category === 'centerline' && !bearingPairs.includes(targetBc)) {
-                const match = bearingPairs.find(bp => targetBc.startsWith(bp));
-                if (match) {
-                    targetBc = match;
-                } else {
-                    targetBc = bearingPairs[0];
-                }
+            if (activeSlotIndex >= 0 && activeSlotIndex < capacity) {
+                plotSlots[activeSlotIndex] = {
+                    bearingOrChannel: bearingOrChannel,
+                    category: category,
+                    isDual: isDual,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                };
             }
-            if (!targetBc) return;
-            
-            if (activeSlotIndex >= plotSlots.length) {
-                while (plotSlots.length <= activeSlotIndex) {
-                    plotSlots.push(null);
-                }
-            }
-            
-            plotSlots[activeSlotIndex] = {
-                bearingOrChannel: targetBc,
-                category: category,
-                isDual: false,
-                layoutLimits: {
-                    min: null,
-                    max: null,
-                    autoScale: true
-                }
-            };
             renderGrid();
+            saveWorkspaceConfig();
+        }
+
+        function populatePlotFromToolbar(category) {
+            applyCategoryToAllSlots(category);
         }
         window.populatePlotFromToolbar = populatePlotFromToolbar;
 
@@ -3825,6 +4362,107 @@ export const Dashboard = ({ view }) => {
         activeSlowRollSampleId = activeSlowRollSampleId || null;
         slowRollCompensationEnabled = slowRollCompensationEnabled !== undefined ? slowRollCompensationEnabled : false;
 
+        function updateSlowRollButtonUI() {
+            const btn = document.getElementById('tl-btn-apply-slowroll');
+            const checkboxEl = document.getElementById('slow-roll-enabled');
+            const selectEl = document.getElementById('slow-roll-sample-select');
+            const nameInput = document.getElementById('slow-roll-name-input');
+            const saveBtn = document.getElementById('btn-save-slow-roll');
+            
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            const isSeismic = activeCh ? isSeismicChannel(activeCh) : false;
+
+            if (isSeismic) {
+                if (btn) {
+                    btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #ef4444;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Not Applicable — Seismic Data';
+                    btn.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';
+                    btn.style.color = '#ef4444';
+                    btn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                    btn.style.cursor = 'not-allowed';
+                    btn.disabled = true;
+                }
+                if (checkboxEl) {
+                    checkboxEl.checked = false;
+                    checkboxEl.disabled = true;
+                    if (checkboxEl.parentNode) {
+                        const lbl = checkboxEl.parentNode;
+                        for (let child of lbl.childNodes) {
+                            if (child.nodeType === Node.TEXT_NODE) {
+                                child.textContent = " Not Applicable — Seismic Data";
+                            }
+                        }
+                    }
+                }
+                if (selectEl) selectEl.disabled = true;
+                if (nameInput) nameInput.disabled = true;
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.style.cursor = 'not-allowed';
+                    saveBtn.style.opacity = '0.5';
+                }
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+            }
+            if (checkboxEl) {
+                checkboxEl.disabled = false;
+                if (checkboxEl.parentNode) {
+                    const lbl = checkboxEl.parentNode;
+                    for (let child of lbl.childNodes) {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            child.textContent = " Apply Compensation";
+                        }
+                    }
+                }
+            }
+            if (selectEl) selectEl.disabled = false;
+            if (nameInput) nameInput.disabled = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.style.cursor = 'pointer';
+                saveBtn.style.opacity = '1';
+            }
+
+            const isSlotSlowRollEnabled = activeSlot ? (activeSlot.slowRollEnabled !== false) : true;
+            if (checkboxEl) {
+                checkboxEl.checked = (slowRollCompensationEnabled && isSlotSlowRollEnabled);
+            }
+            const globalCheckboxEl = document.getElementById('slow-roll-global-enabled');
+            if (globalCheckboxEl) {
+                globalCheckboxEl.checked = slowRollCompensationEnabled;
+            }
+
+            if (!btn) return;
+            
+            // Check if there is an applied slow roll at the current index
+            const filteredDf = getFilteredData(true);
+            let isAppliedAtCurrent = false;
+            if (filteredDf && filteredDf.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
+                const targetRow = filteredDf[activeCursorIndex];
+                if (targetRow) {
+                    const targetTimeMs = targetRow._time_ms || 0;
+                    isAppliedAtCurrent = savedSlowRollSamples.some(s => s.id === targetTimeMs);
+                }
+            }
+
+            if (slowRollCompensationEnabled && isAppliedAtCurrent && isSlotSlowRollEnabled) {
+                btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #22c55e;"><polyline points="20 6 9 17 4 12"/></svg> Slow Roll Applied';
+                btn.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; // light green
+                btn.style.color = '#22c55e'; // green text
+                btn.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+            } else {
+                btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: var(--accent-color);"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Apply Slow Roll';
+                btn.style.backgroundColor = 'rgba(14, 165, 233, 0.12)'; // default light blue
+                btn.style.color = 'var(--accent-color)'; // default accent color
+                btn.style.borderColor = 'rgba(14, 165, 233, 0.25)';
+            }
+        }
+        window.updateSlowRollButtonUI = updateSlowRollButtonUI;
+
         function populateSlowRollDropdown() {
             const selectEl = document.getElementById('slow-roll-sample-select');
             if (!selectEl) return;
@@ -3880,6 +4518,12 @@ export const Dashboard = ({ view }) => {
         window.populateSlowRollDropdown = populateSlowRollDropdown;
 
         function saveSlowRollSample() {
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            if (activeCh && isSeismicChannel(activeCh)) {
+                alert("Slow-roll compensation cannot be applied to seismic data.");
+                return;
+            }
             const selectEl = document.getElementById('slow-roll-sample-select');
             const nameInput = document.getElementById('slow-roll-name-input');
             if (!selectEl || selectEl.value === "") return;
@@ -3910,6 +4554,67 @@ export const Dashboard = ({ view }) => {
         }
         window.saveSlowRollSample = saveSlowRollSample;
 
+        function applySlowRollAtCurrentIndex() {
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            if (activeCh && isSeismicChannel(activeCh)) {
+                alert("Slow-roll compensation cannot be applied to seismic data.");
+                return;
+            }
+            const filteredDf = getFilteredData();
+            if (!filteredDf || filteredDf.length === 0 || activeCursorIndex < 0 || activeCursorIndex >= filteredDf.length) return;
+            
+            const targetRow = filteredDf[activeCursorIndex];
+            if (!targetRow) return;
+            
+            const targetTimeMs = targetRow._time_ms || 0;
+            
+            // Check if already applied at this index/timestamp
+            const existingIndex = savedSlowRollSamples.findIndex(s => s.id === targetTimeMs);
+            if (existingIndex !== -1) {
+                // Toggle off / remove the sample
+                savedSlowRollSamples.splice(existingIndex, 1);
+                
+                // If it was the active sample, select another one or reset to null
+                if (activeSlowRollSampleId === targetTimeMs) {
+                    activeSlowRollSampleId = savedSlowRollSamples[0] ? savedSlowRollSamples[0].id : null;
+                }
+                
+                // If there are no more active slow roll samples, disable compensation
+                if (!activeSlowRollSampleId) {
+                    slowRollCompensationEnabled = false;
+                    const compCheckbox = document.getElementById('slow-roll-enabled');
+                    if (compCheckbox) compCheckbox.checked = false;
+                }
+            } else {
+                // Apply slow roll
+                const rpm = Math.round(targetRow[speedCol]) || 0;
+                const name = `Slow Roll ${rpm} RPM`;
+                const newSample = {
+                    id: targetTimeMs,
+                    name: name,
+                    row: targetRow
+                };
+                
+                savedSlowRollSamples.push(newSample);
+                activeSlowRollSampleId = targetTimeMs;
+                
+                // Enable compensation
+                slowRollCompensationEnabled = true;
+                const compCheckbox = document.getElementById('slow-roll-enabled');
+                if (compCheckbox) compCheckbox.checked = true;
+            }
+            
+            updateSlowRollButtonUI();
+            updateSavedSlowRollList();
+            populateSlowRollDropdown();
+            
+            // Re-render and force recalculation
+            invalidateFilteredDataCache();
+            renderGrid();
+        }
+        window.applySlowRollAtCurrentIndex = applySlowRollAtCurrentIndex;
+
         function updateSavedSlowRollList() {
             const listEl = document.getElementById('slow-roll-saved-list');
             if (!listEl) return;
@@ -3932,6 +4637,28 @@ export const Dashboard = ({ view }) => {
                 
                 const label = document.createElement('span');
                 label.innerText = sample.name;
+                
+                let tooltipText = `Sample ID: ${sample.id}\n`;
+                if (sample.row) {
+                    const row = sample.row;
+                    const rpmVal = row[speedCol];
+                    const timeVal = row[tsCol];
+                    tooltipText += `Speed: ${isNumber(rpmVal) ? parseFloat(rpmVal).toFixed(1) : '-'} RPM\n`;
+                    tooltipText += `Time: ${timeVal || '-'}\n`;
+                    
+                    const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+                    const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+                    if (activeCh) {
+                        const cols = getChannelColumns(activeCh);
+                        if (cols.amp_1x && cols.phase_1x) {
+                            const amp = row[cols.amp_1x];
+                            const phase = row[cols.phase_1x];
+                            tooltipText += `Active Channel (${activeCh}):\n  1X Amp: ${isNumber(amp) ? parseFloat(amp).toFixed(2) : '-'} | 1X Phase: ${isNumber(phase) ? parseFloat(phase).toFixed(1) : '-'}°`;
+                        }
+                    }
+                }
+                item.title = tooltipText;
+
                 label.style.cursor = 'pointer';
                 label.style.fontWeight = activeSlowRollSampleId === sample.id ? '700' : 'normal';
                 label.onclick = () => {
@@ -3970,7 +4697,19 @@ export const Dashboard = ({ view }) => {
         window.updateSavedSlowRollList = updateSavedSlowRollList;
 
         function toggleSlowRoll(checked) {
-            slowRollCompensationEnabled = checked;
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            if (activeSlot) {
+                activeSlot.slowRollEnabled = checked;
+            }
+            if (checked) {
+                slowRollCompensationEnabled = true;
+            } else {
+                const anyEnabled = plotSlots.some(slot => slot && slot.slowRollEnabled !== false);
+                if (!anyEnabled) {
+                    slowRollCompensationEnabled = false;
+                }
+            }
+            updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             renderGrid();
             if (checked) {
@@ -3979,16 +4718,60 @@ export const Dashboard = ({ view }) => {
         }
         window.toggleSlowRoll = toggleSlowRoll;
 
+        function toggleSlowRollGlobal(checked) {
+            slowRollCompensationEnabled = checked;
+            plotSlots.forEach(slot => {
+                if (slot) {
+                    slot.slowRollEnabled = checked;
+                }
+            });
+            updateSlowRollButtonUI();
+            invalidateFilteredDataCache();
+            renderGrid();
+            if (checked) {
+                window.dispatchEvent(new CustomEvent('rody_slowroll_subtracted'));
+            }
+        }
+        window.toggleSlowRollGlobal = toggleSlowRollGlobal;
+
         // Active filters cache
-        cachedFilteredDf = null;
+        function isSeismicChannel(ch) {
+            if (!ch) return false;
+            if (bearingPairsMapping && bearingPairsMapping[ch]) {
+                const mapping = bearingPairsMapping[ch];
+                return isSeismicChannel(mapping.x) || isSeismicChannel(mapping.y);
+            }
+            if (ch.includes('/')) {
+                const parts = ch.split('/');
+                return parts.some(p => isSeismicChannel(p.trim()));
+            }
+            const unit = getChannelUnit(ch, 'amp', '').toLowerCase();
+            const chUpper = ch.toUpperCase();
+            if (unit.includes('in/s') || unit.includes('mm/s') || unit.includes('ips') || unit.includes('g pk') || unit.includes('g pp') || unit.includes('m/s') || unit.includes('g\'s') || unit.includes('gs')) {
+                return true;
+            }
+            if (chUpper.includes('ES') || chUpper.includes('IS') || chUpper.includes('SEISMIC') || chUpper.includes('CASING')) {
+                return true;
+            }
+            return false;
+        }
+        window.isSeismicChannel = isSeismicChannel;
+
         function invalidateFilteredDataCache() {
             cachedFilteredDf = null;
+            cachedUncompensatedDf = null;
         }
 
         // Active filters solver
-        function getFilteredData() {
-            if (cachedFilteredDf !== null) {
-                return cachedFilteredDf;
+        function getFilteredData(bypassSlowRoll = false) {
+            if (bypassSlowRoll) {
+                if (cachedUncompensatedDf !== null) {
+                    return cachedUncompensatedDf;
+                }
+            } else {
+                if (cachedFilteredDf !== null) {
+                    return cachedFilteredDf;
+                }
             }
             
             let filtered = df;
@@ -4016,14 +4799,23 @@ export const Dashboard = ({ view }) => {
                 filtered = filtered.filter(r => r['_time_ms'] <= endMs);
             }
             
-            if (slowRollCompensationEnabled && activeSlowRollSampleId) {
+            if (slowRollCompensationEnabled && activeSlowRollSampleId && !bypassSlowRoll) {
                 const slowRollSample = savedSlowRollSamples.find(s => s.id === activeSlowRollSampleId);
                 if (slowRollSample && slowRollSample.row) {
                     const srRow = slowRollSample.row;
+                    
+                    // Pre-calculate and cache the column mappings for all active channels 
+                    // to prevent millions of redundant string regex executions inside the row loop
+                    const channelColumnsCache = {};
+                    singlePrefixes.forEach(ch => {
+                        channelColumnsCache[ch] = getChannelColumns(ch);
+                    });
+                    
                     filtered = filtered.map(row => {
                         const compRow = { ...row };
                         singlePrefixes.forEach(ch => {
-                            const cols = getChannelColumns(ch);
+                            if (isSeismicChannel(ch)) return;
+                            const cols = channelColumnsCache[ch];
                             if (cols.amp_1x && cols.phase_1x) {
                                 const Ad = row[cols.amp_1x];
                                 const phid = row[cols.phase_1x];
@@ -4045,6 +4837,27 @@ export const Dashboard = ({ view }) => {
                                     compRow[cols.phase_1x] = phase_comp;
                                 }
                             }
+                            if (cols.amp_2x && cols.phase_2x) {
+                                const Ad2 = row[cols.amp_2x];
+                                const phid2 = row[cols.phase_2x];
+                                const Asr2 = srRow[cols.amp_2x];
+                                const phisr2 = srRow[cols.phase_2x];
+                                if (isNumber(Ad2) && isNumber(phid2) && isNumber(Asr2) && isNumber(phisr2)) {
+                                    const phid2_rad = phid2 * Math.PI / 180;
+                                    const phisr2_rad = phisr2 * Math.PI / 180;
+                                    const xd2 = Ad2 * Math.cos(phid2_rad);
+                                    const yd2 = Ad2 * Math.sin(phid2_rad);
+                                    const xsr2 = Asr2 * Math.cos(phisr2_rad);
+                                    const ysr2 = Asr2 * Math.sin(phisr2_rad);
+                                    const x_comp2 = xd2 - xsr2;
+                                    const y_comp2 = yd2 - ysr2;
+                                    const amp_comp2 = Math.sqrt(x_comp2 * x_comp2 + y_comp2 * y_comp2);
+                                    let phase_comp2 = Math.atan2(y_comp2, x_comp2) * 180 / Math.PI;
+                                    if (phase_comp2 < 0) phase_comp2 += 360;
+                                    compRow[cols.amp_2x] = amp_comp2;
+                                    compRow[cols.phase_2x] = phase_comp2;
+                                }
+                            }
                             if (cols.gap) {
                                 const Gd = row[cols.gap];
                                 const Gsr = srRow[cols.gap];
@@ -4058,7 +4871,11 @@ export const Dashboard = ({ view }) => {
                 }
             }
 
-            cachedFilteredDf = filtered;
+            if (bypassSlowRoll) {
+                cachedUncompensatedDf = filtered;
+            } else {
+                cachedFilteredDf = filtered;
+            }
             return filtered;
         }
 
@@ -4241,7 +5058,9 @@ export const Dashboard = ({ view }) => {
         }
 
         function updateTelemetryReadoutForIndex(idx) {
-            const filteredDf = getFilteredData();
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const isSlotSlowRollEnabled = activeSlot ? (activeSlot.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             const row = filteredDf[idx];
             if (!row) return;
             
@@ -4290,7 +5109,8 @@ export const Dashboard = ({ view }) => {
             const box = document.getElementById(`plot-telemetry-box-${slotIdx}`);
             if (!box) return;
             
-            const filteredDf = getFilteredData();
+            const isSlotSlowRollEnabled = config ? (config.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             const row = filteredDf[dataIdx];
             if (!row) {
                 box.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Hover or click plot to inspect telemetry...</span>';
@@ -4310,6 +5130,10 @@ export const Dashboard = ({ view }) => {
                 const parts = ch.split('/');
                 chX = parts[0];
                 chY = parts[1];
+            } else if (config.isDual || config.category === 'orbit' || config.category === 'centerline' || config.category === 'centerline_orbit') {
+                const mapping = bearingPairsMapping && bearingPairsMapping[ch];
+                chX = mapping ? mapping.x : (ch + 'X');
+                chY = mapping ? mapping.y : (ch + 'Y');
             }
             const speedUnit = getChannelUnit(chX, 'speed', 'RPM');
             const ampUnit = getChannelUnit(chX, 'amp', 'mils');
@@ -4326,33 +5150,92 @@ export const Dashboard = ({ view }) => {
                 let gapVal = cols.gap && row[cols.gap] !== undefined && row[cols.gap] !== null ? `${row[cols.gap].toFixed(2)} ${ampUnit}` : 'N/A';
                 let tempVal = cols.temp && row[cols.temp] !== undefined && row[cols.temp] !== null ? `${row[cols.temp].toFixed(1)} ${tempUnit}` : 'N/A';
                 
-                box.innerHTML = `
-                    <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>Direct:</b> ${directVal}</span>
-                    <span><b>1X:</b> ${amp1x} @ ${phase1x}</span>
-                    <span><b>Gap:</b> ${gapVal}</span>
-                    <span><b>Temp:</b> ${tempVal}</span>
-                `;
+                const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
+                const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
+                const showTemp = false;
+
+                let htmlParts = [
+                    `<span><b>Time:</b> ${t_part.slice(0, 8)}</span>`,
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (showDirect) htmlParts.push(`<span><b>Direct:</b> ${directVal}</span>`);
+                if (show1X) htmlParts.push(`<span><b>1X:</b> ${amp1x} @ ${phase1x}</span>`);
+                if (showGap) htmlParts.push(`<span><b>Gap:</b> ${gapVal}</span>`);
+                if (showTemp) htmlParts.push(`<span><b>Temp:</b> ${tempVal}</span>`);
+
+                box.innerHTML = htmlParts.join('\n');
             } else if (config.category === 'polar') {
                 const cols = getChannelColumns(ch);
                 let amp1x = cols.amp_1x && row[cols.amp_1x] !== undefined && row[cols.amp_1x] !== null ? `${row[cols.amp_1x].toFixed(3)} ${ampUnit}` : 'N/A';
                 let phase1x = cols.phase_1x && row[cols.phase_1x] !== undefined && row[cols.phase_1x] !== null ? `${row[cols.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
-                box.innerHTML = `
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>Amp:</b> ${amp1x}</span>
-                    <span><b>Phase:</b> ${phase1x}</span>
-                `;
+                
+                const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
+
+                let htmlParts = [
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (show1X) {
+                    htmlParts.push(`<span><b>Amp:</b> ${amp1x}</span>`);
+                    htmlParts.push(`<span><b>Phase:</b> ${phase1x}</span>`);
+                }
+                box.innerHTML = htmlParts.join('\n');
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                 const cols = getBearingPairColumns(ch);
                 const ampUnitX = getChannelUnit(chX, 'amp', 'mils');
                 const ampUnitY = getChannelUnit(chY, 'amp', 'mils');
                 let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
                 let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
+                
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
+
+                let htmlParts = [
+                    `<span><b>RPM:</b> ${speedText}</span>`
+                ];
+                if (showGap) {
+                    htmlParts.push(`<span><b>X Gap:</b> ${xGap}</span>`);
+                    htmlParts.push(`<span><b>Y Gap:</b> ${yGap}</span>`);
+                }
+                box.innerHTML = htmlParts.join('\n');
+            } else if (config.category === 'orbit') {
+                const cols = getBearingPairColumns(ch);
+                const ampUnitX = getChannelUnit(chX, 'amp', 'mils');
+                const ampUnitY = getChannelUnit(chY, 'amp', 'mils');
+                const tempUnitX = getChannelUnit(chX, 'temp', '°C');
+                const tempUnitY = getChannelUnit(chY, 'temp', '°C');
+                
+                let xDirect = cols.x.direct && row[cols.x.direct] !== undefined && row[cols.x.direct] !== null ? `${row[cols.x.direct].toFixed(3)} ${ampUnitX}` : 'N/A';
+                let yDirect = cols.y.direct && row[cols.y.direct] !== undefined && row[cols.y.direct] !== null ? `${row[cols.y.direct].toFixed(3)} ${ampUnitY}` : 'N/A';
+                
+                let xAmp = cols.x.amp_1x && row[cols.x.amp_1x] !== undefined && row[cols.x.amp_1x] !== null ? `${row[cols.x.amp_1x].toFixed(3)} ${ampUnitX}` : 'N/A';
+                let yAmp = cols.y.amp_1x && row[cols.y.amp_1x] !== undefined && row[cols.y.amp_1x] !== null ? `${row[cols.y.amp_1x].toFixed(3)} ${ampUnitY}` : 'N/A';
+                
+                let xPhase = cols.x.phase_1x && row[cols.x.phase_1x] !== undefined && row[cols.x.phase_1x] !== null ? `${row[cols.x.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
+                let yPhase = cols.y.phase_1x && row[cols.y.phase_1x] !== undefined && row[cols.y.phase_1x] !== null ? `${row[cols.y.phase_1x].toFixed(1)}${phaseSymbol}` : 'N/A';
+                
+                let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
+                let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
+                
+                let xTemp = cols.x.temp && row[cols.x.temp] !== undefined && row[cols.x.temp] !== null ? `${row[cols.x.temp].toFixed(1)} ${tempUnitX}` : 'N/A';
+                let yTemp = cols.y.temp && row[cols.y.temp] !== undefined && row[cols.y.temp] !== null ? `${row[cols.y.temp].toFixed(1)} ${tempUnitY}` : 'N/A';
+
                 box.innerHTML = `
-                    <span><b>RPM:</b> ${speedText}</span>
-                    <span><b>X Gap:</b> ${xGap}</span>
-                    <span><b>Y Gap:</b> ${yGap}</span>
+                    <div style="display: flex; align-items: center; width: 100%; gap: 16px; font-size: 0.7rem; color: var(--text-color); font-family: var(--font-family, sans-serif); overflow-x: auto; white-space: nowrap;">
+                        <span><b>Time:</b> ${t_part.slice(0, 8)}</span>
+                        <span><b>RPM:</b> ${speedText}</span>
+                        <span style="color: var(--border-color);">|</span>
+                        <span style="font-weight: 700; color: var(--accent-color);">X Probe:</span>
+                        <span><b>Direct:</b> ${xDirect}</span>
+                        <span><b>1X:</b> ${xAmp} @ ${xPhase}</span>
+                        <span><b>Gap:</b> ${xGap}</span>
+                        <span><b>Temp:</b> ${xTemp}</span>
+                        <span style="color: var(--border-color);">|</span>
+                        <span style="font-weight: 700; color: var(--accent-color);">Y Probe:</span>
+                        <span><b>Direct:</b> ${yDirect}</span>
+                        <span><b>1X:</b> ${yAmp} @ ${yPhase}</span>
+                        <span><b>Gap:</b> ${yGap}</span>
+                        <span><b>Temp:</b> ${yTemp}</span>
+                    </div>
                 `;
             } else {
                 box.innerHTML = `
@@ -4382,6 +5265,50 @@ export const Dashboard = ({ view }) => {
             };
             const activeBtn = document.getElementById(btnMap[layout]);
             if (activeBtn) activeBtn.classList.add('active');
+            
+            // Re-populate plots up to the selected layout's capacity
+            let category = 'trend';
+            for (let i = 0; i < plotSlots.length; i++) {
+                if (plotSlots[i] && plotSlots[i].category) {
+                    category = plotSlots[i].category;
+                    break;
+                }
+            }
+            
+            const capacity = layout === '1' ? 1 :
+                             (layout === '2H' || layout === '2V') ? 2 :
+                             layout === '4' ? 4 :
+                             layout === '6' ? 6 : 8;
+                             
+            const bearingPairCategories = ['orbit', 'centerline', 'centerline_orbit'];
+            let isSingle = !bearingPairCategories.includes(category);
+            
+            let targets = [];
+            if (isSingle) {
+                if (singlePrefixes && singlePrefixes.length > 0) {
+                    targets = getPriorityOrder(singlePrefixes);
+                }
+            } else {
+                if (bearingPairs && bearingPairs.length > 0) {
+                    targets = bearingPairs;
+                }
+            }
+            
+            const N_plots = targets.length;
+            const N = Math.min(N_plots, capacity);
+            
+            plotSlots = [];
+            for (let i = 0; i < targets.length; i++) {
+                plotSlots.push({
+                    bearingOrChannel: targets[i],
+                    category: category,
+                    isDual: !isSingle,
+                    layoutLimits: { min: null, max: null, autoScale: true },
+                    showTimebase: true,
+                    showTrace2: false,
+                    cycles: 8
+                });
+            }
             
             currentGridPage = 0;
             renderGrid();
@@ -4528,6 +5455,7 @@ export const Dashboard = ({ view }) => {
                 }
             });
             syncSidebarTreeHighlights();
+            updateSlowRollButtonUI();
         }
 
         function clearSlot(idx) {
@@ -4581,7 +5509,7 @@ export const Dashboard = ({ view }) => {
                             <input type="number" step="any" placeholder="Min" class="grid-scale-input" value="${config.layoutLimits.min !== null ? config.layoutLimits.min : ''}" onchange="setSlotMinLimit(${idx}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                             <input type="number" step="any" placeholder="Max" class="grid-scale-input" value="${config.layoutLimits.max !== null ? config.layoutLimits.max : ''}" onchange="setSlotMaxLimit(${idx}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                         ` : ''}
-                        <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${idx})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500;">💾 Save</button>
+                        <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${idx})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
                         <button class="grid-card-btn" type="button" onclick="clearSlot(${idx})" title="Close plot" style="color: #ef4444; font-weight: bold; margin-left:5px;">✕</button>
                     `;
                 }
@@ -4642,8 +5570,8 @@ export const Dashboard = ({ view }) => {
                 bode3d: 'Bode Plot (3D)',
                 centerline: 'Shaft Centerline',
                 centerline_orbit: 'Centerline Orbit Overlay',
-                orbit: 'Rotor Orbits (2D/3D)',
-                mode_shape: '3D Deflection Profile',
+                orbit: 'Rotor Orbits',
+                mode_shape: 'Rotor Deflection Profile',
                 spectrum: 'FFT Spectrum',
                 cascade: '3D Waterfall Spectrum'
             };
@@ -4652,6 +5580,7 @@ export const Dashboard = ({ view }) => {
 
         // Render CSS grid slots
         function renderGrid() {
+            updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             const filteredDf = getFilteredData();
             if (activeCursorIndex >= filteredDf.length) {
@@ -4659,7 +5588,11 @@ export const Dashboard = ({ view }) => {
             }
             
             updateTimelineReadout(activeCursorIndex);
-            renderTimelineWaveformPlot();
+            if (!document.getElementById('timeline-plotly-chart')) {
+                renderTimelineWaveformPlot();
+            } else {
+                updateTimelineRangeUI();
+            }
 
             // Clean up any active ThreeJS WebGL contexts to prevent memory leaks
             window.threeCleanupRegistry = window.threeCleanupRegistry || {};
@@ -4685,11 +5618,11 @@ export const Dashboard = ({ view }) => {
                 gridEl.style.gridTemplateColumns = '1fr';
                 gridEl.style.gridTemplateRows = '1fr';
             } else if (currentLayout === '2V') {
-                gridEl.style.gridTemplateColumns = '1fr';
-                gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
-            } else if (currentLayout === '2H') {
                 gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
                 gridEl.style.gridTemplateRows = '1fr';
+            } else if (currentLayout === '2H') {
+                gridEl.style.gridTemplateColumns = '1fr';
+                gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
             } else if (currentLayout === '4') {
                 gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
                 gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
@@ -4701,18 +5634,35 @@ export const Dashboard = ({ view }) => {
                 gridEl.style.gridTemplateRows = 'repeat(4, 1fr)';
             }
             
-            const startIndex = currentGridPage * pageSize;
-            const endIndex = startIndex + pageSize;
-            
+            let startIndex = currentGridPage * pageSize;
             const totalSlots = Math.max(plotSlots.length, 1);
             const totalPages = Math.ceil(totalSlots / pageSize);
-            if (currentGridPage >= totalPages) currentGridPage = Math.max(0, totalPages - 1);
+            if (currentGridPage >= totalPages) {
+                currentGridPage = Math.max(0, totalPages - 1);
+                startIndex = currentGridPage * pageSize;
+            }
+            const endIndex = startIndex + pageSize;
             
-            document.getElementById('grid-page-indicator').innerText = `Window ${currentGridPage + 1} of ${totalPages || 1}`;
+            // Ensure activeSlotIndex is on the current visible page
+            const newStartIndex = startIndex;
+            const newEndIndex = Math.min(newStartIndex + pageSize, totalSlots);
+            if (activeSlotIndex < newStartIndex || activeSlotIndex >= newEndIndex) {
+                activeSlotIndex = newStartIndex;
+            }
+            
+            const controlsEl = document.querySelector('.grid-page-controls');
+            if (controlsEl) {
+                controlsEl.style.display = 'flex';
+            }
+            const indicatorEl = document.getElementById('grid-page-indicator');
+            if (indicatorEl) {
+                indicatorEl.innerText = `Window ${currentGridPage + 1} of ${totalPages || 1}`;
+            }
             
             for (let i = startIndex; i < endIndex; i++) {
                 const slotCard = document.createElement('div');
                 slotCard.className = 'grid-card';
+                slotCard.id = `grid-card-${i}`;
                 if (i === activeSlotIndex) {
                     slotCard.classList.add('active');
                 }
@@ -4720,36 +5670,6 @@ export const Dashboard = ({ view }) => {
                 slotCard.onclick = (e) => {
                     if (e.target.closest('.grid-card-actions') || e.target.closest('.grid-card-btn') || e.target.closest('input')) return;
                     selectSlot(i);
-                };
-                
-                // Drag & Drop Capabilities
-                slotCard.draggable = true;
-                slotCard.ondragstart = (e) => {
-                    e.dataTransfer.setData('text/plain', i);
-                    slotCard.style.opacity = '0.4';
-                };
-                slotCard.ondragover = (e) => {
-                    e.preventDefault();
-                    slotCard.style.border = '2px dashed var(--accent-color)';
-                };
-                slotCard.ondragleave = () => {
-                    slotCard.style.border = '';
-                };
-                slotCard.ondragend = () => {
-                    slotCard.style.opacity = '1';
-                    slotCard.style.border = '';
-                };
-                slotCard.ondrop = (e) => {
-                    e.preventDefault();
-                    slotCard.style.border = '';
-                    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                    if (!isNaN(sourceIdx) && sourceIdx !== i) {
-                        const temp = plotSlots[sourceIdx];
-                        plotSlots[sourceIdx] = plotSlots[i];
-                        plotSlots[i] = temp;
-                        saveWorkspaceConfig();
-                        renderGrid();
-                    }
                 };
                 
                 const config = plotSlots[i];
@@ -4779,10 +5699,21 @@ export const Dashboard = ({ view }) => {
                             titleSuffix = ` (∠${Math.abs(offset)}° ${offset >= 0 ? 'Right' : 'Left'})`;
                         }
                     }
+                    let slowRollBadge = '';
+                    const isSlotSlowRollEnabled = config ? (config.slowRollEnabled !== false) : true;
+                    if (slowRollCompensationEnabled && isSlotSlowRollEnabled && activeSlowRollSampleId && !isSeismicChannel(config.bearingOrChannel)) {
+                        const srSample = savedSlowRollSamples.find(s => s.id === activeSlowRollSampleId);
+                        if (srSample) {
+                            const srSpeed = srSample.row ? Math.round(srSample.row[speedCol]) : null;
+                            const badgeTitle = srSample.row ? `Slow-Roll compensation subtracted using ${srSample.name} (${srSpeed || '-'} RPM)` : 'Slow-Roll subtracted';
+                            slowRollBadge = `<span class="slow-roll-badge-icon" title="${badgeTitle}" style="margin-left: 6px; display: inline-flex; align-items: center; justify-content: center; background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; padding: 1px 4px; font-size: 0.6rem; font-weight: 700; cursor: help; vertical-align: middle;">SR: ${srSpeed || '-'} RPM</span>`;
+                        }
+                    }
+
                     slotCard.innerHTML = `
-                        <div class="grid-card-header" style="cursor: grab;">
-                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}</span>
-                            <div class="grid-card-actions">
+                        <div class="grid-card-header">
+                            <span>${cleanPrefixForDisplay(config.bearingOrChannel)} - ${getPlotName(config.category)}${titleSuffix}${slowRollBadge}</span>
+                            <div class="grid-card-actions" id="header-actions-${i}">
                                 ${isOrbit ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
                                         <input type="checkbox" onchange="toggleOrbitTimebase(${i}, this.checked)" ${config.showTimebase ? 'checked' : ''} style="margin: 0; cursor: pointer;"> Timebase
@@ -4794,6 +5725,17 @@ export const Dashboard = ({ view }) => {
                                         Cyc: <input type="number" min="1" max="999" value="${config.cycles}" onchange="changeOrbitCycles(${i}, this.value)" style="width: 40px; height: 16px; font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px;">
                                     </label>
                                 ` : ''}
+                                ${config.category === 'bode2d' ? `
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBodeDirect', this.checked)" ${config.showBodeDirect !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> Direct
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBode1XAmp', this.checked)" ${config.showBode1XAmp !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> 1X Amp
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBode1XPhase', this.checked)" ${config.showBode1XPhase !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> 1X Phase
+                                    </label>
+                                ` : ''}
                                 ${isPolar ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
                                         Labels:
@@ -4803,23 +5745,62 @@ export const Dashboard = ({ view }) => {
                                             <option value="none" ${config.polarLabelType === 'none' ? 'selected' : ''}>None</option>
                                         </select>
                                     </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        Arrow:
+                                        <select onchange="changePolarArrowStyle(${i}, this.value)" style="font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px; height: 18px; cursor: pointer; font-weight: 500;">
+                                            <option value="triangle" ${config.polarArrowStyle === 'triangle' || !config.polarArrowStyle ? 'selected' : ''}>Triangle</option>
+                                            <option value="open" ${config.polarArrowStyle === 'open' ? 'selected' : ''}>Open</option>
+                                            <option value="barb" ${config.polarArrowStyle === 'barb' ? 'selected' : ''}>Barb</option>
+                                        </select>
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        Size:
+                                        <select onchange="changePolarArrowSize(${i}, this.value)" style="font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px; height: 18px; cursor: pointer; font-weight: 500;">
+                                            <option value="small" ${config.polarArrowSize === 'small' ? 'selected' : ''}>Small</option>
+                                            <option value="medium" ${config.polarArrowSize === 'medium' || !config.polarArrowSize ? 'selected' : ''}>Medium</option>
+                                            <option value="large" ${config.polarArrowSize === 'large' ? 'selected' : ''}>Large</option>
+                                        </select>
+                                    </label>
                                 ` : ''}
                                 <button class="grid-card-btn" type="button" onclick="toggleAutoScale(${i})" title="Toggle Y-Axis Scale">
                                     ${config.layoutLimits.autoScale ? 'Auto-scale' : 'Manual-scale'}
                                 </button>
-                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotIn(${i})" title="Zoom In" style="margin-left: 2px;">🔍+</button>
-                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotOut(${i})" title="Zoom Out" style="margin-left: 2px;">🔍-</button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotIn(${i})" title="Zoom In" style="margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px;"><svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                                <button class="grid-card-btn" type="button" onclick="zoomSlotPlotOut(${i})" title="Zoom Out" style="margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px;"><svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
                                 ${!config.layoutLimits.autoScale ? `
                                     <input type="number" step="any" placeholder="Min" class="grid-scale-input" value="${config.layoutLimits.min !== null ? config.layoutLimits.min : ''}" onchange="setSlotMinLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                                     <input type="number" step="any" placeholder="Max" class="grid-scale-input" value="${config.layoutLimits.max !== null ? config.layoutLimits.max : ''}" onchange="setSlotMaxLimit(${i}, this.value)" style="width: 50px; height: 18px; padding: 2px; font-size: 0.7rem; border-radius: 3px; border: 1px solid var(--border-color); background-color: var(--card-color); color: var(--text-color);">
                                 ` : ''}
-                                <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${i})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500;">💾 Save</button>
+                                <button class="grid-card-btn" type="button" onclick="downloadSlotPlot(${i})" title="Save Plot as Image" style="margin-left: 5px; color: var(--accent-color); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
                                 <button class="grid-card-btn" type="button" onclick="clearSlot(${i})" title="Close plot" style="color: #ef4444; font-weight: bold; margin-left:5px;">✕</button>
                             </div>
                         </div>
                         <div class="plot-telemetry-box-inline" id="plot-telemetry-box-${i}" style="display: none;"></div>
-                        <div class="grid-card-body" id="plotly-slot-body-${i}">
-                            <div id="plotly-container-${i}" class="chart-container"></div>
+                        <div class="grid-card-body" id="plotly-slot-body-${i}" style="display: flex; flex-direction: column;">
+                            ${colorCodeByStateEnabled ? `
+                                <div class="state-legend-row" style="display: flex; gap: 14px; justify-content: center; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-color); background-color: var(--card-color); font-size: 0.65rem; color: var(--text-color); font-family: var(--font-family, sans-serif); margin-bottom: 4px;">
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 4px; font-size: 0.6rem; letter-spacing: 0.05em;">States:</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.startup.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Startup</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.shutdown.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Shutdown</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.steady_state.color}" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Steady State</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.other.color}" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <span>Other/Default</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            <div id="plotly-container-${i}" class="chart-container" style="${colorCodeByStateEnabled ? 'top: 25px; height: calc(100% - 25px);' : ''}"></div>
                         </div>
                     `;
                     
@@ -4854,23 +5835,34 @@ export const Dashboard = ({ view }) => {
 
         // Render dispatcher inside a specific slot
         function renderPlotInSlot(slotIdx, container, bearingOrChannel, category) {
-            const filteredDf = getFilteredData();
+            // Purge container if the plot category changes to prevent stale Plotly axis scaling/subplot contamination
+            if (container.dataset.plotCategory && container.dataset.plotCategory !== category) {
+                try {
+                    Plotly.purge(container);
+                } catch (e) {
+                    console.warn("Failed to purge Plotly container:", e);
+                }
+            }
+            container.dataset.plotCategory = category;
+
+            const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { layoutLimits: { min: null, max: null, autoScale: true } };
+            const isSlotSlowRollEnabled = slotConfig ? (slotConfig.slowRollEnabled !== false) : true;
+            const filteredDf = getFilteredData(!isSlotSlowRollEnabled);
             if (checkEmptyData(container, filteredDf)) return;
             
             const style = getComputedStyle(document.documentElement);
             const plotBg = style.getPropertyValue('--plot-bg-color').trim() || '#ffffff';
             const paperBg = style.getPropertyValue('--paper-bg-color').trim() || '#ffffff';
-            const textColor = style.getPropertyValue('--text-color').trim() || '#0f172a';
+            const textColor = style.getPropertyValue('--plot-text-color').trim() || style.getPropertyValue('--text-color').trim() || '#0f172a';
             const gridColor = style.getPropertyValue('--contrast-grid-color').trim() || '#e2e8f0';
             
-            const slotConfig = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || { layoutLimits: { min: null, max: null, autoScale: true } };
             const limits = slotConfig.layoutLimits || { min: null, max: null, autoScale: true };
             
             const baseLayout = {
                 paper_bgcolor: paperBg,
                 plot_bgcolor: plotBg,
                 font: { color: textColor, family: 'Outfit, Inter, sans-serif' },
-                margin: { t: 45, b: 35, l: 45, r: 40 },
+                margin: { t: 15, b: 35, l: 40, r: 15 },
                 autosize: true,
                 height: container.offsetHeight || container.clientHeight || 300,
                 legend: {
@@ -5013,37 +6005,77 @@ export const Dashboard = ({ view }) => {
                 const cols = getChannelColumns(config.bearingOrChannel);
                 const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                 const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-                const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
-                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-                const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+                const show2X = false;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
+                const showTemp = false;
                 
-                const hasValueTraces = (showDirect && cols.direct && cursorRow[cols.direct] !== undefined) ||
-                                       (show1X && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined) ||
-                                       (show2X && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined) ||
-                                       (showGap && cols.gap && cursorRow[cols.gap] !== undefined) ||
-                                       (showTemp && cols.temp && cursorRow[cols.temp] !== undefined);
-                
-                if (hasValueTraces) {
-                    markerAxis = 'y2';
-                    if (cols.amp_1x && cursorRow[cols.amp_1x] !== undefined && show1X) {
-                        cursorY = cursorRow[cols.amp_1x];
-                    } else if (cols.direct && cursorRow[cols.direct] !== undefined && showDirect) {
-                        cursorY = cursorRow[cols.direct];
-                    } else if (cols.amp_2x && cursorRow[cols.amp_2x] !== undefined && show2X) {
-                        cursorY = cursorRow[cols.amp_2x];
-                    } else if (cols.gap && cursorRow[cols.gap] !== undefined && showGap) {
-                        cursorY = cursorRow[cols.gap];
-                    } else if (cols.temp && cursorRow[cols.temp] !== undefined && showTemp) {
-                        cursorY = cursorRow[cols.temp];
-                    }
-                } else {
-                    markerAxis = 'y';
-                    if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined && show1X) {
-                        cursorY = cursorRow[cols.phase_1x];
-                    } else if (cols.phase_2x && cursorRow[cols.phase_2x] !== undefined && show2X) {
-                        cursorY = cursorRow[cols.phase_2x];
+                let resolvedY = null;
+                let resolvedAxis = 'y2';
+
+                if (selectedTrendCurveName === 'Direct' && cols.direct && cursorRow[cols.direct] !== undefined && showDirect) {
+                    resolvedY = cursorRow[cols.direct];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === '1X Amp' && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined && show1X) {
+                    resolvedY = cursorRow[cols.amp_1x];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === '2X Amp' && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined && show2X) {
+                    resolvedY = cursorRow[cols.amp_2x];
+                    resolvedAxis = 'y2';
+                } else if (selectedTrendCurveName === 'Avg Gap' && cols.gap && cursorRow[cols.gap] !== undefined && showGap) {
+                    resolvedY = cursorRow[cols.gap];
+                    resolvedAxis = 'y3';
+                } else if (selectedTrendCurveName === 'Temp' && cols.temp && cursorRow[cols.temp] !== undefined && showTemp) {
+                    resolvedY = cursorRow[cols.temp];
+                    resolvedAxis = 'y4';
+                } else if (selectedTrendCurveName === '1X Phase' && cols.phase_1x && cursorRow[cols.phase_1x] !== undefined && show1X) {
+                    const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                    const unwrapped_phases = unwrapPhase(raw_phases);
+                    resolvedY = unwrapped_phases[localIdx];
+                    resolvedAxis = 'y';
+                } else if (selectedTrendCurveName === '2X Phase' && cols.phase_2x && cursorRow[cols.phase_2x] !== undefined && show2X) {
+                    const raw_phases = localDf.map(r => r[cols.phase_2x]);
+                    const unwrapped_phases = unwrapPhase(raw_phases);
+                    resolvedY = unwrapped_phases[localIdx];
+                    resolvedAxis = 'y';
+                }
+
+                if (resolvedY === null) {
+                    const showDirectVal = showDirect && cols.direct && cursorRow[cols.direct] !== undefined;
+                    const show1XVal = show1X && cols.amp_1x && cursorRow[cols.amp_1x] !== undefined;
+                    const show2XVal = show2X && cols.amp_2x && cursorRow[cols.amp_2x] !== undefined;
+                    const showGapVal = showGap && cols.gap && cursorRow[cols.gap] !== undefined;
+                    const showTempVal = showTemp && cols.temp && cursorRow[cols.temp] !== undefined;
+
+                    if (show1XVal) {
+                        resolvedY = cursorRow[cols.amp_1x];
+                        resolvedAxis = 'y2';
+                    } else if (showDirectVal) {
+                        resolvedY = cursorRow[cols.direct];
+                        resolvedAxis = 'y2';
+                    } else if (show2XVal) {
+                        resolvedY = cursorRow[cols.amp_2x];
+                        resolvedAxis = 'y2';
+                    } else if (showGapVal) {
+                        resolvedY = cursorRow[cols.gap];
+                        resolvedAxis = 'y3';
+                    } else if (showTempVal) {
+                        resolvedY = cursorRow[cols.temp];
+                        resolvedAxis = 'y4';
+                    } else if (show1X && cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[localIdx];
+                        resolvedAxis = 'y';
+                    } else if (show2X && cols.phase_2x && cursorRow[cols.phase_2x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_2x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[localIdx];
+                        resolvedAxis = 'y';
                     }
                 }
+
+                cursorY = resolvedY !== null ? resolvedY : 0;
+                markerAxis = resolvedAxis;
             } else if (config.category === 'polar') {
                 const cols = getChannelColumns(config.bearingOrChannel);
                 if (container && container.unwrappedPhases && container.plotData) {
@@ -5059,8 +6091,80 @@ export const Dashboard = ({ view }) => {
                 cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
             } else if (config.category === 'bode2d') {
                 const cols = getChannelColumns(config.bearingOrChannel);
-                cursorX = cursorRow[speedCol];
-                cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+                cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
+                
+                const activeSubplot = activeBodeSubplot;
+                
+                if (activeSubplot === 'phase') {
+                    let cursorY = 0;
+                    if (container && container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined) {
+                        cursorY = container.unwrappedPhases[localIdx];
+                    } else if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
+                        const raw_phases = localDf.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        cursorY = unwrapped_phases[localIdx];
+                    }
+                    traces.push({
+                        type: 'scatter',
+                        x: [cursorX],
+                        y: [cursorY],
+                        xaxis: 'x',
+                        yaxis: 'y',
+                        mode: 'markers',
+                        name: 'Cursor Marker',
+                        marker: {
+                            symbol: 'cross',
+                            size: 9,
+                            color: '#ef4444',
+                            line: { width: 1.5, color: '#ef4444' }
+                        },
+                        showlegend: false,
+                        hoverinfo: 'skip'
+                    });
+                } else {
+                    const y1X = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                    traces.push({
+                        type: 'scatter',
+                        x: [cursorX],
+                        y: [y1X],
+                        xaxis: 'x2',
+                        yaxis: 'y2',
+                        mode: 'markers',
+                        name: 'Cursor Marker',
+                        marker: {
+                            symbol: 'cross',
+                            size: 9,
+                            color: '#ef4444',
+                            line: { width: 1.5, color: '#ef4444' }
+                        },
+                        showlegend: false,
+                        hoverinfo: 'skip'
+                    });
+
+                    if (cols.direct && localDf.some(r => isNumber(r[cols.direct]))) {
+                        const yDirect = cursorRow[cols.direct] !== undefined ? cursorRow[cols.direct] : 0;
+                        traces.push({
+                            type: 'scatter',
+                            x: [cursorX],
+                            y: [yDirect],
+                            xaxis: 'x2',
+                            yaxis: 'y2',
+                            mode: 'markers',
+                            name: 'Direct Cursor Marker',
+                            marker: {
+                                symbol: 'cross',
+                                size: 9,
+                                color: '#fb923c',
+                                line: { width: 1.5, color: '#fb923c' }
+                            },
+                            showlegend: false,
+                            hoverinfo: 'skip'
+                        });
+                    }
+                }
+                
+                return; // Early return for bode2d
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                 const cols = getBearingPairColumns(config.bearingOrChannel);
                 const { scaleFactor, restX, restY } = getProbeRestAndScale(config.bearingOrChannel);
@@ -5073,17 +6177,37 @@ export const Dashboard = ({ view }) => {
             
             const isPolar = config.category === 'polar';
             if (isPolar) {
+                // Retrieve probe angle to calculate correct physical rotation angle on screen
+                const angleXInput = document.getElementById('probe-angle-x-input');
+                const angleYInput = document.getElementById('probe-angle-y-input');
+                const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                let probeAngle = 90;
+                const ch = config.bearingOrChannel || '';
+                if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                    probeAngle = probeXAngle;
+                } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                    probeAngle = probeYAngle;
+                }
+
+                const markerAngle = probeAngle - cursorX - 90;
+
                 traces.push({
                     type: 'scatterpolar',
-                    r: [cursorY],
-                    theta: [cursorX],
-                    mode: 'markers',
+                    r: [0, cursorY],
+                    theta: [cursorX, cursorX],
+                    mode: 'lines+markers',
                     name: 'Cursor Marker',
+                    line: {
+                        color: '#ef4444', // Red color
+                        width: 1.8
+                    },
                     marker: {
-                        symbol: 'cross',
-                        size: 9,
-                        color: '#ef4444',
-                        line: { width: 1.5, color: '#ef4444' }
+                        size: [0, 13], // Hide the center marker, show the arrowhead at the tip
+                        color: '#ef4444', // Red color
+                        symbol: 'triangle-up',
+                        line: { width: 1.5, color: '#ffffff' }, // white border for separation
+                        angle: [0, markerAngle]
                     },
                     showlegend: false,
                     hoverinfo: 'skip'
@@ -5093,7 +6217,7 @@ export const Dashboard = ({ view }) => {
                     type: 'scatter',
                     x: [cursorX],
                     y: [cursorY],
-                    xaxis: config.category === 'trend' ? (markerAxis === 'y2' ? 'x2' : 'x') : undefined,
+                    xaxis: config.category === 'trend' ? (markerAxis === 'y' ? 'x' : 'x2') : undefined,
                     yaxis: config.category === 'trend' ? markerAxis : undefined,
                     mode: 'markers',
                     name: 'Cursor Marker',
@@ -5111,16 +6235,144 @@ export const Dashboard = ({ view }) => {
 
         function findClosestRowIndex(dataArray, targetTimeMs) {
             if (!dataArray || dataArray.length === 0) return -1;
-            let closestIdx = 0;
-            let minDiff = Math.abs(dataArray[0]._time_ms - targetTimeMs);
-            for (let i = 1; i < dataArray.length; i++) {
-                let diff = Math.abs(dataArray[i]._time_ms - targetTimeMs);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestIdx = i;
+            
+            let low = 0;
+            let high = dataArray.length - 1;
+            
+            while (low < high - 1) {
+                const mid = Math.floor((low + high) / 2);
+                const midMs = dataArray[mid]._time_ms || 0;
+                if (midMs < targetTimeMs) {
+                    low = mid;
+                } else {
+                    high = mid;
                 }
             }
-            return closestIdx;
+            
+            const diffLow = Math.abs((dataArray[low]._time_ms || 0) - targetTimeMs);
+            const diffHigh = Math.abs((dataArray[high]._time_ms || 0) - targetTimeMs);
+            return diffLow <= diffHigh ? low : high;
+        }
+
+        function splitTraceByState(trace, filteredDf, coordType) {
+            const segments = [];
+            let currentState = null;
+            let currentSegment = null;
+
+            const isXY = coordType === 'xy';
+
+            for (let i = 0; i < filteredDf.length; i++) {
+                const row = filteredDf[i];
+                const stateVal = String(row['state'] || 'other').toLowerCase().trim();
+                
+                let stateKey = 'other';
+                if (stateVal.includes('start') || stateVal.includes('up')) {
+                    stateKey = 'startup';
+                } else if (stateVal.includes('shut') || stateVal.includes('down')) {
+                    stateKey = 'shutdown';
+                } else if (stateVal.includes('steady') || stateVal.includes('state')) {
+                    stateKey = 'steady_state';
+                }
+
+                const c1 = isXY ? trace.x[i] : trace.r[i];
+                const c2 = isXY ? trace.y[i] : trace.theta[i];
+
+                if (currentSegment === null || currentState !== stateKey) {
+                    if (currentSegment !== null) {
+                        currentSegment.c1.push(c1);
+                        currentSegment.c2.push(c2);
+                        segments.push(currentSegment);
+                    }
+                    currentSegment = {
+                        c1: [c1],
+                        c2: [c2],
+                        stateKey: stateKey
+                    };
+                    currentState = stateKey;
+                } else {
+                    currentSegment.c1.push(c1);
+                    currentSegment.c2.push(c2);
+                }
+            }
+
+            if (currentSegment && currentSegment.c1.length > 0) {
+                segments.push(currentSegment);
+            }
+
+            return segments.map((seg, idx) => {
+                const stateFmt = stateFormats[seg.stateKey] || stateFormats.other;
+                
+                const formatted = {
+                    ...trace,
+                    legendgroup: trace.name,
+                    showlegend: idx === 0,
+                    line: {
+                        ...(trace.line || {}),
+                        color: stateFmt.color,
+                        dash: stateFmt.dash
+                    }
+                };
+
+                if (isXY) {
+                    formatted.x = seg.c1;
+                    formatted.y = seg.c2;
+                } else {
+                    formatted.r = seg.c1;
+                    formatted.theta = seg.c2;
+                }
+
+                return formatted;
+            });
+        }
+
+        function splitTracesByState(traces, filteredDf) {
+            if (!colorCodeByStateEnabled || !filteredDf || filteredDf.length === 0) return traces;
+            
+            const newTraces = [];
+            traces.forEach(trace => {
+                if (trace.name === 'Cursor Marker' || trace.name === 'Cursor Line') {
+                    newTraces.push(trace);
+                    return;
+                }
+
+                const isScatter = (trace.type === 'scatter' || !trace.type || trace.type === 'scattergl') && trace.x && trace.y && trace.x.length === filteredDf.length;
+                const isScatterPolar = trace.type === 'scatterpolar' && trace.r && trace.theta && trace.r.length === filteredDf.length;
+
+                if (isScatter) {
+                    const segments = splitTraceByState(trace, filteredDf, 'xy');
+                    segments.forEach(seg => newTraces.push(seg));
+                } else if (isScatterPolar) {
+                    const segments = splitTraceByState(trace, filteredDf, 'rtheta');
+                    segments.forEach(seg => newTraces.push(seg));
+                } else {
+                    newTraces.push(trace);
+                }
+            });
+
+            // State guides removed from Plotly legend to preserve chart area size
+
+            return newTraces;
+        }
+
+        function safePlotlyReact(container, traces, layout, config) {
+            if (container && container.removeAllListeners) {
+                container.removeAllListeners('plotly_click');
+                container.removeAllListeners('plotly_hover');
+                container.removeAllListeners('plotly_unhover');
+                container.removeAllListeners('plotly_selected');
+            } else if (container && container.off) {
+                container.off('plotly_click');
+                container.off('plotly_hover');
+                container.off('plotly_unhover');
+                container.off('plotly_selected');
+            }
+
+            let processedTraces = traces;
+            if (colorCodeByStateEnabled && container && container.plotData) {
+                processedTraces = splitTracesByState(traces, container.plotData);
+            }
+
+            return Plotly.react(container, processedTraces, layout, config);
         }
 
         // Timeline Player state variables
@@ -5184,23 +6436,58 @@ export const Dashboard = ({ view }) => {
 
             if (totalMs <= 0) return;
 
+            const filteredDf = getFilteredData();
+            if (filteredDf.length === 0) return;
+
+            let timelineStartIdx = 0;
+            let timelineEndIdx = timelineDf.length - 1;
+            const firstFilteredMs = filteredDf[0]._time_ms;
+            const lastFilteredMs = filteredDf[filteredDf.length - 1]._time_ms;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms >= firstFilteredMs) {
+                    timelineStartIdx = i;
+                    break;
+                }
+            }
+            for (let i = timelineDf.length - 1; i >= 0; i--) {
+                if (timelineDf[i]._time_ms <= lastFilteredMs) {
+                    timelineEndIdx = i;
+                    break;
+                }
+            }
+
             // Calculate range percentages
-            const startPct = Math.max(0, Math.min(100, ((startMs - firstMs) / totalMs) * 100));
-            const endPct = Math.max(0, Math.min(100, ((endMs - firstMs) / totalMs) * 100));
+            const startPct = timelineDf.length > 1 ? (timelineStartIdx / (timelineDf.length - 1)) * 100 : 0;
+            const endPct = timelineDf.length > 1 ? (timelineEndIdx / (timelineDf.length - 1)) * 100 : 100;
             const widthPct = Math.max(0.5, endPct - startPct);
 
             rangeBox.style.left = `${startPct}%`;
             rangeBox.style.width = `${widthPct}%`;
 
             // Calculate cursor indicator percentage
-            const filteredDf = getFilteredData();
-            if (filteredDf.length > 0 && activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
+            if (activeCursorIndex >= 0 && activeCursorIndex < filteredDf.length) {
                 const cursorMs = filteredDf[activeCursorIndex]._time_ms;
-                const cursorPct = Math.max(0, Math.min(100, ((cursorMs - firstMs) / totalMs) * 100));
+                let timelineIndex = 0;
+                for (let i = 0; i < timelineDf.length; i++) {
+                    if (timelineDf[i]._time_ms === cursorMs) {
+                        timelineIndex = i;
+                        break;
+                    }
+                }
+                const cursorPct = timelineDf.length > 1 ? (timelineIndex / (timelineDf.length - 1)) * 100 : 0;
                 
+                // Sync the range slider values
+                const slider = document.getElementById('global-timeline-slider');
+                let leftPos = `calc(${cursorPct}% + ${8 - 0.16 * cursorPct}px)`;
+                if (slider) {
+                    slider.min = 0;
+                    slider.max = timelineDf.length - 1;
+                    slider.value = timelineIndex;
+                }
+
                 if (cursorIndicator) {
                     cursorIndicator.style.display = 'block';
-                    cursorIndicator.style.left = `${cursorPct}%`;
+                    cursorIndicator.style.left = leftPos;
                 }
             } else {
                 if (cursorIndicator) cursorIndicator.style.display = 'none';
@@ -5217,27 +6504,59 @@ export const Dashboard = ({ view }) => {
             container.innerHTML = `
                 <div id="timeline-plotly-chart" style="width: 100%; height: 38px;"></div>
                 <div id="timeline-range-selector" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
-                    <!-- Draggable highlighted range box -->
-                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 100%; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
-                        <!-- Left drag handle -->
-                        <div id="range-handle-left" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                        <!-- Right drag handle -->
-                        <div id="range-handle-right" style="width: 6px; height: 100%; cursor: ew-resize; background-color: #ef4444; opacity: 0.85; border-radius: 1px;"></div>
-                    </div>
-                    <!-- Current cursor playback vertical line indicator -->
-                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 100%; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: auto; cursor: col-resize; z-index: 12; box-sizing: border-box; display: none;">
-                        <!-- Circular handle at top of yellow cursor line for easier grabbing -->
-                        <div style="position: absolute; top: -3px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b; border: 1px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);"></div>
+                    <!-- Highlighted range box (purely visual, non-interactive) -->
+                    <div id="timeline-range-box" style="position: absolute; top: 0; height: 38px; border: 2px solid #ef4444; background-color: rgba(239, 68, 68, 0.18); pointer-events: none; cursor: default; box-sizing: border-box;"></div>
+                    <!-- Current cursor playback vertical line indicator (purely visual, non-interactive) -->
+                    <div id="timeline-cursor-indicator" style="position: absolute; top: 0; width: 2px; height: 38px; background-color: #f59e0b; border: 1px solid #d97706; pointer-events: none; cursor: default; z-index: 12; box-sizing: border-box; display: none;">
+                        <!-- Circular handle at top of yellow cursor line (purely visual) -->
+                        <div style="position: absolute; top: -10px; left: -9px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #fbbf24, #d97706); border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); pointer-events: none;"></div>
                     </div>
                 </div>
-                <!-- Hidden range input for back-compatibility with other scripts -->
-                <input type="range" id="global-timeline-slider" style="display: none;">
+                <!-- Standard range slider generated dynamically inside the speed profile container -->
+                <div style="width: 100%; height: 16px; display: flex; align-items: center; padding: 0; box-sizing: border-box; margin-top: 2px;">
+                    <input 
+                        type="range" 
+                        id="global-timeline-slider" 
+                        style="width: 100%; height: 6px; accent-color: #0ea5e9; background: #cbd5e1; border-radius: 3px; outline: none; cursor: pointer; margin: 0; padding: 0;"
+                    />
+                </div>
             `;
+            
+            const slider = document.getElementById('global-timeline-slider');
+            if (slider) {
+                const handleSliderInput = (e) => {
+                    if (window.timelineSliderInput) {
+                        window.timelineSliderInput(e.target.value);
+                    }
+                };
+                slider.addEventListener('input', handleSliderInput);
+                slider.addEventListener('change', handleSliderInput);
+            }
             
             timelinePlotlyContainer = document.getElementById('timeline-plotly-chart');
             
             const indices = timelineDf.map((_, i) => i);
-            const speeds = timelineDf.map(r => r[speedCol] || 0);
+            let speeds = timelineDf.map(r => r[speedCol] || 0);
+            
+            // Flatten the steady-state speeds visually to ensure the timeline waveform is flat/horizontal
+            const steadySpeeds = timelineDf
+                .filter(r => r['state'] && (String(r['state']).toLowerCase() === 'steady' || String(r['state']).toLowerCase() === 'steady_state'))
+                .map(r => r[speedCol] || 0);
+            
+            if (steadySpeeds.length > 0) {
+                const steadyVal = steadySpeeds.reduce((a, b) => a + b, 0) / steadySpeeds.length;
+                speeds = timelineDf.map(r => {
+                    const st = String(r['state'] || 'other').toLowerCase();
+                    if (st === 'steady' || st === 'steady_state') {
+                        return steadyVal;
+                    }
+                    return r[speedCol] || 0;
+                });
+            }
+            
+            const allSpeeds = df.map(r => r[speedCol] || 0);
+            const globalMaxSpeed = allSpeeds.length > 0 ? Math.max(...allSpeeds) : 3600;
+            const yRange = [0, Math.max(100, globalMaxSpeed * 1.1)];
             
             const trace = {
                 x: indices,
@@ -5261,19 +6580,21 @@ export const Dashboard = ({ view }) => {
                     visible: false,
                     showgrid: false,
                     zeroline: false,
-                    fixedrange: true
+                    fixedrange: true,
+                    range: [0, timelineDf.length - 1]
                 },
                 yaxis: {
                     visible: false,
                     showgrid: false,
                     zeroline: false,
-                    fixedrange: true
+                    fixedrange: true,
+                    range: yRange
                 },
                 showlegend: false,
                 hovermode: false
             };
             
-            Plotly.newPlot(timelinePlotlyContainer, [trace], layout, {
+            safePlotlyReact(timelinePlotlyContainer, [trace], layout, {
                 responsive: true,
                 displayModeBar: false,
                 staticPlot: true
@@ -5284,220 +6605,7 @@ export const Dashboard = ({ view }) => {
         }
 
         function initTimelineDragEvents() {
-            const container = document.getElementById('timeline-waveform-container');
-            const rangeBox = document.getElementById('timeline-range-box');
-            const leftHandle = document.getElementById('range-handle-left');
-            const rightHandle = document.getElementById('range-handle-right');
-            const cursorIndicator = document.getElementById('timeline-cursor-indicator');
-
-            if (!container || !rangeBox || !leftHandle || !rightHandle) return;
-
-            leftHandle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                isDraggingLeft = true;
-                container.style.cursor = 'ew-resize';
-            });
-
-            rightHandle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                isDraggingRight = true;
-                container.style.cursor = 'ew-resize';
-            });
-
-            cursorIndicator.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                isDraggingCursor = true;
-                container.style.cursor = 'col-resize';
-            });
-
-            rangeBox.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                isDraggingBox = true;
-                rangeBox.style.cursor = 'grabbing';
-                dragStartX = e.clientX;
-                
-                const rect = container.getBoundingClientRect();
-                const boxRect = rangeBox.getBoundingClientRect();
-                dragStartLeftPct = ((boxRect.left - rect.left) / rect.width) * 100;
-                dragStartWidthPct = (boxRect.width / rect.width) * 100;
-            });
-
-            container.addEventListener('mousedown', (e) => {
-                if (isDraggingLeft || isDraggingRight || isDraggingBox || isDraggingCursor) return;
-                
-                const rect = container.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickPct = clickX / rect.width;
-                
-                const timelineDf = getTimelineData();
-                if (timelineDf.length === 0) return;
-
-                const startMs = parseTimestamp(activeStartTime).getTime();
-                const endMs = parseTimestamp(activeEndTime).getTime();
-                const firstMs = timelineDf[0]._time_ms;
-                const lastMs = timelineDf[timelineDf.length - 1]._time_ms;
-                const totalMs = lastMs - firstMs;
-
-                const clickMs = firstMs + clickPct * totalMs;
-
-                if (clickMs >= startMs && clickMs <= endMs) {
-                    const filteredDf = getFilteredData();
-                    const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, clickMs);
-                    if (closestFilteredIdx !== -1) {
-                        activeCursorIndex = closestFilteredIdx;
-                        timelineSliderInput(activeCursorIndex);
-                    }
-                } else {
-                    const durationMs = endMs - startMs;
-                    const newStartMs = Math.max(firstMs, Math.min(lastMs - durationMs, clickMs - durationMs / 2));
-                    const newEndMs = newStartMs + durationMs;
-
-                    const startIdx = findClosestRowIndexByMs(timelineDf, newStartMs);
-                    const endIdx = findClosestRowIndexByMs(timelineDf, newEndMs);
-
-                    if (startIdx !== -1 && endIdx !== -1) {
-                        activeStartTime = timelineDf[startIdx][tsCol];
-                        activeEndTime = timelineDf[endIdx][tsCol];
-
-                        selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                        selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-
-                        const presetSelect = document.getElementById('filter-time-window');
-                        if (presetSelect && presetSelect.value === 'all') {
-                            presetSelect.value = 'custom';
-                        }
-
-                        activeCursorIndex = 0;
-                        renderGrid();
-                        updateTimelineRangeUI();
-                    }
-                }
-            });
-
-            if (!window.timelineListenersBound) {
-                window.addEventListener('mousemove', (e) => {
-                    if (!isDraggingLeft && !isDraggingRight && !isDraggingBox && !isDraggingCursor) return;
-                    
-                    const container = document.getElementById('timeline-waveform-container');
-                    const rangeBox = document.getElementById('timeline-range-box');
-                    if (!container || !rangeBox) return;
-                    
-                    const rect = container.getBoundingClientRect();
-                    const timelineDf = getTimelineData();
-                    if (timelineDf.length === 0) return;
-
-                    const totalMs = timelineDf[timelineDf.length - 1]._time_ms - timelineDf[0]._time_ms;
-
-                    if (isDraggingLeft) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
-                        const endMs = parseTimestamp(activeEndTime).getTime();
-                        const maxStartMs = endMs - 1000;
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        const clampedMs = Math.min(targetMs, maxStartMs);
-                        
-                        const startIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                        if (startIdx !== -1) {
-                            activeStartTime = timelineDf[startIdx][tsCol];
-                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                            
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect) presetSelect.value = 'custom';
-                            
-                            activeCursorIndex = 0;
-                            renderGrid();
-                            updateTimelineRangeUI();
-                        }
-                    } else if (isDraggingRight) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
-                        const startMs = parseTimestamp(activeStartTime).getTime();
-                        const minEndMs = startMs + 1000;
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        const clampedMs = Math.max(targetMs, minEndMs);
-                        
-                        const endIdx = findClosestRowIndexByMs(timelineDf, clampedMs);
-                        if (endIdx !== -1) {
-                            activeEndTime = timelineDf[endIdx][tsCol];
-                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-                            
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect) presetSelect.value = 'custom';
-                            
-                            activeCursorIndex = 0;
-                            renderGrid();
-                            updateTimelineRangeUI();
-                        }
-                    } else if (isDraggingBox) {
-                        const deltaX = e.clientX - dragStartX;
-                        const deltaPct = (deltaX / rect.width) * 100;
-                        
-                        let newLeftPct = dragStartLeftPct + deltaPct;
-                        if (newLeftPct < 0) {
-                            newLeftPct = 0;
-                            dragStartX = e.clientX + (dragStartLeftPct / 100) * rect.width;
-                        } else if (newLeftPct > 100 - dragStartWidthPct) {
-                            newLeftPct = 100 - dragStartWidthPct;
-                            dragStartX = e.clientX - ((100 - dragStartWidthPct - dragStartLeftPct) / 100) * rect.width;
-                        }
-                        
-                        const startMs = timelineDf[0]._time_ms + (newLeftPct / 100) * totalMs;
-                        const endMs = startMs + (dragStartWidthPct / 100) * totalMs;
-                        
-                        const startIdx = findClosestRowIndexByMs(timelineDf, startMs);
-                        const endIdx = findClosestRowIndexByMs(timelineDf, endMs);
-                        
-                        if (startIdx !== -1 && endIdx !== -1) {
-                            activeStartTime = timelineDf[startIdx][tsCol];
-                            activeEndTime = timelineDf[endIdx][tsCol];
-                            
-                            selectOrAddOption(document.getElementById('filter-start-time'), activeStartTime);
-                            selectOrAddOption(document.getElementById('filter-end-time'), activeEndTime);
-                            
-                            const presetSelect = document.getElementById('filter-time-window');
-                            if (presetSelect && presetSelect.value === 'all') {
-                                presetSelect.value = 'custom';
-                            }
-                            
-                            activeCursorIndex = 0;
-                            renderGrid();
-                            updateTimelineRangeUI();
-                        }
-                    } else if (isDraggingCursor) {
-                        const mouseX = e.clientX - rect.left;
-                        let pct = Math.max(0, Math.min(1, mouseX / rect.width));
-                        
-                        const targetMs = timelineDf[0]._time_ms + pct * totalMs;
-                        const filteredDf = getFilteredData();
-                        const closestFilteredIdx = findClosestRowIndexByMs(filteredDf, targetMs);
-                        if (closestFilteredIdx !== -1) {
-                            activeCursorIndex = closestFilteredIdx;
-                            timelineSliderInput(activeCursorIndex);
-                        }
-                    }
-                });
-
-                window.addEventListener('mouseup', () => {
-                    isDraggingLeft = false;
-                    isDraggingRight = false;
-                    isDraggingBox = false;
-                    isDraggingCursor = false;
-                    
-                    const container = document.getElementById('timeline-waveform-container');
-                    const rangeBox = document.getElementById('timeline-range-box');
-                    const cursorIndicator = document.getElementById('timeline-cursor-indicator');
-                    
-                    if (container) container.style.cursor = 'pointer';
-                    if (rangeBox) rangeBox.style.cursor = 'grab';
-                    if (cursorIndicator) cursorIndicator.style.cursor = 'col-resize';
-                });
-                window.timelineListenersBound = true;
-            }
+            // Drag events are removed. Timeline scrubbing is handled exclusively by the visible range slider.
         }
 
         function updateTimelineCursorLine() {
@@ -5532,10 +6640,69 @@ export const Dashboard = ({ view }) => {
                 stateEl.className = 'state-badge ' + state.toLowerCase();
             }
             document.getElementById('tl-val-index').innerText = `${idx + 1} / ${filteredDf.length}`;
+            updateSlowRollButtonUI();
         }
 
-        function timelineSliderInput(val) {
-            activeCursorIndex = parseInt(val);
+        function getTimelineIndexForFilteredIndex(filteredIdx) {
+            const timelineDf = getTimelineData();
+            const filteredDf = getFilteredData();
+            if (filteredIdx < 0 || filteredIdx >= filteredDf.length) return 0;
+            const targetMs = filteredDf[filteredIdx]._time_ms;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms === targetMs) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        function timelineSliderInput(val, isFilteredIndex = false) {
+            const timelineDf = getTimelineData();
+            const filteredDf = getFilteredData();
+            if (timelineDf.length === 0 || filteredDf.length === 0) return;
+
+            let timelineIndex = parseInt(val);
+            if (isFilteredIndex) {
+                timelineIndex = getTimelineIndexForFilteredIndex(timelineIndex);
+            }
+
+            const firstFilteredMs = filteredDf[0]._time_ms;
+            const lastFilteredMs = filteredDf[filteredDf.length - 1]._time_ms;
+            
+            let timelineStartIdx = 0;
+            let timelineEndIdx = timelineDf.length - 1;
+            for (let i = 0; i < timelineDf.length; i++) {
+                if (timelineDf[i]._time_ms >= firstFilteredMs) {
+                    timelineStartIdx = i;
+                    break;
+                }
+            }
+            for (let i = timelineDf.length - 1; i >= 0; i--) {
+                if (timelineDf[i]._time_ms <= lastFilteredMs) {
+                    timelineEndIdx = i;
+                    break;
+                }
+            }
+            
+            const clampedVal = Math.max(timelineStartIdx, Math.min(timelineEndIdx, timelineIndex));
+            
+            const slider = document.getElementById('global-timeline-slider');
+            if (slider) {
+                slider.value = clampedVal;
+            }
+            
+            const targetMs = timelineDf[clampedVal]._time_ms;
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            for (let i = 0; i < filteredDf.length; i++) {
+                const diff = Math.abs(filteredDf[i]._time_ms - targetMs);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                }
+            }
+            
+            activeCursorIndex = closestIdx;
             updateTimelineReadout(activeCursorIndex);
             updateTimelineCursorLine();
             updateAllCursorsThrottled();
@@ -5543,19 +6710,21 @@ export const Dashboard = ({ view }) => {
 
         function timelineNext() {
             const filteredDf = getFilteredData();
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex < filteredDf.length - 1) {
-                activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + timelineStepSize);
-                timelineSliderInput(activeCursorIndex);
+                activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + step);
+                timelineSliderInput(activeCursorIndex, true);
             } else if (isTimelinePlaying) {
                 activeCursorIndex = 0;
-                timelineSliderInput(activeCursorIndex);
+                timelineSliderInput(activeCursorIndex, true);
             }
         }
 
         function timelinePrev() {
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (activeCursorIndex > 0) {
-                activeCursorIndex = Math.max(0, activeCursorIndex - timelineStepSize);
-                timelineSliderInput(activeCursorIndex);
+                activeCursorIndex = Math.max(0, activeCursorIndex - step);
+                timelineSliderInput(activeCursorIndex, true);
             }
         }
 
@@ -5564,7 +6733,9 @@ export const Dashboard = ({ view }) => {
             const playIcon = document.getElementById('tl-play-icon');
             const playText = document.getElementById('tl-play-text');
             if (isTimelinePlaying) {
-                clearInterval(timelineIntervalId);
+                if (timelineIntervalId) {
+                    clearInterval(timelineIntervalId);
+                }
                 isTimelinePlaying = false;
                 if (playBtn) playBtn.classList.remove('playing');
                 if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
@@ -5574,20 +6745,46 @@ export const Dashboard = ({ view }) => {
                 if (playBtn) playBtn.classList.add('playing');
                 if (playIcon) playIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
                 if (playText) playText.innerText = 'Pause';
+                
+                const filteredDf = getFilteredData();
+                if (activeCursorIndex >= filteredDf.length - 1) {
+                    activeCursorIndex = 0;
+                    timelineSliderInput(activeCursorIndex, true);
+                }
+                
+                if (timelineIntervalId) {
+                    clearInterval(timelineIntervalId);
+                }
                 timelineIntervalId = setInterval(() => {
                     timelineNext();
                 }, timelinePlaybackDelay);
             }
         }
 
-        let updateCursorsPending = false;
+        let lastCursorUpdateTime = 0;
+        let updateCursorsTimeout = null;
+
         function updateAllCursorsThrottled() {
-            if (updateCursorsPending) return;
-            updateCursorsPending = true;
-            requestAnimationFrame(() => {
-                updateAllCursors();
-                updateCursorsPending = false;
-            });
+            const now = Date.now();
+            const minInterval = 60; // Limit cursor sync updates to at most 16 FPS to prevent main thread blocking
+            
+            if (now - lastCursorUpdateTime >= minInterval) {
+                if (updateCursorsTimeout) {
+                    clearTimeout(updateCursorsTimeout);
+                    updateCursorsTimeout = null;
+                }
+                lastCursorUpdateTime = now;
+                requestAnimationFrame(updateAllCursors);
+            } else {
+                // Ensure a trailing-edge call is scheduled to capture the final drag position
+                if (!updateCursorsTimeout) {
+                    updateCursorsTimeout = setTimeout(() => {
+                        lastCursorUpdateTime = Date.now();
+                        requestAnimationFrame(updateAllCursors);
+                        updateCursorsTimeout = null;
+                    }, minInterval - (now - lastCursorUpdateTime));
+                }
+            }
         }
 
         // Sync cursor line on all plots
@@ -5614,20 +6811,33 @@ export const Dashboard = ({ view }) => {
                 if (!container || !container.data) return;
                 
                 if (config.category === 'bode3d') {
-                    const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
-                    if (traceIdx !== -1 && container.plotData) {
+                    if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
                         if (localIdx !== -1) {
                             const localRow = container.plotData[localIdx];
                             const cols = getChannelColumns(config.bearingOrChannel);
                             const cursorX_3d = localRow[speedCol];
-                            const cursorY_3d = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
                             const cursorZ_3d = container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined ? container.unwrappedPhases[localIdx] : (localRow[cols.phase_1x] || 0);
-                            Plotly.restyle(container, {
-                                x: [[cursorX_3d]],
-                                y: [[cursorY_3d]],
-                                z: [[cursorZ_3d]]
-                            }, [traceIdx]);
+                            
+                            const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                            if (traceIdx !== -1) {
+                                const cursorY_3d = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                                Plotly.restyle(container, {
+                                    x: [[cursorX_3d]],
+                                    y: [[cursorY_3d]],
+                                    z: [[cursorZ_3d]]
+                                }, [traceIdx]);
+                            }
+
+                            const directTraceIdx = container.data.findIndex(t => t.name === 'Direct Cursor');
+                            if (directTraceIdx !== -1) {
+                                const cursorY_3d_direct = localRow[cols.direct] !== undefined ? localRow[cols.direct] : 0;
+                                Plotly.restyle(container, {
+                                    x: [[cursorX_3d]],
+                                    y: [[cursorY_3d_direct]],
+                                    z: [[cursorZ_3d]]
+                                }, [directTraceIdx]);
+                            }
                         }
                     }
                     updateSlotTelemetryBox(idx, activeCursorIndex);
@@ -5649,19 +6859,113 @@ export const Dashboard = ({ view }) => {
                 }
 
                 if (config.category === 'orbit') {
-                    if (container.df_frames) {
-                        const localIdx = findClosestRowIndex(container.df_frames, targetTimeMs);
+                    if (container.plotData) {
+                        const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
                         if (localIdx !== -1) {
-                            const frameName = `f_${localIdx}_slot_${idx}`;
-                            Plotly.animate(container, [frameName], {
-                                frame: { duration: 0, redraw: true },
-                                mode: 'immediate',
-                                transition: { duration: 0 }
+                            const row = container.plotData[localIdx];
+                            const brg = config.bearingOrChannel;
+                            const cols = getBearingPairColumns(brg);
+                            const ax = row[cols.x.amp_1x] || 0;
+                            const ay = row[cols.y.amp_1x] || 0;
+                            const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
+                            const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
+
+                            const C = window.bearingClearance || 12.0;
+                            const framePeak = Math.max(ax, ay);
+                            const frameSpan = limits.autoScale ? (framePeak > 0 ? framePeak * 2.5 : 0.2) : (limits.max !== null ? Math.abs(limits.max) * 2 : 2 * C);
+                            const frameShift = frameSpan / 2;
+
+                            const KEY_PHASOR_GAP_ANGLE = 0.04;
+                            const isInKeyphasorGapLocal = (t) => {
+                                if (t <= Math.PI) return false;
+                                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+                            };
+                            const isInKeyphasorGapTimebaseLocal = (t, phase) => {
+                                const t_trig = Math.round(t / (2 * Math.PI)) * 2 * Math.PI;
+                                const diff = t - t_trig;
+                                if (Math.abs(diff) <= KEY_PHASOR_GAP_ANGLE) {
+                                    const val_t = Math.cos(t - phase);
+                                    const val_trig = Math.cos(-phase);
+                                    return val_t < val_trig;
+                                }
+                                return false;
+                            };
+
+                            const theta_orbit_local = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
+                            const theta_local = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
+
+                            const ox_shifted = theta_orbit_local.map(t => {
+                                if (isInKeyphasorGapLocal(t)) return null;
+                                return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift;
                             });
-                            // Update layout slider active index if sliders are present
-                            if (container.layout && container.layout.sliders && container.layout.sliders[0]) {
-                                container.layout.sliders[0].active = localIdx;
-                                Plotly.relayout(container, { sliders: container.layout.sliders });
+                            const oy_shifted = theta_orbit_local.map(t => {
+                                if (isInKeyphasorGapLocal(t)) return null;
+                                return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift;
+                            });
+
+                            const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
+                            const pt_kp_x_shifted = pt_kp.x + frameShift;
+                            const pt_kp_y_shifted = pt_kp.y + frameShift;
+
+                            const cx = theta_local.map(t => frameShift + C * Math.cos(t));
+                            const cy = theta_local.map(t => frameShift + C * Math.sin(t));
+
+                            const updateData = {
+                                x: [ox_shifted, cx, [pt_kp_x_shifted]],
+                                y: [oy_shifted, cy, [pt_kp_y_shifted]]
+                            };
+                            const updateTraces = [0, 1, 2];
+
+                            const cycles = config.cycles || 8;
+                            const speed = row[speedCol] || 3600;
+                            const cycle_period_ms = 60000 / Math.max(10, speed);
+                            const isOrbit = config.category === 'orbit';
+                            const showTimebase = isOrbit && config.showTimebase !== false;
+                            const showTrace2 = showTimebase && config.showTrace2 === true;
+
+                            if (showTimebase) {
+                                const T_frame = cycle_period_ms;
+                                const tb_steps = 1000 * cycles;
+                                const theta_tb_local = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
+                                const tb_x_time = theta_tb_local.map(t => (t / (2 * Math.PI)) * T_frame);
+                                const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
+                                const tb_x = theta_tb_local.map(t => {
+                                    if (isInKeyphasorGapTimebaseLocal(t % (2 * Math.PI), px)) return null;
+                                    return ax * Math.cos(t - px);
+                                });
+                                const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
+
+                                updateData.x.push(tb_x_time, kp_times_frame);
+                                updateData.y.push(tb_x, kp_x);
+                                updateTraces.push(3, 4);
+
+                                if (showTrace2) {
+                                    const tb_y = theta_tb_local.map(t => {
+                                        if (isInKeyphasorGapTimebaseLocal(t % (2 * Math.PI), py)) return null;
+                                        return ay * Math.cos(t - py);
+                                    });
+                                    const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
+
+                                    updateData.x.push(tb_x_time, kp_times_frame);
+                                    updateData.y.push(tb_y, kp_y);
+                                    updateTraces.push(5, 6);
+                                }
+                            }
+
+                            Plotly.restyle(container, updateData, updateTraces);
+
+                            if (window.getDynamicShapesAndAnnotations) {
+                                const dynamicLayoutConfig = window.getDynamicShapesAndAnnotations(frameShift, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+                                const layoutUpdate = {
+                                    'shapes': dynamicLayoutConfig.shapes,
+                                    'annotations': dynamicLayoutConfig.annotations
+                                };
+                                if (limits.autoScale) {
+                                    layoutUpdate['xaxis.range'] = [0, frameSpan];
+                                    layoutUpdate['yaxis.range'] = [0, frameSpan];
+                                }
+                                Plotly.relayout(container, layoutUpdate);
                             }
                         }
                     }
@@ -5674,40 +6978,83 @@ export const Dashboard = ({ view }) => {
                 
                 let cursorY = null;
                 let cursorX = targetTime;
+                let markerAxis = 'y';
                 
                 if (config.category === 'trend') {
                     const cols = getChannelColumns(config.bearingOrChannel);
                     const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                     const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-                    const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
-                    const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-                    const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+                    const show2X = false;
+                    const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
+                    const showTemp = false;
                     
-                    const hasValueTraces = (showDirect && cols.direct && row[cols.direct] !== undefined) ||
-                                           (show1X && cols.amp_1x && row[cols.amp_1x] !== undefined) ||
-                                           (show2X && cols.amp_2x && row[cols.amp_2x] !== undefined) ||
-                                           (showGap && cols.gap && row[cols.gap] !== undefined) ||
-                                           (showTemp && cols.temp && row[cols.temp] !== undefined);
-                    
-                    if (hasValueTraces) {
-                        if (cols.amp_1x && row[cols.amp_1x] !== undefined && show1X) {
-                            cursorY = row[cols.amp_1x];
-                        } else if (cols.direct && row[cols.direct] !== undefined && showDirect) {
-                            cursorY = row[cols.direct];
-                        } else if (cols.amp_2x && row[cols.amp_2x] !== undefined && show2X) {
-                            cursorY = row[cols.amp_2x];
-                        } else if (cols.gap && row[cols.gap] !== undefined && showGap) {
-                            cursorY = row[cols.gap];
-                        } else if (cols.temp && row[cols.temp] !== undefined && showTemp) {
-                            cursorY = row[cols.temp];
-                        }
-                    } else {
-                        if (cols.phase_1x && row[cols.phase_1x] !== undefined && show1X) {
-                            cursorY = row[cols.phase_1x];
-                        } else if (cols.phase_2x && row[cols.phase_2x] !== undefined && show2X) {
-                            cursorY = row[cols.phase_2x];
+                    let resolvedY = null;
+                    let resolvedAxis = 'y2';
+
+                    if (selectedTrendCurveName === 'Direct' && cols.direct && row[cols.direct] !== undefined && showDirect) {
+                        resolvedY = row[cols.direct];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === '1X Amp' && cols.amp_1x && row[cols.amp_1x] !== undefined && show1X) {
+                        resolvedY = row[cols.amp_1x];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === '2X Amp' && cols.amp_2x && row[cols.amp_2x] !== undefined && show2X) {
+                        resolvedY = row[cols.amp_2x];
+                        resolvedAxis = 'y2';
+                    } else if (selectedTrendCurveName === 'Avg Gap' && cols.gap && row[cols.gap] !== undefined && showGap) {
+                        resolvedY = row[cols.gap];
+                        resolvedAxis = 'y3';
+                    } else if (selectedTrendCurveName === 'Temp' && cols.temp && row[cols.temp] !== undefined && showTemp) {
+                        resolvedY = row[cols.temp];
+                        resolvedAxis = 'y4';
+                    } else if (selectedTrendCurveName === '1X Phase' && cols.phase_1x && row[cols.phase_1x] !== undefined && show1X) {
+                        const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[activeCursorIndex];
+                        resolvedAxis = 'y';
+                    } else if (selectedTrendCurveName === '2X Phase' && cols.phase_2x && row[cols.phase_2x] !== undefined && show2X) {
+                        const raw_phases = container.plotData.map(r => r[cols.phase_2x]);
+                        const unwrapped_phases = unwrapPhase(raw_phases);
+                        resolvedY = unwrapped_phases[activeCursorIndex];
+                        resolvedAxis = 'y';
+                    }
+
+                    if (resolvedY === null) {
+                        const showDirectVal = showDirect && cols.direct && row[cols.direct] !== undefined;
+                        const show1XVal = show1X && cols.amp_1x && row[cols.amp_1x] !== undefined;
+                        const show2XVal = show2X && cols.amp_2x && row[cols.amp_2x] !== undefined;
+                        const showGapVal = showGap && cols.gap && row[cols.gap] !== undefined;
+                        const showTempVal = showTemp && cols.temp && row[cols.temp] !== undefined;
+
+                        if (show1XVal) {
+                            resolvedY = row[cols.amp_1x];
+                            resolvedAxis = 'y2';
+                        } else if (showDirectVal) {
+                            resolvedY = row[cols.direct];
+                            resolvedAxis = 'y2';
+                        } else if (show2XVal) {
+                            resolvedY = row[cols.amp_2x];
+                            resolvedAxis = 'y2';
+                        } else if (showGapVal) {
+                            resolvedY = row[cols.gap];
+                            resolvedAxis = 'y3';
+                        } else if (showTempVal) {
+                            resolvedY = row[cols.temp];
+                            resolvedAxis = 'y4';
+                        } else if (show1X && cols.phase_1x && row[cols.phase_1x] !== undefined) {
+                            const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                            const unwrapped_phases = unwrapPhase(raw_phases);
+                            resolvedY = unwrapped_phases[activeCursorIndex];
+                            resolvedAxis = 'y';
+                        } else if (show2X && cols.phase_2x && row[cols.phase_2x] !== undefined) {
+                            const raw_phases = container.plotData.map(r => r[cols.phase_2x]);
+                            const unwrapped_phases = unwrapPhase(raw_phases);
+                            resolvedY = unwrapped_phases[activeCursorIndex];
+                            resolvedAxis = 'y';
                         }
                     }
+
+                    cursorY = resolvedY !== null ? resolvedY : 0;
+                    markerAxis = resolvedAxis;
                 } else if (config.category === 'polar') {
                     if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
@@ -5724,10 +7071,72 @@ export const Dashboard = ({ view }) => {
                         if (localIdx !== -1) {
                             const localRow = container.plotData[localIdx];
                             const cols = getChannelColumns(config.bearingOrChannel);
-                            cursorX = localRow[speedCol];
-                            cursorY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                            const ratio = document.getElementById('gear-ratio-input') ? parseFloat(document.getElementById('gear-ratio-input').value) || 1.0 : 1.0;
+                            const cursorX = (localRow[speedCol] !== undefined ? localRow[speedCol] : 0) * ratio;
+                            
+                            const activeSubplot = activeBodeSubplot;
+                            let cursorY = 0;
+                            let xaxis = 'x2';
+                            let yaxis = 'y2';
+                            
+                            if (activeSubplot === 'phase') {
+                                xaxis = 'x';
+                                yaxis = 'y';
+                                if (container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined) {
+                                    cursorY = container.unwrappedPhases[localIdx];
+                                } else if (cols.phase_1x && localRow[cols.phase_1x] !== undefined) {
+                                    const raw_phases = container.plotData.map(r => r[cols.phase_1x]);
+                                    const unwrapped_phases = unwrapPhase(raw_phases);
+                                    cursorY = unwrapped_phases[localIdx];
+                                }
+                                
+                                const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                                if (ampTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[cursorY]],
+                                        xaxis: [xaxis],
+                                        yaxis: [yaxis]
+                                    }, [ampTraceIdx]);
+                                }
+                            } else {
+                                const y1X = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                                const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                                if (ampTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[y1X]],
+                                        xaxis: ['x2'],
+                                        yaxis: ['y2']
+                                    }, [ampTraceIdx]);
+                                }
+                                
+                                const yDirect = localRow[cols.direct] !== undefined ? localRow[cols.direct] : 0;
+                                const directTraceIdx = container.data.findIndex(t => t.name === 'Direct Cursor Marker');
+                                if (directTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[yDirect]],
+                                        xaxis: ['x2'],
+                                        yaxis: ['y2']
+                                    }, [directTraceIdx]);
+                                }
+                            }
+                            
+                            if (container.layout.shapes) {
+                                const shapes = [...container.layout.shapes];
+                                const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
+                                if (lineIdx !== -1) {
+                                    const targetX = (row[speedCol] !== undefined ? row[speedCol] : 0) * ratio;
+                                    shapes[lineIdx].x0 = targetX;
+                                    shapes[lineIdx].x1 = targetX;
+                                    Plotly.relayout(container, { shapes });
+                                }
+                            }
                         }
                     }
+                    updateSlotTelemetryBox(idx, activeCursorIndex);
+                    return; // Early return for bode2d
                 } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
                     if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
@@ -5747,24 +7156,43 @@ export const Dashboard = ({ view }) => {
                 const isPolar = config.category === 'polar';
                 let updateData;
                 if (isPolar) {
-                    const rMax = (container.layout && container.layout.polar && container.layout.polar.radialaxis && container.layout.polar.radialaxis.range) ? container.layout.polar.radialaxis.range[1] : cursorY * 1.1;
-                    const delta_r = Math.min(0.15 * cursorY, 0.08 * (rMax || 1.0));
-                    const delta_theta = 12;
                     updateData = {
-                        r: [[0, cursorY, cursorY - delta_r, null, cursorY, cursorY - delta_r]],
-                        theta: [[cursorX, cursorX, cursorX - delta_theta, null, cursorX, cursorX + delta_theta]]
+                        r: [[0, cursorY]],
+                        theta: [[cursorX, cursorX]]
                     };
+
+                    // Retrieve probe angle
+                    const angleXInput = document.getElementById('probe-angle-x-input');
+                    const angleYInput = document.getElementById('probe-angle-y-input');
+                    const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
+                    const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                    let probeAngle = 90;
+                    const ch = config.bearingOrChannel || '';
+                    if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
+                        probeAngle = probeXAngle;
+                    } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
+                        probeAngle = probeYAngle;
+                    }
+
+                    const markerAngle = probeAngle - cursorX - 90;
+
+                    // Restyle the marker angle along with coordinates
+                    Plotly.restyle(container, {
+                        'marker.angle': [[0, markerAngle]]
+                    }, [traceIdx]);
                 } else {
                     updateData = {
                         x: [[cursorX]],
-                        y: [[cursorY]]
+                        y: [[cursorY]],
+                        xaxis: config.category === 'trend' ? (markerAxis === 'y' ? 'x' : 'x2') : undefined,
+                        yaxis: config.category === 'trend' ? markerAxis : undefined
                     };
                 }
                 
                 const layoutUpdate = {};
                 if (container.layout.shapes) {
                     const shapes = [...container.layout.shapes];
-                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line');
+                    const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
                     if (lineIdx !== -1) {
                         let targetX = targetTime;
                         if (config.category === 'bode2d') {
@@ -5786,14 +7214,98 @@ export const Dashboard = ({ view }) => {
         }
 
         function getGlobalIndexFromPlotPoint(pt, container) {
-            if (pt && pt.pointIndex !== undefined && container && container.plotData) {
-                const config = plotSlots[parseInt(container.dataset.slotIndex)];
-                let row;
-                row = container.plotData[pt.pointIndex];
+            if (!pt || !container || !container.plotData) return -1;
+            
+            const config = plotSlots[parseInt(container.dataset.slotIndex)] || {};
+            if (config.category === 'orbit') {
+                return activeCursorIndex;
+            }
+            const filteredDf = getFilteredData();
+            let targetRow = null;
+            
+            if (config.category === 'trend') {
+                const clickedTimeStr = String(pt.x);
+                targetRow = container.plotData.find(r => String(r._date) === clickedTimeStr || String(r._time_ms) === clickedTimeStr);
+                
+                if (!targetRow) {
+                    const clickedMs = new Date(pt.x).getTime();
+                    if (!isNaN(clickedMs)) {
+                        let minDiff = Infinity;
+                        container.plotData.forEach(r => {
+                            const rMs = new Date(r._date).getTime();
+                            const diff = Math.abs(rMs - clickedMs);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                targetRow = r;
+                            }
+                        });
+                    }
+                }
+            } else if (config.category === 'bode2d') {
+                const clickedRPM = parseFloat(pt.x);
+                if (pt.data && pt.data.name) {
+                    if (pt.data.name.toLowerCase().includes('phase')) {
+                        container.activeSubplot = 'phase';
+                        activeBodeSubplot = 'phase';
+                    } else if (pt.data.name.toLowerCase().includes('amp')) {
+                        container.activeSubplot = 'amp';
+                        activeBodeSubplot = 'amp';
+                    }
+                } else if (pt.yaxis) {
+                    const yId = pt.yaxis._id || '';
+                    if (yId === 'y') {
+                        container.activeSubplot = 'phase';
+                        activeBodeSubplot = 'phase';
+                    } else if (yId === 'y2') {
+                        container.activeSubplot = 'amp';
+                        activeBodeSubplot = 'amp';
+                    }
+                }
+                if (!isNaN(clickedRPM)) {
+                    let minDiff = Infinity;
+                    container.plotData.forEach(r => {
+                        const rpm = parseFloat(r[speedCol] || 0);
+                        const diff = Math.abs(rpm - clickedRPM);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetRow = r;
+                        }
+                    });
+                }
+            } else if (config.category === 'polar') {
+                if (pt.pointIndex !== undefined && (pt.curveNumber === 0 || pt.curveNumber === undefined)) {
+                    const row = container.plotData[pt.pointIndex];
+                    if (row) {
+                        return filteredDf.findIndex(r => r._time_ms === row._time_ms);
+                    }
+                }
+                const clickedR = parseFloat(pt.r !== undefined ? pt.r : pt.y);
+                const clickedTheta = parseFloat(pt.theta !== undefined ? pt.theta : pt.x);
+                if (!isNaN(clickedR) && !isNaN(clickedTheta)) {
+                    let minDiff = Infinity;
+                    const cols = getChannelColumns(config.bearingOrChannel) || {};
+                    container.plotData.forEach(r => {
+                        const amp = parseFloat(r[cols.amp_1x] || 0);
+                        const phase = parseFloat(r[cols.phase_1x] || 0);
+                        const diff = Math.pow(amp - clickedR, 2) + Math.pow(phase - clickedTheta, 2);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetRow = r;
+                        }
+                    });
+                }
+            }
+            
+            if (targetRow) {
+                const targetTimeMs = targetRow._time_ms;
+                return filteredDf.findIndex(r => r._time_ms === targetTimeMs);
+            }
+            
+            // Fallback for non-split plots
+            if (pt.pointIndex !== undefined) {
+                const row = container.plotData[pt.pointIndex];
                 if (row) {
-                    const targetTimeMs = row._time_ms;
-                    const filteredDf = getFilteredData();
-                    return filteredDf.findIndex(r => r._time_ms === targetTimeMs);
+                    return filteredDf.findIndex(r => r._time_ms === row._time_ms);
                 }
             }
             return -1;
@@ -5801,15 +7313,31 @@ export const Dashboard = ({ view }) => {
 
         function handlePlotClick(eventData, container) {
             if (eventData.points && eventData.points.length > 0) {
-                const pt = eventData.points[0];
+                // Find the first clicked point that does not belong to helper/cursor traces
+                const pt = eventData.points.find(p => {
+                    const name = (p.data && p.data.name) || (p.trace && p.trace.name) || '';
+                    return !name.includes('Cursor') && !name.includes('Clearance') && !name.includes('TDC') && !name.includes('Grid');
+                }) || eventData.points[0];
+                
+                const config = plotSlots[parseInt(container.dataset.slotIndex)];
+                if (config && config.category === 'trend') {
+                    const traceName = (pt.data && pt.data.name) || (pt.trace && pt.trace.name);
+                    if (traceName && traceName !== 'Cursor Marker' && traceName !== 'Cursor Line') {
+                        selectedTrendCurveName = traceName;
+                    }
+                }
+
                 const globalIdx = getGlobalIndexFromPlotPoint(pt, container);
                 if (globalIdx !== -1) {
-                    activeCursorIndex = globalIdx;
-                    if (timeSyncCursor) {
-                        updateAllCursorsThrottled();
-                    } else {
-                        updateSlotTelemetryBox(parseInt(container.dataset.slotIndex), activeCursorIndex);
+                    // Pause timeline playback if it is running
+                    if (isTimelinePlaying) {
+                        timelineTogglePlay();
                     }
+                    activeCursorIndex = globalIdx;
+                    updateAllCursorsThrottled();
+                    const slider = document.getElementById('global-timeline-slider');
+                    if (slider) slider.value = activeCursorIndex;
+                    updateTimelineReadout(activeCursorIndex);
                 }
             }
         }
@@ -5819,10 +7347,11 @@ export const Dashboard = ({ view }) => {
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
                 return;
             }
+            const step = parseInt(timelineStepSize, 10) || 1;
             if (e.key === 'ArrowRight') {
                 const filteredDf = getFilteredData();
                 if (activeCursorIndex < filteredDf.length - 1) {
-                    activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + timelineStepSize);
+                    activeCursorIndex = Math.min(filteredDf.length - 1, activeCursorIndex + step);
                     updateAllCursorsThrottled();
                     const slider = document.getElementById('global-timeline-slider');
                     if (slider) slider.value = activeCursorIndex;
@@ -5831,7 +7360,7 @@ export const Dashboard = ({ view }) => {
                 }
             } else if (e.key === 'ArrowLeft') {
                 if (activeCursorIndex > 0) {
-                    activeCursorIndex = Math.max(0, activeCursorIndex - timelineStepSize);
+                    activeCursorIndex = Math.max(0, activeCursorIndex - step);
                     updateAllCursorsThrottled();
                     const slider = document.getElementById('global-timeline-slider');
                     if (slider) slider.value = activeCursorIndex;
@@ -5855,9 +7384,9 @@ export const Dashboard = ({ view }) => {
             // Read checkboxes
             const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
             const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-            const show2X = document.getElementById('show-trend-2x') ? document.getElementById('show-trend-2x').checked : true;
-            const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
-            const showTemp = document.getElementById('show-trend-temp') ? document.getElementById('show-trend-temp').checked : true;
+            const show2X = false;
+            const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
+            const showTemp = false;
 
             const hasPhaseTraces = (show1X && cols.phase_1x && filteredDf[0][cols.phase_1x] !== undefined) ||
                                    (show2X && cols.phase_2x && filteredDf[0][cols.phase_2x] !== undefined);
@@ -5868,19 +7397,27 @@ export const Dashboard = ({ view }) => {
                                    (showTemp && cols.temp && filteredDf[0][cols.temp] !== undefined);
 
             let phaseDomain = [0.65, 1.0];
-            let valueDomain = [0.0, 0.55];
+            let valueDomain = [0.08, 0.55];
             
             if (hasPhaseTraces && !hasValueTraces) {
-                phaseDomain = [0.0, 1.0];
+                phaseDomain = [0.08, 1.0];
             } else if (!hasPhaseTraces && hasValueTraces) {
-                valueDomain = [0.0, 1.0];
+                valueDomain = [0.08, 1.0];
             }
+
+            let tracePhase1X = null;
+            let tracePhase2X = null;
+            let traceDirect = null;
+            let traceAmp1X = null;
+            let traceAmp2X = null;
+            let traceGap = null;
+            let traceTemp = null;
 
             // Subplot 1 (Top): Phase Angle
             if (show1X && cols.phase_1x && filteredDf[0][cols.phase_1x] !== undefined) {
                 const raw_phases = filteredDf.map(r => r[cols.phase_1x]);
                 const unwrapped_phases = unwrapPhase(raw_phases);
-                const tr = {
+                tracePhase1X = {
                     x: x_vals,
                     y: unwrapped_phases,
                     name: '1X Phase',
@@ -5888,13 +7425,12 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'phase_1x');
-                traces.push(tr);
+                applyCurveFormatting(tracePhase1X, 'phase_1x');
             }
             if (show2X && cols.phase_2x && filteredDf[0][cols.phase_2x] !== undefined) {
                 const raw_phases = filteredDf.map(r => r[cols.phase_2x]);
                 const unwrapped_phases = unwrapPhase(raw_phases);
-                const tr = {
+                tracePhase2X = {
                     x: x_vals,
                     y: unwrapped_phases,
                     name: '2X Phase',
@@ -5902,13 +7438,12 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'phase_2x');
-                traces.push(tr);
+                applyCurveFormatting(tracePhase2X, 'phase_2x');
             }
 
             // Subplot 2 (Bottom): Vibration Values
             if (showDirect && cols.direct && filteredDf[0][cols.direct] !== undefined) {
-                const tr = {
+                traceDirect = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.direct]),
                     name: 'Direct',
@@ -5916,11 +7451,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'direct');
-                traces.push(tr);
+                applyCurveFormatting(traceDirect, 'direct');
             }
             if (show1X && cols.amp_1x && filteredDf[0][cols.amp_1x] !== undefined) {
-                const tr = {
+                traceAmp1X = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.amp_1x]),
                     name: '1X Amp',
@@ -5928,11 +7462,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'amp_1x');
-                traces.push(tr);
+                applyCurveFormatting(traceAmp1X, 'amp_1x');
             }
             if (show2X && cols.amp_2x && filteredDf[0][cols.amp_2x] !== undefined) {
-                const tr = {
+                traceAmp2X = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.amp_2x]),
                     name: '2X Amp',
@@ -5940,11 +7473,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'amp_2x');
-                traces.push(tr);
+                applyCurveFormatting(traceAmp2X, 'amp_2x');
             }
             if (showGap && cols.gap && filteredDf[0][cols.gap] !== undefined) {
-                const tr = {
+                traceGap = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.gap]),
                     name: 'Avg Gap',
@@ -5952,11 +7484,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y3',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'gap');
-                traces.push(tr);
+                applyCurveFormatting(traceGap, 'gap');
             }
             if (showTemp && cols.temp && filteredDf[0][cols.temp] !== undefined) {
-                const tr = {
+                traceTemp = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.temp]),
                     name: 'Temp',
@@ -5964,12 +7495,20 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y4',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'temp');
-                traces.push(tr);
+                applyCurveFormatting(traceTemp, 'temp');
             }
 
+            // Push traces in order: Direct, 1X Amp, 1X Phase, 2X Amp, 2X Phase, Avg Gap, Temp
+            if (traceDirect) traces.push(traceDirect);
+            if (traceAmp1X) traces.push(traceAmp1X);
+            if (tracePhase1X) traces.push(tracePhase1X);
+            if (traceAmp2X) traces.push(traceAmp2X);
+            if (tracePhase2X) traces.push(tracePhase2X);
+            if (traceGap) traces.push(traceGap);
+            if (traceTemp) traces.push(traceTemp);
+
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 60, r: 50 };
+            layout.margin = { t: 45, b: 50, l: 65, r: 55 };
             
             const showIsoLimits = document.getElementById('show-iso-limits') ? document.getElementById('show-iso-limits').checked : false;
             
@@ -6093,7 +7632,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = filteredDf;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6188,7 +7727,7 @@ export const Dashboard = ({ view }) => {
                 if (limits.max !== null) layout.yaxis.range = [0, limits.max];
             }
             
-            Plotly.newPlot(container, [tr], layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, [tr], layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_hover', function(data) {
                 if (data.points && data.points.length > 0) {
@@ -6322,7 +7861,7 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
 
@@ -6454,7 +7993,7 @@ export const Dashboard = ({ view }) => {
             const angleXInput = document.getElementById('probe-angle-x-input');
             const angleYInput = document.getElementById('probe-angle-y-input');
             const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
-            const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
+                const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
 
             let probeAngle = 90;
             if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
@@ -6463,13 +8002,37 @@ export const Dashboard = ({ view }) => {
                 probeAngle = probeYAngle;
             }
 
+            // Add ADRE Sxp concentric rotation direction arc arrow outside outer circular boundary (top-left quadrant)
+            const maxAmp = amps.length > 0 ? Math.max(...amps) : 1.0;
+            let currentRMax = maxAmp * 1.1;
+            if (!limits.autoScale && limits.max !== null) {
+                currentRMax = limits.max;
+            }
+
+            const rotDirInput = document.getElementById('shaft-rotation-direction');
+            const rotation = rotDirInput ? rotDirInput.value : 'CW';
+            const isCCW = rotation === 'CCW';
+
+            const phaseMeasInput = document.getElementById('phase-measurement-direction');
+            const phaseMeas = phaseMeasInput ? phaseMeasInput.value : 'against';
+            const against = phaseMeas === 'against';
+
+            const increaseCW = (against && isCCW) || (!against && !isCCW);
+            const angularDirection = increaseCW ? 'clockwise' : 'counterclockwise';
+
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 25, l: 30, r: 75 };
+            layout.margin = { t: 45, b: 65, l: 45, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
+            
+            // Format full scale text e.g., "2.60 mil pp FULL SCALE"
+            const displayUnit = ampUnit === 'mils' ? 'mil pp' : ampUnit;
+            const fullScaleText = `${currentRMax.toFixed(2)} ${displayUnit} FULL SCALE`;
+
             layout.polar = {
                 bgcolor: plotBg,
+                domain: { x: [0.12, 0.88], y: [0.12, 0.88] }, // symmetric domain centered at 0.50
                 angularaxis: {
-                    direction: 'clockwise',
+                    direction: angularDirection,
                     period: 360,
                     rotation: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
@@ -6480,15 +8043,182 @@ export const Dashboard = ({ view }) => {
                     angle: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
                     linecolor: borderCol,
-                    tickfont: { color: baseLayout.font.color },
-                    title: { text: `Amp (${ampUnit})`, font: { size: 10 } }
+                    showticklabels: false,
+                    ticks: ''
                 }
             };
+
+            // Force radial axis range so circular boundary size matches currentRMax exactly
+            let rMin = (!limits.autoScale && limits.min !== null) ? limits.min : 0.0;
+            layout.polar.radialaxis.range = [rMin, currentRMax];
+
+            // Calculate screen dimensions of the container to render a perfect concentric arc outside the circular boundary
+            const rect = container.getBoundingClientRect();
+            const width = rect.width || 400;
+            const height = rect.height || 300;
+
+            const domainSize = 0.76; // width and height of the domain is 0.76 (from 0.12 to 0.88)
+            const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
+
+            const paperCenterX = 0.50;
+            const paperCenterY = 0.50;
             
+            // Draw arc concentric at 1.18 times the radius (sitting cleanly outside the tick labels)
+            const paperRx = (circleRadiusPx * 1.18) / width;
+            const paperRy = (circleRadiusPx * 1.18) / height;
+
+            // Generate path using short line segments (L) to ensure 100% compatibility with Plotly shape parser
+            let arcPath = '';
+            const steps = 12;
+            const startAngDeg = isCCW ? 105 : 165;
+            const sweepDeg = isCCW ? 60 : -60;
+            for (let i = 0; i <= steps; i++) {
+                const angle = (startAngDeg + (i / steps) * sweepDeg) * Math.PI / 180;
+                const x = paperCenterX + paperRx * Math.cos(angle);
+                const y = paperCenterY + paperRy * Math.sin(angle);
+                if (i === 0) {
+                    arcPath += `M ${x.toFixed(4)} ${y.toFixed(4)}`;
+                } else {
+                    arcPath += ` L ${x.toFixed(4)} ${y.toFixed(4)}`;
+                }
+            }
+
+            const angleEnd = (startAngDeg + sweepDeg) * Math.PI / 180;
+            const xEnd = paperCenterX + paperRx * Math.cos(angleEnd);
+            const yEnd = paperCenterY + paperRy * Math.sin(angleEnd);
+
+            // Tangent direction at the end point
+            const tangentAngle = isCCW ? angleEnd + Math.PI / 2 : angleEnd - Math.PI / 2;
+            const arrowSizeStr = slotConfig.polarArrowSize || 'medium';
+            const arrowLength = arrowSizeStr === 'small' ? 6 : arrowSizeStr === 'large' ? 12 : 9;
+            const arrowLenX = arrowLength / width;
+            const arrowLenY = arrowLength / height;
+
+            const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
+            const yWing1 = yEnd - arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
+            const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
+            const yWing2 = yEnd - arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
+
+            const arrowStyle = slotConfig.polarArrowStyle || 'triangle';
+            let arrowheadPath = '';
+            let arrowFillColor = borderCol;
+            let arrowLineWidth = 0.8;
+
+            if (arrowStyle === 'open') {
+                arrowheadPath = `M ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)}`;
+                arrowFillColor = 'rgba(0,0,0,0)';
+                arrowLineWidth = 1.8;
+            } else if (arrowStyle === 'barb') {
+                const xMid = (xWing1 + xWing2) / 2;
+                const yMid = (yWing1 + yWing2) / 2;
+                const xIndent = xMid + 0.35 * (xEnd - xMid);
+                const yIndent = yMid + 0.35 * (yEnd - yMid);
+                arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                arrowFillColor = borderCol;
+                arrowLineWidth = 0.8;
+            } else {
+                arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                arrowFillColor = borderCol;
+                arrowLineWidth = 0.8;
+            }
+
+            const scaleX = 0.94; // X position for the vertical scale bar in paper coordinates
+            const scaleYStart = 0.50; // Y center (0 scale)
+            const scaleYEnd = 0.88; // Y top (Full Scale)
+            const scaleHeight = scaleYEnd - scaleYStart;
+
+            layout.shapes = [
+                // ADRE concentric direction arc line
+                {
+                    type: 'path',
+                    xref: 'paper',
+                    yref: 'paper',
+                    path: arcPath,
+                    fillcolor: 'rgba(0,0,0,0)', // Use standard transparent rgba instead of none to prevent rendering failure
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // ADRE concentric direction arrowhead
+                {
+                    type: 'path',
+                    xref: 'paper',
+                    yref: 'paper',
+                    path: arrowheadPath,
+                    fillcolor: arrowFillColor,
+                    line: { color: borderCol, width: arrowLineWidth }
+                },
+                // Vertical scale line
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart,
+                    x1: scaleX,
+                    y1: scaleYEnd,
+                    line: { color: borderCol, width: 1.5 }
+                },
+                // Bottom tick (0%)
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart,
+                    x1: scaleX + 0.015,
+                    y1: scaleYStart,
+                    line: { color: borderCol, width: 1.5 }
+                },
+                // 25% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.25,
+                    x1: scaleX + 0.01,
+                    y1: scaleYStart + scaleHeight * 0.25,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // 50% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.50,
+                    x1: scaleX + 0.012,
+                    y1: scaleYStart + scaleHeight * 0.50,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // 75% tick
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYStart + scaleHeight * 0.75,
+                    x1: scaleX + 0.01,
+                    y1: scaleYStart + scaleHeight * 0.75,
+                    line: { color: borderCol, width: 1.2 }
+                },
+                // Top tick (100%)
+                {
+                    type: 'line',
+                    xref: 'paper',
+                    yref: 'paper',
+                    x0: scaleX,
+                    y0: scaleYEnd,
+                    x1: scaleX + 0.015,
+                    y1: scaleYEnd,
+                    line: { color: borderCol, width: 1.5 }
+                }
+            ];
+
             layout.annotations = [
                 ...(baseLayout.annotations || []),
+                // Bottom-right: Rotation Direction label
                 {
-                    text: 'CW ROTATION',
+                    text: `${rotation} ROTATION`,
                     showarrow: false,
                     xref: 'paper',
                     yref: 'paper',
@@ -6500,6 +8230,72 @@ export const Dashboard = ({ view }) => {
                         size: 9,
                         color: baseLayout.font.color || '#64748b',
                         weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Bottom-left: Full Scale label (exact ADRE replica)
+                {
+                    text: fullScaleText,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: 0.02,
+                    y: 0.02,
+                    xanchor: 'left',
+                    yanchor: 'bottom',
+                    font: {
+                        size: 9.5,
+                        color: baseLayout.font.color || '#475569',
+                        weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Unit Label at the top
+                {
+                    text: `<b>${displayUnit}</b>`,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX,
+                    y: scaleYEnd + 0.03,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
+                        weight: 'bold',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Top Value
+                {
+                    text: `${currentRMax.toFixed(2)}`,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX - 0.01,
+                    y: scaleYEnd,
+                    xanchor: 'right',
+                    yanchor: 'middle',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                // Scale Bar: Bottom Value (0)
+                {
+                    text: '0',
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: scaleX - 0.01,
+                    y: scaleYStart,
+                    xanchor: 'right',
+                    yanchor: 'middle',
+                    font: {
+                        size: 9,
+                        color: baseLayout.font.color || '#475569',
                         family: 'Arial, sans-serif'
                     }
                 }
@@ -6519,7 +8315,7 @@ export const Dashboard = ({ view }) => {
 
             addCursorToSlot(slotIdx, traces, layout, clean_df);
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6539,6 +8335,7 @@ export const Dashboard = ({ view }) => {
         }
 
         function renderBode2DInSlot(slotIdx, container, ch, filteredDf, baseLayout, limits) {
+            const config = (slotIdx === 'export' ? window.exportPlotConfig : plotSlots[slotIdx]) || {};
             const cols = getChannelColumns(ch);
             if (!cols.amp_1x || !cols.phase_1x) {
                 throw new Error("2D Bode Plot requires Amplitude and Phase columns.");
@@ -6578,13 +8375,24 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'none'
             };
             applyCurveFormatting(trace_phase1x, 'phase_1x');
+
+            const trace_direct = cols.direct && clean_df.some(r => isNumber(r[cols.direct])) ? {
+                x: speeds,
+                y: clean_df.map(r => r[cols.direct]),
+                name: 'Direct Amp',
+                xaxis: 'x2', yaxis: 'y2',
+                hoverinfo: 'none'
+            } : null;
+            if (trace_direct) {
+                applyCurveFormatting(trace_direct, 'direct');
+            }
             
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             const speedUnit = getChannelUnit(ch, 'speed', 'RPM');
             const phaseUnit = getChannelUnit(ch, 'phase', 'deg');
 
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 50, r: 40 };
+            layout.margin = { t: 45, b: 50, l: 55, r: 40 };
 
             // Add critical speed vertical highlight lines & annotations
             if (window.sensorCriticalSpeeds && window.sensorCriticalSpeeds[ch]) {
@@ -6594,7 +8402,7 @@ export const Dashboard = ({ view }) => {
                         type: 'line',
                         x0: peak.rpm,
                         x1: peak.rpm,
-                        y0: 0,
+                        y0: 0.08,
                         y1: 0.45,
                         yref: 'paper',
                         line: { color: 'rgba(239, 68, 68, 0.45)', width: 1.5, dash: 'dash' }
@@ -6625,12 +8433,20 @@ export const Dashboard = ({ view }) => {
                 });
             }
             
+            let minSpeedVal = Math.min(...speeds);
+            let maxSpeedVal = Math.max(...speeds);
+            if (minSpeedVal === maxSpeedVal || isNaN(minSpeedVal) || isNaN(maxSpeedVal)) {
+                minSpeedVal = (minSpeedVal || 0) - 100;
+                maxSpeedVal = (maxSpeedVal || 0) + 100;
+            }
+
             layout.xaxis = {
                 anchor: 'y',
                 domain: [0, 1],
                 showticklabels: false,
                 gridcolor: gridColor,
-                linecolor: borderCol
+                linecolor: borderCol,
+                range: [minSpeedVal, maxSpeedVal]
             };
             layout.yaxis = {
                 title: `Phase (${phaseUnit})`,
@@ -6646,11 +8462,12 @@ export const Dashboard = ({ view }) => {
                 showticklabels: true,
                 title: `Speed (${speedUnit})`,
                 gridcolor: gridColor,
-                linecolor: borderCol
+                linecolor: borderCol,
+                range: [minSpeedVal, maxSpeedVal]
             };
             layout.yaxis2 = {
                 title: `Amp (${ampUnit})`,
-                domain: [0.0, 0.45],
+                domain: [0.08, 0.45],
                 gridcolor: gridColor,
                 linecolor: borderCol
             };
@@ -6661,13 +8478,23 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2.range = [yMin, yMax];
             }
             
-            const traces = [trace_amp1x, trace_phase1x];
+            const traces = [];
+            if (config.showBodeDirect !== false && trace_direct) {
+                traces.push(trace_direct);
+            }
+            if (config.showBode1XAmp !== false) {
+                traces.push(trace_amp1x);
+            }
+            if (config.showBode1XPhase !== false) {
+                traces.push(trace_phase1x);
+            }
             addCursorToSlot(slotIdx, traces, layout, clean_df);
             
             container.plotData = clean_df;
+            container.unwrappedPhases = unwrapped_phases;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6714,6 +8541,26 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
+            let trace_direct = null;
+            if (cols.direct && clean_df.some(r => isNumber(r[cols.direct]))) {
+                const direct_amps = clean_df.map(r => r[cols.direct]);
+                trace_direct = {
+                    type: 'scatter3d',
+                    mode: 'lines+markers',
+                    x: speeds,
+                    y: direct_amps,
+                    z: phases,
+                    name: 'Direct Amp',
+                    hoverinfo: 'none',
+                    line: { color: signalFormats.direct.color || '#3b82f6', width: 3 },
+                    marker: {
+                        size: 2,
+                        color: speeds,
+                        colorscale: 'Viridis'
+                    }
+                };
+            }
+            
             const speedUnit = getChannelUnit(ch, 'speed', 'RPM');
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             const phaseUnit = getChannelUnit(ch, 'phase', 'deg');
@@ -6750,13 +8597,36 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'skip'
             };
 
-            const traces = [trace, cursorTrace];
+            const cursorTraceDirect = trace_direct ? {
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [speeds[0] || 0],
+                y: [(clean_df[0] ? clean_df[0][cols.direct] : 0) || 0],
+                z: [phases[0] || 0],
+                marker: {
+                    symbol: 'diamond',
+                    size: 8,
+                    color: '#fb923c'
+                },
+                name: 'Direct Cursor',
+                showlegend: false,
+                hoverinfo: 'skip'
+            } : null;
+
+            const traces = [trace];
+            if (trace_direct) {
+                traces.push(trace_direct);
+            }
+            traces.push(cursorTrace);
+            if (cursorTraceDirect) {
+                traces.push(cursorTraceDirect);
+            }
             
             container.plotData = clean_df;
             container.unwrappedPhases = phases;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
 
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6835,7 +8705,7 @@ export const Dashboard = ({ view }) => {
             const ampUnit = getChannelUnit(brgX, 'amp', 'mils');
  
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 45, r: 75 };
+            layout.margin = { t: 45, b: 50, l: 50, r: 75 };
             layout.xaxis.title = `Physical Horizontal Position (${ampUnit})`;
             layout.yaxis.title = `Physical Vertical Position (${ampUnit})`;
             layout.yaxis.scaleanchor = 'x';
@@ -6858,7 +8728,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = clean_df;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -6918,6 +8788,14 @@ export const Dashboard = ({ view }) => {
             const active_targets = target_rpms.filter(r => r < max_rpm);
             active_targets.push(max_rpm);
             
+            const KEY_PHASOR_GAP_ANGLE = 0.04; // ~0.64% of a full revolution
+            function isInKeyphasorGap(t) {
+                if (t <= Math.PI) return false;
+                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+            }
+
+            const theta_orbit = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             const orbitColors = ['#f43f5e', '#fb923c', '#10b981', '#38bdf8', '#a855f7'];
             
@@ -6946,11 +8824,13 @@ export const Dashboard = ({ view }) => {
                 const gx_phys = pt_row.x;
                 const gy_phys = pt_row.y;
                 
-                const ox = theta.map(t => {
+                const ox = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gx_phys + pt_orb.x;
                 });
-                const oy = theta.map(t => {
+                const oy = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
                     const pt_orb = convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py));
                     return gy_phys + pt_orb.y;
                 });
@@ -6959,7 +8839,7 @@ export const Dashboard = ({ view }) => {
                     x: ox, y: oy,
                     mode: 'lines',
                     name: `1X Orbit @ ${speed.toFixed(0)} RPM`,
-                    line: { color: orbitColors[i % orbitColors.length], width: 1.5 },
+                    line: { color: '#f43f5e', width: 1.5 },
                     hoverinfo: 'none'
                 });
             });
@@ -6981,7 +8861,7 @@ export const Dashboard = ({ view }) => {
             const ampUnit = getChannelUnit(brgX, 'amp', 'mils');
  
             const layout = { ...baseLayout };
-            layout.margin = { t: 45, b: 35, l: 45, r: 75 };
+            layout.margin = { t: 45, b: 50, l: 50, r: 75 };
             layout.xaxis.title = `Physical Horizontal Position (${ampUnit})`;
             layout.yaxis.title = `Physical Vertical Position (${ampUnit})`;
             layout.yaxis.scaleanchor = 'x';
@@ -7003,7 +8883,7 @@ export const Dashboard = ({ view }) => {
             container.plotData = clean_df;
             container.dataset.slotIndex = slotIdx;
 
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false });
             
             container.on('plotly_click', (data) => handlePlotClick(data, container));
             container.on('plotly_hover', function(data) {
@@ -7037,219 +8917,666 @@ export const Dashboard = ({ view }) => {
             
             const clean_df = filteredDf.filter(r => isNumber(r[cols.x.amp_1x]) && isNumber(r[cols.y.amp_1x]) && isNumber(r[cols.x.phase_1x]) && isNumber(r[cols.y.phase_1x]) && isNumber(r[speedCol]));
             if (checkEmptyData(container, clean_df)) return;
+            container.classList.add('orbit-chart-container');
+            container.plotData = clean_df;
             
             const df_chrono = [...clean_df].sort((a,b) => a._time_ms - b._time_ms);
             let df_frames = df_chrono.filter((_, i) => i % Math.max(1, Math.floor(df_chrono.length / 50)) === 0);
             
             const C = window.bearingClearance || 12.0;
             const boundary_r = C;
-            const limit = C * 1.6;
-            let finalLimit = limit;
+
+            // Keyphasor dynamic physical angular gap configuration
+            const KEY_PHASOR_GAP_ANGLE = 0.04; // ~0.64% of a full revolution
+            function isInKeyphasorGap(t) {
+                if (t <= Math.PI) return false; // gap is immediately before the 2*PI trigger
+                const delta = Math.atan2(Math.sin(t), Math.cos(t));
+                return delta >= -KEY_PHASOR_GAP_ANGLE && delta <= 0;
+            }
+            function isInKeyphasorGapTimebase(t, phase) {
+                const t_trig = Math.round(t / (2 * Math.PI)) * 2 * Math.PI;
+                const diff = t - t_trig;
+                if (Math.abs(diff) <= KEY_PHASOR_GAP_ANGLE) {
+                    const val_t = Math.cos(t - phase);
+                    const val_trig = Math.cos(-phase);
+                    return val_t < val_trig;
+                }
+                return false;
+            }
+            
+            // Dynamically calculate the active peak of the current cursor time point or first row
+            const activeRow = clean_df[activeCursorIndex] || clean_df[0];
+            const activeAx = activeRow ? (Math.abs(activeRow[cols.x.amp_1x]) || 0.1) : 0.1;
+            const activeAy = activeRow ? (Math.abs(activeRow[cols.y.amp_1x]) || 0.1) : 0.1;
+            const activePeak = Math.max(activeAx, activeAy);
+
+            // Engineering Note: In auto-scale mode, the viewport scales tightly to the orbit amplitude
+            // (final_span = activePeak * 2.5) to make the orbit fill the majority of the plot.
+            // This intentionally leaves the physically larger clearance boundary (C) outside the viewport,
+            // matching ADRE behavior. In manual-scale mode (or if auto-scale is disabled),
+            // final_span is set to 2 * C, showing the full clearance circle and orbit.
+            let final_span = activePeak > 0 ? (activePeak * 2.5) : 0.2;
+            let shift = final_span / 2;
             if (!limits.autoScale) {
-                if (limits.max !== null) finalLimit = Math.max(Math.abs(limits.max), boundary_r * 1.6);
-                else if (limits.min !== null) finalLimit = Math.max(Math.abs(limits.min), boundary_r * 1.6);
+                let limitMax = C;
+                if (limits.max !== null) limitMax = Math.abs(limits.max);
+                else if (limits.min !== null) limitMax = Math.abs(limits.min);
+                final_span = 2 * limitMax;
+                shift = limitMax;
+            }
+            const finalLimit = shift;
+
+            let limitY2 = activeAx > 0 ? (activeAx * 1.15) : 0.1;
+            let limitY3 = activeAy > 0 ? (activeAy * 1.15) : 0.1;
+            if (!limits.autoScale) {
+                if (limits.max !== null) {
+                    limitY2 = Math.abs(limits.max);
+                    limitY3 = Math.abs(limits.max);
+                }
             }
 
+            const first_row = df_frames[0];
+            const ax_i = activeAx;
+            const ay_i = activeAy;
+            const speed_val = first_row ? (first_row[speedCol] || 3600) : 3600;
+            const cycle_period_ms = 60000 / Math.max(10, speed_val);
+            const total_time_ms = cycles * cycle_period_ms;
             const layout = { ...baseLayout };
+            if (showTimebase) {
+                layout.margin = { t: 45, b: 35, l: 40, r: 60 };
+            } else {
+                layout.margin = { t: 45, b: 35, l: 40, r: 40 };
+            }
             layout.showlegend = false;
+            layout.hovermode = 'closest';
+
+            function getDynamicShapesAndAnnotations(limit, showTimebase, showTrace2, cycles, cycle_period_ms, brg) {
+                const shift = limit;
+                
+                function getRotatedRectPath(cx, cy, r0, r1, w, angleDegrees) {
+                    const rad = angleDegrees * Math.PI / 180;
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    const x1 = cx + r0 * cos - (w / 2) * sin;
+                    const y1 = cy + r0 * sin + (w / 2) * cos;
+                    const x2 = cx + r1 * cos - (w / 2) * sin;
+                    const y2 = cy + r1 * sin + (w / 2) * cos;
+                    const x3 = cx + r1 * cos + (w / 2) * sin;
+                    const y3 = cy + r1 * sin - (w / 2) * cos;
+                    const x4 = cx + r0 * cos + (w / 2) * sin;
+                    const y4 = cy + r0 * sin - (w / 2) * cos;
+                    return `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
+                }
+
+                const shapes = [
+                    {
+                        type: 'line',
+                        xref: 'x', yref: 'y',
+                        x0: limit, x1: limit,
+                        y0: 2 * limit, y1: 2 * limit - 0.05 * limit,
+                        line: { color: '#000000', width: 1.5 }
+                    },
+                    {
+                        type: 'path',
+                        xref: 'x', yref: 'y',
+                        path: getRotatedRectPath(limit, limit, limit * 1.01, limit * 1.15, limit * 0.03, 135),
+                        fillcolor: 'rgba(148, 163, 184, 0.4)',
+                        line: { color: '#475569', width: 1 }
+                    },
+                    {
+                        type: 'path',
+                        xref: 'x', yref: 'y',
+                        path: getRotatedRectPath(limit, limit, limit * 1.01, limit * 1.15, limit * 0.03, 45),
+                        fillcolor: 'rgba(148, 163, 184, 0.4)',
+                        line: { color: '#475569', width: 1 }
+                    }
+                ];
+
+                if (showTimebase) {
+                    for (let i = 0; i <= cycles; i++) {
+                        const t_kp = i * cycle_period_ms;
+                        shapes.push({
+                            type: 'line',
+                            xref: 'x2',
+                            yref: 'paper',
+                            x0: t_kp,
+                            x1: t_kp,
+                            y0: 0,
+                            y1: 1,
+                            line: {
+                                color: '#94a3b8',
+                                width: 1,
+                                dash: 'dash'
+                            }
+                        });
+                    }
+                }
+
+                const annotations = [
+                    {
+                        x: limit, y: 2.01 * limit, xref: 'x', yref: 'y',
+                        text: '<b>TDC</b>', showarrow: false,
+                        xanchor: 'center',
+                        yanchor: 'bottom',
+                        font: { size: 10, color: '#000000' }
+                    },
+                    {
+                        x: 0, y: 2 * limit, xref: 'x', yref: 'y',
+                        text: '<b>X</b>',
+                        showarrow: false,
+                        xanchor: 'left',
+                        yanchor: 'bottom',
+                        font: { color: '#ffffff', size: 10 },
+                        bgcolor: '#000000',
+                        bordercolor: '#000000',
+                        borderwidth: 1.5,
+                        borderpad: 2.5
+                    },
+                    {
+                        x: 2 * limit, y: 2 * limit, xref: 'x', yref: 'y',
+                        text: '<b>Y</b>',
+                        showarrow: false,
+                        xanchor: 'right',
+                        yanchor: 'bottom',
+                        font: { color: '#ffffff', size: 10 },
+                        bgcolor: '#000000',
+                        bordercolor: '#000000',
+                        borderwidth: 1.5,
+                        borderpad: 2.5
+                    },
+                    {
+                        x: limit * 2.05, y: limit, xref: 'x', yref: 'y',
+                        text: 'AC COUPLED', textangle: 90, showarrow: false,
+                        font: { size: 9, color: '#000000' }
+                    },
+                    {
+                        x: limit * 0.70, y: limit * 1.85,
+                        ax: limit * 0.40, ay: limit * 1.80,
+                        xref: 'x', yref: 'y',
+                        axref: 'x', ayref: 'y',
+                        showarrow: true,
+                        arrowhead: 2,
+                        arrowsize: 1.2,
+                        arrowwidth: 1.5,
+                        arrowcolor: '#000000',
+                        text: ''
+                    },
+                    {
+                        x: limit * 0.55, y: limit * 1.90, xref: 'x', yref: 'y',
+                        text: 'ROTATION', showarrow: false,
+                        font: { size: 8, color: '#475569', weight: 'bold' }
+                    },
+                    {
+                        x: limit * 0.08, y: 2.01 * limit, xref: 'x', yref: 'y',
+                        text: '<b>X Probe (135°)</b>',
+                        showarrow: false,
+                        xanchor: 'left',
+                        yanchor: 'bottom',
+                        font: { size: 9, color: '#475569' }
+                    },
+                    {
+                        x: limit * 1.92, y: 2.01 * limit, xref: 'x', yref: 'y',
+                        text: '<b>Y Probe (45°)</b>',
+                        showarrow: false,
+                        xanchor: 'right',
+                        yanchor: 'bottom',
+                        font: { size: 9, color: '#475569' }
+                    }
+                ];
+
+                const parts_brg = brg.split('/');
+                const brgX = parts_brg[0];
+                const brgY = parts_brg[1] || parts_brg[0];
+                const mapping = bearingPairsMapping && bearingPairsMapping[brg];
+                const x_prefix = mapping ? mapping.x : (brgX + 'X');
+                const y_prefix = mapping ? mapping.y : (brgY + 'Y');
+
+                if (showTimebase) {
+                    if (showTrace2) {
+                        annotations.push({
+                            x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                        annotations.push({
+                            x: 0.55, y: 0.47, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>Y: ${y_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                    } else {
+                        annotations.push({
+                            x: 0.55, y: 1.01, xref: 'paper', yref: 'paper',
+                            xanchor: 'left', yanchor: 'bottom',
+                            text: `<b>X: ${x_prefix} - 1X Filtered Waveform</b>`, showarrow: false,
+                            font: { size: 10, color: 'var(--text-color)' }
+                        });
+                    }
+                }
+
+                return { shapes, annotations };
+            }
+            window.getDynamicShapesAndAnnotations = getDynamicShapesAndAnnotations;
+
+            const spikelineConfig = {
+                showspikes: true,
+                spikemode: 'across',
+                spikesnap: 'cursor',
+                spikedash: 'dash',
+                spikethickness: 1,
+                spikecolor: 'var(--text-muted)'
+            };
+
+            const tickvals = Array.from({length: 9}, (_, i) => i * finalLimit / 4);
+            const ticktext = tickvals.map((v, idx) => idx % 2 === 0 ? Number(v.toFixed(3)).toString() : '');
 
             if (!showTimebase) {
                 layout.grid = { rows: 1, columns: 1 };
                 layout.xaxis = {
-                    title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
-                    title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
-                    scaleanchor: 'x', scaleratio: 1
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
+                    scaleanchor: 'x', scaleratio: 1,
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
             } else if (!showTrace2) {
                 layout.grid = { rows: 1, columns: 2, pattern: 'independent' };
-                layout.column_widths = [0.45, 0.55];
+                layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
-                    title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit],
-                    domain: [0, 0.43]
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
+                    domain: [0, 0.46],
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
-                    title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     scaleanchor: 'x', scaleratio: 1,
-                    domain: [0, 1.0]
+                    domain: [0, 1.0],
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
                 layout.xaxis2 = {
-                    title: 'Rotational Cycles',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.55, 1.0]
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
+                    domain: [0.54, 1.0],
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    showgrid: false,
+                    ...spikelineConfig
                 };
+                const tickvalsY2 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
+                const ticktextY2 = tickvalsY2.map(v => {
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    range: [-limitY2, limitY2],
+                    tickvals: tickvalsY2,
+                    ticktext: ticktextY2,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
             } else {
-                layout.grid = { rows: 1, columns: 3, pattern: 'independent' };
-                layout.column_widths = [0.34, 0.33, 0.33];
+                layout.grid = { rows: 2, columns: 2, pattern: 'independent' };
+                layout.column_widths = [0.5, 0.5];
                 layout.xaxis = {
-                    title: `Horiz. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [-finalLimit, finalLimit],
-                    domain: [0, 0.30]
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
+                    domain: [0, 0.46],
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
                 layout.yaxis = {
-                    title: `Vert. Displ. (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit],
+                    title: '',
+                    gridcolor: 'rgba(148, 163, 184, 0.25)',
+                    gridwidth: 1,
                     scaleanchor: 'x', scaleratio: 1,
-                    domain: [0, 1.0]
+                    domain: [0, 1.0],
+                    range: [0, 2 * finalLimit],
+                    tickvals: tickvals,
+                    ticktext: ticktext,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#000000',
+                    linewidth: 1,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    zerolinewidth: 1.5,
+                    ticks: 'outside',
+                    tickcolor: '#000000',
+                    ticklen: 5,
+                    ...spikelineConfig
                 };
+                // Bottom subplot (Y)
                 layout.xaxis2 = {
-                    title: 'Rotational Cycles (X)',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.38, 0.66]
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
+                    domain: [0.54, 1.0],
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    showgrid: false,
+                    ...spikelineConfig
                 };
+                const tickvalsY2 = [-limitY3, -limitY3 / 2, 0, limitY3 / 2, limitY3];
+                const ticktextY2 = tickvalsY2.map(v => {
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                });
                 layout.yaxis2 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    domain: [0.0, 0.46],
+                    range: [-limitY3, limitY3],
+                    tickvals: tickvalsY2,
+                    ticktext: ticktextY2,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
+                // Top subplot (X)
                 layout.xaxis3 = {
-                    title: 'Rotational Cycles (Y)',
-                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, cycles],
-                    domain: [0.72, 1.0]
+                    title: 'Time (ms)',
+                    gridcolor: baseLayout.xaxis.gridcolor, range: [0, total_time_ms],
+                    domain: [0.54, 1.0],
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    showgrid: false,
+                    ...spikelineConfig
                 };
+                const tickvalsY3 = [-limitY2, -limitY2 / 2, 0, limitY2 / 2, limitY2];
+                const ticktextY3 = tickvalsY3.map(v => {
+                    return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                });
                 layout.yaxis3 = {
                     title: `Displacement (${getChannelUnit(brg.split('/')[0], 'amp', 'mils')})`,
-                    gridcolor: baseLayout.yaxis.gridcolor, range: [-finalLimit, finalLimit]
+                    gridcolor: baseLayout.yaxis.gridcolor,
+                    domain: [0.54, 1.0],
+                    range: [-limitY2, limitY2],
+                    tickvals: tickvalsY3,
+                    ticktext: ticktextY3,
+                    tickmode: 'array',
+                    showline: true,
+                    mirror: true,
+                    linecolor: '#475569',
+                    linewidth: 1,
+                    side: 'right',
+                    ticks: 'outside',
+                    tickcolor: '#475569',
+                    ticklen: 5,
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: '#475569',
+                    zerolinewidth: 1
                 };
             }
 
-            // Custom probe shapes and annotations
-            layout.shapes = [
-                // X Probe body (grey cylinder)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: boundary_r * 1.05, y0: -boundary_r * 0.08,
-                    x1: boundary_r * 1.35, y1: boundary_r * 0.08,
-                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                },
-                // X Probe tip (gold)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: boundary_r * 1.01, y0: -boundary_r * 0.05,
-                    x1: boundary_r * 1.05, y1: boundary_r * 0.05,
-                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                },
-                // Y Probe body (grey cylinder)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: -boundary_r * 0.08, y0: boundary_r * 1.05,
-                    x1: boundary_r * 0.08, y1: boundary_r * 1.35,
-                    fillcolor: '#64748b', line: { color: '#475569', width: 1 }
-                },
-                // Y Probe tip (gold)
-                {
-                    type: 'rect', xref: 'x', yref: 'y',
-                    x0: -boundary_r * 0.05, y0: boundary_r * 1.01,
-                    x1: boundary_r * 0.05, y1: boundary_r * 1.05,
-                    fillcolor: '#eab308', line: { color: '#ca8a04', width: 1 }
-                }
-            ];
+            const dynamicLayoutConfig = getDynamicShapesAndAnnotations(finalLimit, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+            layout.shapes = dynamicLayoutConfig.shapes;
+            layout.annotations = dynamicLayoutConfig.annotations;
 
-            layout.annotations = [
-                {
-                    x: boundary_r * 1.45, y: 0, xref: 'x', yref: 'y',
-                    text: '<b>X Probe</b>', showarrow: false,
-                    font: { size: 9, color: 'var(--text-color)' }
-                },
-                {
-                    x: 0, y: boundary_r * 1.45, xref: 'x', yref: 'y',
-                    text: '<b>Y Probe</b>', showarrow: false,
-                    font: { size: 9, color: 'var(--text-color)' }
-                }
-            ];
-
-            const first_row = df_frames[0];
+            // Refine theta range to generate clean gaps around Keyphasor dot (gap immediately before the dot)
+            const theta_orbit = Array.from({length: 1000}, (_, i) => (i / 999) * 2 * Math.PI);
             const theta = Array.from({length: 64}, (_, i) => i * 2 * Math.PI / 63);
             
-            const ax_i = first_row[cols.x.amp_1x];
-            const ay_i = first_row[cols.y.amp_1x];
-            const px_i = first_row[cols.x.phase_1x] * Math.PI / 180;
-            const py_i = first_row[cols.y.phase_1x] * Math.PI / 180;
+            const px_i = first_row ? ((first_row[cols.x.phase_1x] || 0) * Math.PI / 180) : 0;
+            const py_i = first_row ? ((first_row[cols.y.phase_1x] || 0) * Math.PI / 180) : 0;
             
-            const x_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x);
-            const y_init = theta.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y);
+            const x_init_shifted = theta_orbit.map(t => {
+                if (isInKeyphasorGap(t)) return null;
+                return convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).x + shift;
+            });
+            const y_init_shifted = theta_orbit.map(t => {
+                if (isInKeyphasorGap(t)) return null;
+                return convertProbesToPhysical(ax_i * Math.cos(t - px_i), ay_i * Math.sin(t - py_i)).y + shift;
+            });
 
-            // Timebase waveforms
-            const tb_steps = 100 * cycles;
+
+            const tb_steps = 1000 * cycles;
             const theta_tb = Array.from({length: tb_steps}, (_, i) => (i / (tb_steps - 1)) * cycles * 2 * Math.PI);
-            const tb_x_init_val = theta_tb.map(t => convertProbesToPhysical(ax_i * Math.cos(t - px_i), 0).x);
-            const tb_x_init_time = theta_tb.map(t => t / (2 * Math.PI));
-            const tb_y_init_val = theta_tb.map(t => convertProbesToPhysical(0, ay_i * Math.cos(t - py_i)).y);
+            const tb_x_init_time = theta_tb.map(t => (t / (2 * Math.PI)) * cycle_period_ms);
             const tb_y_init_time = tb_x_init_time;
+            const tb_x_init_val_shifted = theta_tb.map(t => {
+                if (isInKeyphasorGapTimebase(t % (2 * Math.PI), px_i)) return null;
+                return ax_i * Math.cos(t - px_i);
+            });
 
-            // Keyphasor dots (once per cycle)
-            const kp_times = Array.from({length: cycles}, (_, i) => i);
+            const tb_y_init_val_shifted = theta_tb.map(t => {
+                if (isInKeyphasorGapTimebase(t % (2 * Math.PI), py_i)) return null;
+                return ay_i * Math.cos(t - py_i);
+            });
+            // Keyphasor dots (once per cycle - accurate y-value matching raw channel at trigger times)
+            const kp_times = Array.from({length: cycles + 1}, (_, i) => i * cycle_period_ms);
             const pt_kp_init = convertProbesToPhysical(ax_i * Math.cos(-px_i), ay_i * Math.sin(-py_i));
-            const kp_x_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(ax_i * Math.cos(-px_i), 0).x);
-            const kp_y_init_val = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay_i * Math.cos(-py_i)).y);
+            const pt_kp_init_shifted = {
+                x: pt_kp_init.x + shift,
+                y: pt_kp_init.y + shift
+            };
+            const kp_x_init_val_shifted = Array.from({length: cycles + 1}, () => ax_i * Math.cos(px_i));
+            const kp_y_init_val_shifted = Array.from({length: cycles + 1}, () => ay_i * Math.cos(py_i));
 
             const traces = [];
 
             // Trace 0: Orbit Path
             traces.push({
-                x: x_init, y: y_init, mode: 'lines+markers', name: '1X Orbit',
-                line: { color: '#f43f5e', width: 2.5 },
-                marker: { size: 3, color: '#fb7185' }, hoverinfo: 'none',
+                x: x_init_shifted, y: y_init_shifted, mode: 'lines', name: '1X Orbit',
+                line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
                 xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 1: Clearance Boundary
+            // Trace 1: Clearance Boundary (circular, centered)
             traces.push({
-                x: theta.map(t => boundary_r * Math.cos(t)),
-                y: theta.map(t => boundary_r * Math.sin(t)),
+                x: theta.map(t => shift + C * Math.cos(t)),
+                y: theta.map(t => shift + C * Math.sin(t)),
                 mode: 'lines', name: 'Clearance Boundary',
-                line: { color: '#ef4444', width: 1, dash: 'dash' },
+                visible: true,
+                line: { color: '#ef4444', width: 1.2, dash: 'dash' },
                 hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
             });
 
-            // Trace 2: Keyphasor Dot on Orbit
+            // Trace 2: Keyphasor Dot on Orbit (Orange marker with black outline)
             traces.push({
-                x: [pt_kp_init.x],
-                y: [pt_kp_init.y],
+                x: [pt_kp_init_shifted.x],
+                y: [pt_kp_init_shifted.y],
                 mode: 'markers', name: 'Keyphasor Dot',
-                marker: { size: 8, color: '#f59e0b', symbol: 'circle' },
-                hoverinfo: 'none', xaxis: 'x', yaxis: 'y'
+                marker: { size: 9, color: '#f97316', symbol: 'circle', line: { width: 1.2, color: '#000000' } },
+                hoverinfo: 'x+y', xaxis: 'x', yaxis: 'y'
             });
 
             if (showTimebase) {
+                const targetXAxis = showTrace2 ? 'x3' : 'x2';
+                const targetYAxis = showTrace2 ? 'y3' : 'y2';
+
                 // Trace 3: X Timebase waveform
                 traces.push({
-                    x: tb_x_init_time, y: tb_x_init_val, mode: 'lines', name: 'X Waveform',
-                    line: { color: '#0ea5e9', width: 2 }, hoverinfo: 'none',
-                    xaxis: 'x2', yaxis: 'y2'
+                    x: tb_x_init_time, y: tb_x_init_val_shifted, mode: 'lines', name: 'X Waveform',
+                    line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                    xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
-                // Trace 4: Keyphasor Dots on X Timebase
+                // Trace 4: Keyphasor Dots on X Timebase (Blue marker)
                 traces.push({
-                    x: kp_times, y: kp_x_init_val, mode: 'markers', name: 'KP Dots X',
-                    marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'none',
-                    xaxis: 'x2', yaxis: 'y2'
+                    x: kp_times, y: kp_x_init_val_shifted, mode: 'markers', name: 'KP Dots X',
+                    marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
+                    xaxis: targetXAxis, yaxis: targetYAxis
                 });
 
                 if (showTrace2) {
                     // Trace 5: Y Timebase waveform
                     traces.push({
-                        x: tb_y_init_time, y: tb_y_init_val, mode: 'lines', name: 'Y Waveform',
-                        line: { color: '#10b981', width: 2 }, hoverinfo: 'none',
-                        xaxis: 'x3', yaxis: 'y3'
+                        x: tb_y_init_time, y: tb_y_init_val_shifted, mode: 'lines', name: 'Y Waveform',
+                        line: { color: '#3b82f6', width: 2 }, hoverinfo: 'x+y',
+                        xaxis: 'x2', yaxis: 'y2'
                     });
 
-                    // Trace 6: Keyphasor Dots on Y Timebase
+                    // Trace 6: Keyphasor Dots on Y Timebase (Blue marker)
                     traces.push({
-                        x: kp_times, y: kp_y_init_val, mode: 'markers', name: 'KP Dots Y',
-                        marker: { size: 7, color: '#f59e0b', symbol: 'circle' }, hoverinfo: 'none',
-                        xaxis: 'x3', yaxis: 'y3'
+                        x: kp_times, y: kp_y_init_val_shifted, mode: 'markers', name: 'KP Dots Y',
+                        marker: { size: 7, color: '#2563eb', symbol: 'circle' }, hoverinfo: 'x+y',
+                        xaxis: 'x2', yaxis: 'y2'
                     });
                 }
             }
+
+            // Trace 7: Custom Grid Crosses (Slate color + shape)
+            const crosses_x = [];
+            const crosses_y = [];
+            tickvals.forEach(tx => {
+                tickvals.forEach(ty => {
+                    crosses_x.push(tx);
+                    crosses_y.push(ty);
+                });
+            });
+            traces.push({
+                visible: false,
+                x: crosses_x, y: crosses_y, mode: 'markers', name: 'Grid Crosses',
+                marker: { symbol: 'plus', size: 7, color: '#94a3b8', line: { width: 1.0, color: '#94a3b8' } },
+                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+            });
+
+            // Trace 8: Custom Grid Dots (Fine dot grid)
+            const dots_x = [];
+            const dots_y = [];
+            const dot_step = finalLimit / 8;
+            for (let i = -8; i <= 8; i++) {
+                const dx = i * dot_step + finalLimit;
+                for (let j = -8; j <= 8; j++) {
+                    const dy = j * dot_step + finalLimit;
+                    const isMajorX = Math.abs(i % 4) === 0;
+                    const isMajorY = Math.abs(j % 4) === 0;
+                    if (isMajorX && isMajorY) continue;
+                    dots_x.push(dx);
+                    dots_y.push(dy);
+                }
+            }
+            traces.push({
+                visible: false,
+                x: dots_x, y: dots_y, mode: 'markers', name: 'Grid Dots',
+                marker: { symbol: 'circle', size: 2, color: '#cbd5e1' },
+                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+            });
+
+            // Trace 9: Rotation Start + Tick on Orbit line (hidden to prevent confusion)
+            traces.push({
+                x: [],
+                y: [],
+                mode: 'markers', name: 'Start Tick',
+                marker: { symbol: 'plus', size: 7, color: '#000000', line: { width: 1.5, color: '#000000' } },
+                hoverinfo: 'skip', xaxis: 'x', yaxis: 'y'
+            });
+
 
             const frames = [];
             df_frames.forEach((row, f_idx) => {
@@ -7258,46 +9585,136 @@ export const Dashboard = ({ view }) => {
                 const px = (row[cols.x.phase_1x] || 0) * Math.PI / 180;
                 const py = (row[cols.y.phase_1x] || 0) * Math.PI / 180;
 
-                const ox = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x);
-                const oy = theta.map(t => convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y);
+                const framePeak = Math.max(ax, ay);
+                const frameSpan = limits.autoScale ? (framePeak > 0 ? framePeak * 2.5 : 0.2) : (limits.max !== null ? Math.abs(limits.max) * 2 : 2 * C);
+                const frameShift = frameSpan / 2;
+                const frameLimit = frameShift;
+
+                const ox_shifted = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
+                    return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).x + frameShift;
+                });
+                const oy_shifted = theta_orbit.map(t => {
+                    if (isInKeyphasorGap(t)) return null;
+                    return convertProbesToPhysical(ax * Math.cos(t - px), ay * Math.sin(t - py)).y + frameShift;
+                });
 
                 const pt_kp = convertProbesToPhysical(ax * Math.cos(-px), ay * Math.sin(-py));
+                const pt_kp_x_shifted = pt_kp.x + frameShift;
+                const pt_kp_y_shifted = pt_kp.y + frameShift;
 
                 const f_data = [
-                    { x: ox, y: oy },
-                    {}, // Trace 1 (static)
-                    { x: [pt_kp.x], y: [pt_kp.y] }
+                    { x: ox_shifted, y: oy_shifted }, // Trace 0
+                    {
+                        x: theta.map(t => frameShift + C * Math.cos(t)),
+                        y: theta.map(t => frameShift + C * Math.sin(t))
+                    }, // Trace 1
+                    { x: [pt_kp_x_shifted], y: [pt_kp_y_shifted] } // Trace 2
                 ];
-
                 const f_traces = [0, 1, 2];
 
                 if (showTimebase) {
-                    const tb_x = theta_tb.map(t => convertProbesToPhysical(ax * Math.cos(t - px), 0).x);
-                    const kp_x = Array.from({length: cycles}, () => convertProbesToPhysical(ax * Math.cos(-px), 0).x);
-                    f_data.push({ y: tb_x });
-                    f_data.push({ y: kp_x });
+                    const speed = row[speedCol] || 3600;
+                    const T_frame = 60000 / Math.max(10, speed);
+                    const tb_x_time = theta_tb.map(t => (t / (2 * Math.PI)) * T_frame);
+                    const kp_times_frame = Array.from({length: cycles + 1}, (_, i) => i * T_frame);
+                    const tb_x = theta_tb.map(t => {
+                        if (isInKeyphasorGapTimebase(t % (2 * Math.PI), px)) return null;
+                        return ax * Math.cos(t - px);
+                    });
+                    const kp_x = Array.from({length: cycles + 1}, () => ax * Math.cos(px));
+                    
+                    f_data.push({ x: tb_x_time, y: tb_x }); // Trace 3
+                    f_data.push({ x: kp_times_frame, y: kp_x }); // Trace 4
                     f_traces.push(3, 4);
-
                     if (showTrace2) {
-                        const tb_y = theta_tb.map(t => convertProbesToPhysical(0, ay * Math.cos(t - py)).y);
-                        const kp_y = Array.from({length: cycles}, () => convertProbesToPhysical(0, ay * Math.cos(-py)).y);
-                        f_data.push({ y: tb_y });
-                        f_data.push({ y: kp_y });
+                        const tb_y = theta_tb.map(t => {
+                            if (isInKeyphasorGapTimebase(t % (2 * Math.PI), py)) return null;
+                            return ay * Math.cos(t - py);
+                        });
+                        const kp_y = Array.from({length: cycles + 1}, () => ay * Math.cos(py));
+                        
+                        f_data.push({ x: tb_x_time, y: tb_y }); // Trace 5
+                        f_data.push({ x: kp_times_frame, y: kp_y }); // Trace 6
                         f_traces.push(5, 6);
                     }
+                }
+
+                // Keep crosses and dots traces empty as we use Plotly's native grid
+                f_data.push({ x: [], y: [] }); // Trace 7
+                f_data.push({ x: [], y: [] }); // Trace 8
+                f_data.push({ x: [], y: [] }); // Trace 9
+                f_traces.push(7, 8, 9);
+
+                const f_layout = {};
+                if (limits.autoScale) {
+                    const frameTickvals = Array.from({length: 9}, (_, i) => i * frameLimit / 4);
+                    const frameTicktext = frameTickvals.map((v, idx) => idx % 2 === 0 ? Number(v.toFixed(3)).toString() : '');
+                    
+                    f_layout.xaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    f_layout.yaxis = { range: [0, 2 * frameLimit], tickvals: frameTickvals, ticktext: frameTicktext, tickmode: 'array' };
+                    
+                    if (showTimebase) {
+                        if (showTrace2) {
+                            // Top subplot (X Waveform) -> yaxis3, based on ax
+                            const frameLimitY3 = ax > 0 ? (ax * 1.15) : 0.1;
+                            const frameTickvalsY3 = [-frameLimitY3, -frameLimitY3 / 2, 0, frameLimitY3 / 2, frameLimitY3];
+                            const frameTicktextY3 = frameTickvalsY3.map(v => {
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                            });
+                            f_layout.yaxis3 = { range: [-frameLimitY3, frameLimitY3], tickvals: frameTickvalsY3, ticktext: frameTicktextY3, tickmode: 'array' };
+
+                            // Bottom subplot (Y Waveform) -> yaxis2, based on ay
+                            const frameLimitY2 = ay > 0 ? (ay * 1.15) : 0.1;
+                            const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
+                            const frameTicktextY2 = frameTickvalsY2.map(v => {
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                            });
+                            f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
+                        } else {
+                            // Single subplot (X Waveform) -> yaxis2, based on ax
+                            const frameLimitY2 = ax > 0 ? (ax * 1.15) : 0.1;
+                            const frameTickvalsY2 = [-frameLimitY2, -frameLimitY2 / 2, 0, frameLimitY2 / 2, frameLimitY2];
+                            const frameTicktextY2 = frameTickvalsY2.map(v => {
+                                return v === 0 ? '0.0' : Number(Math.abs(v).toFixed(3)).toString();
+                            });
+                            f_layout.yaxis2 = { range: [-frameLimitY2, frameLimitY2], tickvals: frameTickvalsY2, ticktext: frameTicktextY2, tickmode: 'array' };
+                        }
+                    }
+
+                    const frameLayoutConfig = getDynamicShapesAndAnnotations(frameLimit, showTimebase, showTrace2, cycles, cycle_period_ms, brg);
+                    f_layout.shapes = frameLayoutConfig.shapes;
+                    f_layout.annotations = frameLayoutConfig.annotations;
                 }
 
                 frames.push({
                     name: `f_${f_idx}_slot_${slotIdx}`,
                     data: f_data,
-                    traces: f_traces
+                    traces: f_traces,
+                    layout: f_layout
                 });
             });
 
             container.df_frames = df_frames;
-            Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false }).then(() => {
+            safePlotlyReact(container, traces, layout, { responsive: true, displayModeBar: false }).then(() => {
                 Plotly.addFrames(container, frames);
             });
+
+            container.on('plotly_click', (data) => handlePlotClick(data, container));
+            container.on('plotly_hover', function(data) {
+                if (data.points && data.points.length > 0) {
+                    const globalIdx = getGlobalIndexFromPlotPoint(data.points[0], container);
+                    if (globalIdx !== -1) {
+                        updateSlotTelemetryBox(slotIdx, globalIdx);
+                        updateTelemetryReadoutForIndex(globalIdx);
+                    }
+                }
+            });
+            container.on('plotly_unhover', function(data) {
+                updateSlotTelemetryBox(slotIdx, activeCursorIndex);
+                updateTelemetryReadoutForIndex(activeCursorIndex);
+            });
+            updateSlotTelemetryBox(slotIdx, activeCursorIndex);
         }
 
         function renderModeShapeInSlot(slotIdx, container, filteredDf, baseLayout, limits) {
@@ -7680,6 +10097,7 @@ export const Dashboard = ({ view }) => {
                 document.documentElement.style.setProperty('--plot-bg-color', '#0f172a');
                 document.documentElement.style.setProperty('--paper-bg-color', '#0f172a');
                 document.documentElement.style.setProperty('--text-color', '#f8fafc');
+                document.documentElement.style.setProperty('--plot-text-color', '#f8fafc');
                 document.documentElement.style.setProperty('--text-muted', '#94a3b8');
                 document.documentElement.style.setProperty('--border-color', '#334155');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#1e293b');
@@ -7698,6 +10116,7 @@ export const Dashboard = ({ view }) => {
                 document.documentElement.style.setProperty('--plot-bg-color', '#ffffff');
                 document.documentElement.style.setProperty('--paper-bg-color', '#ffffff');
                 document.documentElement.style.setProperty('--text-color', '#0f172a');
+                document.documentElement.style.setProperty('--plot-text-color', '#0f172a');
                 document.documentElement.style.setProperty('--text-muted', '#64748b');
                 document.documentElement.style.setProperty('--border-color', '#cbd5e1');
                 document.documentElement.style.setProperty('--contrast-grid-color', '#e2e8f0');
@@ -7721,6 +10140,8 @@ export const Dashboard = ({ view }) => {
         window.closePanelDrawer = closePanelDrawer;
         window.toggleSidebarGlobal = toggleSidebarGlobal;
         window.toggleSidebar = toggleSidebar;
+        window.toggleRightToolbar = toggleRightToolbar;
+        window.applySlowRollAtCurrentIndex = applySlowRollAtCurrentIndex;
         window.triggerResizeWithTimeout = triggerResizeWithTimeout;
         window.getChannelUnit = getChannelUnit;
         window.applyWorkspaceStyle = applyWorkspaceStyle;
@@ -7790,6 +10211,15 @@ export const Dashboard = ({ view }) => {
         }
         window.toggleOrbitTimebase = toggleOrbitTimebase;
 
+        function toggleBodeTrace(idx, key, checked) {
+            if (plotSlots[idx]) {
+                plotSlots[idx][key] = checked;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.toggleBodeTrace = toggleBodeTrace;
+
         function toggleOrbitTrace2(idx, checked) {
             if (plotSlots[idx]) {
                 plotSlots[idx].showTrace2 = checked;
@@ -7818,6 +10248,24 @@ export const Dashboard = ({ view }) => {
         }
         window.changePolarLabelType = changePolarLabelType;
 
+        function changePolarArrowStyle(idx, style) {
+            if (plotSlots[idx]) {
+                plotSlots[idx].polarArrowStyle = style;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.changePolarArrowStyle = changePolarArrowStyle;
+
+        function changePolarArrowSize(idx, size) {
+            if (plotSlots[idx]) {
+                plotSlots[idx].polarArrowSize = size;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.changePolarArrowSize = changePolarArrowSize;
+
         window.scadaWebSocket = null;
         window.startScadaSimulation = () => {
             const simBtn = document.getElementById('btn-scada-sim');
@@ -7841,10 +10289,12 @@ export const Dashboard = ({ view }) => {
             
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : (window.API_BASE_URL || '');
             let wsUrl;
+            const tokenVal = (typeof token !== 'undefined' ? token : '') || sessionStorage.getItem('token') || '';
+            const queryParam = tokenVal ? `?token=${encodeURIComponent(tokenVal)}` : '';
             if (apiBase) {
-                wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream';
+                wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream' + queryParam;
             } else {
-                wsUrl = 'ws://localhost:8000/scada/stream';
+                wsUrl = 'ws://localhost:8000/scada/stream' + queryParam;
             }
             
             console.log("Connecting to SCADA WebSocket: " + wsUrl);
@@ -7945,6 +10395,11 @@ export const Dashboard = ({ view }) => {
             savedSlowRollSamples = [];
             activeSlowRollSampleId = null;
             slowRollCompensationEnabled = false;
+            const checkboxEl = document.getElementById('slow-roll-enabled');
+            if (checkboxEl) {
+                checkboxEl.checked = false;
+            }
+            updateSlowRollButtonUI();
             if (timelineIntervalId) {
                 clearInterval(timelineIntervalId);
             }
@@ -8431,9 +10886,17 @@ export const Dashboard = ({ view }) => {
         delete window.closePanelDrawer;
         delete window.toggleSidebarGlobal;
         delete window.toggleSidebar;
+        delete window.toggleRightToolbar;
+        delete window.applySlowRollAtCurrentIndex;
         delete window.triggerResizeWithTimeout;
         delete window.getChannelUnit;
         delete window.applyWorkspaceStyle;
+        delete window.resetColorCustomizations;
+        delete window.loadStateStyle;
+        delete window.handleStateColorChange;
+        delete window.handleStateWidthChange;
+        delete window.handleStateDashChange;
+        delete window.handleStateColoringToggle;
         delete window.applyCurveFormatting;
         delete window.handleBgOutsideChange;
         delete window.handleBgInsideChange;
@@ -8496,6 +10959,9 @@ export const Dashboard = ({ view }) => {
         delete window.toggleOrbitTrace2;
         delete window.changeOrbitCycles;
         delete window.changePolarLabelType;
+        delete window.changePolarArrowStyle;
+        delete window.changePolarArrowSize;
+        delete window.toggleBodeTrace;
         delete window.populatePlotFromToolbar;
         
         if (window.scadaInterval) {
@@ -8504,6 +10970,7 @@ export const Dashboard = ({ view }) => {
         }
         delete window.startScadaSimulation;
         delete window.toggleSlowRoll;
+        delete window.toggleSlowRollGlobal;
         delete window.saveSlowRollSample;
         delete window.updateSavedSlowRollList;
         delete window.populateSlowRollDropdown;
@@ -9004,9 +11471,14 @@ export const Dashboard = ({ view }) => {
                                     <label style={{fontSize: "0.65rem", marginBottom: 0, color: "var(--text-muted)"}}>Grid Area</label>
                                 </div>
                             </div>
-                            <button className="sidebar-file-btn" type="button" onClick={() => window.applyWorkspaceStyle && window.applyWorkspaceStyle()} style={{marginTop: "8px", fontSize: "0.7rem", padding: "4px 8px"}}>
-                                Apply Style
-                            </button>
+                            <div style={{display: "flex", gap: "8px", marginTop: "8px"}}>
+                                <button className="sidebar-file-btn" type="button" onClick={() => window.applyWorkspaceStyle && window.applyWorkspaceStyle()} style={{flex: 1, fontSize: "0.7rem", padding: "4px 8px"}}>
+                                    Apply Style
+                                </button>
+                                <button className="sidebar-file-btn" type="button" onClick={() => window.resetColorCustomizations && window.resetColorCustomizations()} style={{flex: 1, fontSize: "0.7rem", padding: "4px 8px", backgroundColor: "rgba(239, 68, 68, 0.08)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.2)"}} title="Reset all background and curve colors back to factory defaults">
+                                    Reset Defaults
+                                </button>
+                            </div>
                         </div>
 
                         {/* Bearing Clearance Configuration */}
@@ -9032,6 +11504,22 @@ export const Dashboard = ({ view }) => {
                                 <div>
                                     <label htmlFor="probe-angle-y-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Probe Y Angle (°)</label>
                                     <input type="number" id="probe-angle-y-input" min="-360" max="360" step="5" defaultValue="45" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
+                                </div>
+                            </div>
+                            <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px"}}>
+                                <div>
+                                    <label htmlFor="shaft-rotation-direction" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Shaft Rotation</label>
+                                    <select id="shaft-rotation-direction" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="CW">CW</option>
+                                        <option value="CCW">CCW</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="phase-measurement-direction" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Phase Measurement</label>
+                                    <select id="phase-measurement-direction" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="against">Against Rotation</option>
+                                        <option value="with">With Rotation</option>
+                                    </select>
                                 </div>
                             </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>
@@ -9079,9 +11567,12 @@ export const Dashboard = ({ view }) => {
                         {/* Slow Roll Compensation Configuration */}
                         <div className="controls-block" style={{background: "none", padding: 0, marginTop: "12px"}}>
                             <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Slow Roll Compensation</h4>
-                            <div className="control-group" style={{marginBottom: "8px"}}>
-                                <label style={{fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="slow-roll-enabled" onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply Compensation
+                            <div className="control-group" style={{marginBottom: "8px", display: "flex", flexDirection: "column", gap: "6px"}}>
+                                <label style={{fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="slow-roll-global-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRollGlobal && window.toggleSlowRollGlobal(e.target.checked)} style={{margin: 0}} /> Apply Globally to All Plots
+                                </label>
+                                <label style={{fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="slow-roll-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply to Selected Plot Only
                                 </label>
                             </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>
@@ -9098,7 +11589,7 @@ export const Dashboard = ({ view }) => {
                                 </label>
                                 <input type="text" id="slow-roll-name-input" placeholder="e.g. Slow Roll 300RPM" style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
                             </div>
-                            <button className="sidebar-file-btn" type="button" onClick={() => window.saveSlowRollSample && window.saveSlowRollSample()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
+                            <button id="btn-save-slow-roll" className="sidebar-file-btn" type="button" onClick={() => window.saveSlowRollSample && window.saveSlowRollSample()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
                                 Save Slow Roll Vector
                             </button>
                             <div id="slow-roll-saved-list" style={{marginTop: "8px", fontSize: "0.70rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "4px"}}>
@@ -9119,16 +11610,8 @@ export const Dashboard = ({ view }) => {
                                     1X Amp & Phase
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-2x" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
-                                    2X Amp & Phase
-                                </label>
-                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-gap" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
+                                    <input type="checkbox" id="show-trend-gap" onChange={() => window.renderGrid && window.renderGrid()} />
                                     Average Gap
-                                </label>
-                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="show-trend-temp" defaultChecked onChange={() => window.renderGrid && window.renderGrid()} />
-                                    Temperature
                                 </label>
                                 <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
                                     <input type="checkbox" id="show-iso-limits" onChange={() => { window.renderGrid && window.renderGrid(); if (document.getElementById('show-iso-limits').checked) { window.dispatchEvent(new CustomEvent('rody_iso_toggled')); } }} />
@@ -9143,14 +11626,10 @@ export const Dashboard = ({ view }) => {
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <select id="format-signal-select" onChange={(e) => window.loadSignalFormat && window.loadSignalFormat(e.target.value)} style={{padding: "4px", fontSize: "0.75rem"}}>
                                     <option value="direct">Direct Vibration</option>
-                                    <option value="amp_1x">1X Amplitude</option>
-                                    <option value="phase_1x">1X Phase</option>
-                                    <option value="amp_2x">2X Amplitude</option>
-                                    <option value="phase_2x">2X Phase</option>
-                                    <option value="amp_nx">nX Amplitude</option>
-                                    <option value="phase_nx">nX Phase</option>
+                                    <option value="amp_1x">1X Amplitude & Phase</option>
+                                    <option value="amp_2x">2X Amplitude & Phase</option>
+                                    <option value="amp_nx">nX Amplitude & Phase</option>
                                     <option value="gap">Avg Gap</option>
-                                    <option value="temp">Temperature</option>
                                     <option value="speed">Speed</option>
                                     <option value="load">Load</option>
                                 </select>
@@ -9162,7 +11641,12 @@ export const Dashboard = ({ view }) => {
                                 </div>
                             </div>
                             <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
-                                <button className="sidebar-file-btn" type="button" onClick={() => window.applyCurveFormatting && window.applyCurveFormatting()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
+                                <button className="sidebar-file-btn" type="button" onClick={() => {
+                                    const picker = document.getElementById('format-color-picker');
+                                    if (picker && window.handleFormatColorChange) {
+                                        window.handleFormatColorChange(picker.value);
+                                    }
+                                }} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
                                     Apply Curve Color
                                 </button>
                             </div>
@@ -9209,6 +11693,74 @@ export const Dashboard = ({ view }) => {
                                     <span id="format-width-val">1.5</span>
                                 </label>
                                 <input type="range" id="format-width-input" min="0.5" max="5.0" step="0.1" defaultValue="1.5" onInput={(e) => window.handleFormatWidthChange && window.handleFormatWidthChange(e.target.value)} style={{padding: 0, margin: 0, background: "none"}} />
+                            </div>
+                        </div>
+
+                        {/* Machine State Styles */}
+                        <div id="state-formatting-panel" className="controls-block" style={{background: "none", padding: 0, marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "12px"}}>
+                            <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Machine State Styles</h4>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <label style={{display: "flex", alignItems: "center", gap: "6px", fontWeight: "normal", cursor: "pointer", color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="toggle-state-coloring" defaultChecked={true} onChange={(e) => window.handleStateColoringToggle && window.handleStateColoringToggle(e.target.checked)} />
+                                    Color-code by Machine State
+                                </label>
+                            </div>
+                            <div style={{marginBottom: "8px"}}>
+                                <button
+                                    id="btn-auto-color-change-sidebar"
+                                    type="button"
+                                    onClick={() => window.handleAutoColorChange && window.handleAutoColorChange()}
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        padding: "4px 8px",
+                                        fontSize: "0.7rem",
+                                        borderRadius: "4px",
+                                        backgroundColor: "var(--accent-color, #3b82f6)",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontFamily: "'Outfit', sans-serif"
+                                    }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: "2px"}}>
+                                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5 3 15 5 15H7C8.5 15 9.5 16 9.5 17.5C9.5 19 8.5 20 8.5 21C8.5 21.5 9 22 12 22Z"></path>
+                                        <circle cx="7.5" cy="10.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="11.5" cy="7.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="16.5" cy="9.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="15.5" cy="14.5" r="1" fill="currentColor"></circle>
+                                    </svg>
+                                    Auto Color Change
+                                </button>
+                            </div>
+                            <div className="control-group" style={{marginBottom: "8px"}}>
+                                <select id="state-style-select" onChange={(e) => window.loadStateStyle && window.loadStateStyle(e.target.value)} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                    <option value="startup">Startup</option>
+                                    <option value="shutdown">Shutdown</option>
+                                    <option value="steady_state">Steady State</option>
+                                    <option value="other">Other/Default</option>
+                                </select>
+                            </div>
+                            <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: "8px", lineHeight: "1.3", borderLeft: "2px solid var(--border-color)", paddingLeft: "6px"}}>
+                                Note: Machine states are differentiated using the colors and dash styles selected below.
+                            </div>
+                            <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
+                                <div style={{flex: 1}}>
+                                    <select id="state-dash-select" onChange={(e) => window.handleStateDashChange && window.handleStateDashChange(e.target.value)} style={{padding: "3px", fontSize: "0.7rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="solid">Solid</option>
+                                        <option value="dash">Dashed</option>
+                                        <option value="dot">Dotted</option>
+                                        <option value="dashdot">Dash-Dot</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="control-group" style={{marginBottom: 0}}>
+                                <label htmlFor="state-width-input" style={{fontSize: "0.65rem", display: "flex", justifyContent: "space-between", marginBottom: "3px"}}>
+                                    <span>Line Width</span>
+                                    <span id="state-width-val">2.0</span>
+                                </label>
+                                <input type="range" id="state-width-input" min="0.5" max="5.0" step="0.1" defaultValue="2.0" onInput={(e) => window.handleStateWidthChange && window.handleStateWidthChange(e.target.value)} style={{padding: 0, margin: 0, background: "none"}} />
                             </div>
                         </div>
                     </div>
@@ -9321,14 +11873,14 @@ export const Dashboard = ({ view }) => {
 
                 {/* Unified Timeline Player Controls */}
                 <div className="timeline-player-bar" id="global-timeline-bar" style={{display: "none"}}>
-                    {/* Row 1: Full-Width Waveform Timeline Navigator */}
+                    {/* Row 1: Full-Width Waveform Timeline Navigator & Range Slider */}
                     <div style={{width: "100%", display: "flex", flexDirection: "column", gap: "4px"}}>
-                        <div id="timeline-waveform-container" style={{width: "100%", height: "38px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "pointer", overflow: "hidden"}}>
+                        <div id="timeline-waveform-container" style={{width: "100%", height: "54px", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "rgba(0,0,0,0.01)", position: "relative", cursor: "default", overflow: "visible"}}>
                             <div style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.75rem"}}>Loading Speed Waveform...</div>
                         </div>
                         <div style={{display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "var(--text-muted)", padding: "0 4px", fontWeight: 500, lineHeight: 1}}>
                             <span>Start</span>
-                            <span id="tl-state-track-label" style={{textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600}}>Machine Speed Profile (Click or Drag to Scrub)</span>
+                            <span id="tl-state-track-label" style={{textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600}}>Machine Speed Profile (Use Slider to Scrub)</span>
                             <span>End</span>
                         </div>
                     </div>
@@ -9345,6 +11897,10 @@ export const Dashboard = ({ view }) => {
                                 <button className="timeline-ctrl-btn" id="tl-btn-prev" onClick={() => window.timelinePrev && window.timelinePrev()} title="Step Back (Ctrl+Left)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronLeft size={16} /></button>
                                 <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronRight size={16} /></button>
                             </div>
+
+                            <button className="timeline-ctrl-btn" id="tl-btn-apply-slowroll" onClick={() => window.applySlowRollAtCurrentIndex && window.applySlowRollAtCurrentIndex()} title="Apply current cursor point as Slow Roll Compensation Baseline" style={{display: "inline-flex", alignItems: "center", backgroundColor: "rgba(14, 165, 233, 0.12)", color: "var(--accent-color)", border: "1px solid rgba(14, 165, 233, 0.25)", padding: "4px 12px", borderRadius: "50px", fontSize: "0.72rem", fontWeight: 700, gap: "4px", cursor: "pointer"}}>
+                                🎯 Apply Slow Roll
+                            </button>
                             
                             {/* Step & Speed settings */}
                             <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
@@ -9404,7 +11960,7 @@ export const Dashboard = ({ view }) => {
                     <div id="plotly-grid"></div>
                     
                     {/* Page controls at the bottom of grid */}
-                    <div className="grid-page-controls" style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", padding: "6px 0", backgroundColor: "var(--card-color)", borderTop: "1px solid var(--border-color)", flexShrink: 0, fontSize: "0.8rem", fontFamily: "'Outfit'"}}>
+                    <div className="grid-page-controls" style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", padding: "2px 0", backgroundColor: "var(--card-color)", borderTop: "1px solid var(--border-color)", flexShrink: 0, fontSize: "0.8rem", fontFamily: "'Outfit'"}}>
                         <button className="grid-card-btn" type="button" onClick={() => window.prevGridPage && window.prevGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronLeft size={16} /></button>
                         <span id="grid-page-indicator">Page 1 of 1</span>
                         <button className="grid-card-btn" type="button" onClick={() => window.nextGridPage && window.nextGridPage()} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 8px"}}><FiChevronRight size={16} /></button>
@@ -9413,6 +11969,9 @@ export const Dashboard = ({ view }) => {
             </div>
             
             {/* Right-side Toolbar (Extensible Layout & Cursor controls) */}
+            <button id="right-toolbar-toggle-btn" className="right-toolbar-toggle" type="button" onClick={() => window.toggleRightToolbar && window.toggleRightToolbar()} title="Collapse Toolbar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:"16px",height:"16px",display:"block",margin:"auto"}}><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
             <div className="right-toolbar">
                 <button className={`toolbar-btn ${currentLayoutState === '1' ? 'active' : ''}`} id="btn-layout-1" type="button" onClick={() => window.setLayout && window.setLayout('1')}>
                     1
@@ -9420,11 +11979,11 @@ export const Dashboard = ({ view }) => {
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2V' ? 'active' : ''}`} id="btn-layout-2v" type="button" onClick={() => window.setLayout && window.setLayout('2V')}>
                     2V
-                    <span className="tooltip">2 Plots Vertical</span>
+                    <span className="tooltip">2 Plots Vertical (Side-by-Side)</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '2H' ? 'active' : ''}`} id="btn-layout-2h" type="button" onClick={() => window.setLayout && window.setLayout('2H')}>
                     2H
-                    <span className="tooltip">2 Plots Horizontal</span>
+                    <span className="tooltip">2 Plots Horizontal (Stacked)</span>
                 </button>
                 <button className={`toolbar-btn ${currentLayoutState === '4' ? 'active' : ''}`} id="btn-layout-4" type="button" onClick={() => window.setLayout && window.setLayout('4')}>
                     4
@@ -9456,47 +12015,68 @@ export const Dashboard = ({ view }) => {
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('trend')}>
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        {/* Beautiful repeating sine wave for Timebase/Waveform */}
+                        <path d="M2 12 C 5 2, 8 22, 11 12 C 14 2, 17 22, 20 12 L 22 12"></path>
                     </svg>
                     <span className="tooltip">Trend Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('polar')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <circle cx="12" cy="12" r="6"></circle>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <line x1="12" y1="2" x2="12" y2="22"></line>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Concentric polar grid and wrapping vector trace */}
+                        <circle cx="12" cy="12" r="10" strokeDasharray="2,2"></circle>
+                        <circle cx="12" cy="12" r="5" strokeDasharray="2,2"></circle>
+                        <line x1="12" y1="2" x2="12" y2="22" strokeDasharray="2,2"></line>
+                        <line x1="2" y1="12" x2="22" y2="12" strokeDasharray="2,2"></line>
+                        <path d="M12 12 C 14 11, 15 8, 18 10" strokeWidth="2" stroke="currentColor"></path>
+                        <circle cx="18" cy="10" r="1.5" fill="currentColor"></circle>
                     </svg>
                     <span className="tooltip">1X Polar Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
+                        onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('orbit')}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Concentric circle with orthogonal X/Y probe axes and a dynamic rotor orbit trajectory */}
+                        <circle cx="12" cy="12" r="8" strokeDasharray="3,3" opacity="0.5"></circle>
+                        <line x1="12" y1="2" x2="12" y2="22" strokeDasharray="2,2" opacity="0.4"></line>
+                        <line x1="2" y1="12" x2="22" y2="12" strokeDasharray="2,2" opacity="0.4"></line>
+                        <path d="M12 12 C 16 16, 17 8, 12 12" strokeWidth="2" stroke="currentColor"></path>
+                        <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+                    </svg>
+                    <span className="tooltip">1X Orbit Plot</span>
+                </button>
+                <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('bode2d')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3v18h18"></path>
-                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
-                        <circle cx="18.7" cy="8" r="1.5" fill="currentColor"></circle>
-                        <circle cx="13.6" cy="13.2" r="1.5" fill="currentColor"></circle>
-                        <circle cx="10.8" cy="10.5" r="1.5" fill="currentColor"></circle>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Stacked subplots representing Amplitude (with resonance peak) and Phase */}
+                        <line x1="3" y1="2" x2="3" y2="21"></line>
+                        <line x1="3" y1="21" x2="22" y2="21"></line>
+                        <path d="M3 9 L 8 9 Q 11 3 13 3 Q 15 3 18 9 L 22 9" strokeWidth="2"></path>
+                        <path d="M3 18 L 10 18 C 12 18, 14 14, 16 14 L 22 14" strokeWidth="2"></path>
                     </svg>
                     <span className="tooltip">Bode Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('centerline')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" strokeDasharray="3,3"></circle>
-                        <circle cx="10" cy="9" r="1.5" fill="currentColor"></circle>
-                        <path d="M12 2v20M2 12h20"></path>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Bearing clearance circle (dashed) and centerline displacement trajectory */}
+                        <circle cx="12" cy="12" r="9" strokeDasharray="2,2"></circle>
+                        <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3,3" opacity="0.4"></line>
+                        <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3,3" opacity="0.4"></line>
+                        <path d="M12 12 Q 10 15, 8 13" strokeWidth="2.5" stroke="currentColor"></path>
+                        <circle cx="8" cy="13" r="2" fill="currentColor"></circle>
                     </svg>
                     <span className="tooltip">Shaft Centerline</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('spectrum')}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="3" y1="20" x2="3" y2="4"></line>
-                        <line x1="3" y1="20" x2="21" y2="20"></line>
-                        <polyline points="3 20 6 14 9 17 12 8 15 12 18 6 21 20"></polyline>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Vertical discrete amplitude spectral bins (FFT spikes) */}
+                        <line x1="3" y1="2" x2="3" y2="21"></line>
+                        <line x1="3" y1="21" x2="22" y2="21"></line>
+                        <line x1="7" y1="21" x2="7" y2="12" strokeWidth="2.5"></line>
+                        <line x1="12" y1="21" x2="12" y2="5" strokeWidth="2.5"></line>
+                        <line x1="17" y1="21" x2="17" y2="16" strokeWidth="2.5"></line>
                     </svg>
                     <span className="tooltip">FFT Spectrum</span>
                 </button>

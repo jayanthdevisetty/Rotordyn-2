@@ -50,7 +50,7 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
         # 3. Rate Limiting (Skip rate limiting for health check endpoint to prevent telemetry degradation)
         if request.url.path != "/health" and is_rate_limited(ip_address):
             log_audit_action(
-                user_id="00000000-0000-0000-0000-000000000000",
+                user_id=None,
                 action="RATE_LIMIT_EXCEEDED",
                 details={"path": request.url.path, "ip": ip_address}
             )
@@ -59,17 +59,20 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Rate limit exceeded. Please wait and try again later.", "request_id": request_id}
             )
 
-        # Extract User ID from JWT if present for structured logging audits
+        # Extract User ID from JWT with signature validation if secret is present
         user_id = None
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            try:
-                # Read claim sub (Supabase user ID) without checking signature at middleware level
-                claims = jwt.get_unverified_claims(token)
-                user_id = claims.get("sub")
-            except Exception:
-                pass
+            if settings.SUPABASE_JWT_SECRET:
+                try:
+                    # Validate signature using configured secret to prevent log spoofing
+                    payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
+                    user_id = payload.get("sub")
+                except Exception:
+                    pass
+            # If SUPABASE_JWT_SECRET is not configured, user_id remains None (anonymous)
+            # to prevent trusting unverified JWT payloads before signature validation.
 
         # Attach request context to Sentry scope dynamically if configured
         if os.getenv("SENTRY_DSN"):
@@ -114,7 +117,7 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
             
             # Write secure audit log
             log_audit_action(
-                user_id=user_id or "00000000-0000-0000-0000-000000000000",
+                user_id=user_id,
                 action="SERVER_INTERNAL_ERROR",
                 details={"path": request.url.path, "error": str(exc), "request_id": request_id},
                 ip_address=ip_address
@@ -158,14 +161,33 @@ class SecurityAndLoggingMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         
         # CSP Header permitting self origins and necessary external asset CDNs
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io ws://* wss://*; "
-            "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io ws://* wss://*; "
-            "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; "
-            "img-src 'self' data: blob: https://*; "
-            "media-src 'self' data: https://*;"
-        )
+        is_prod = os.getenv("ENV") == "production"
+        if is_prod:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io; "
+                "script-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io ws://* wss://*; "
+                "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; "
+                "img-src 'self' data: blob: https://*; "
+                "media-src 'self' data: https://*; "
+                "object-src 'none'; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self';"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io ws://* wss://*; "
+                "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.onrender.com https://*.sentry.io ws://* wss://*; "
+                "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; "
+                "img-src 'self' data: blob: https://*; "
+                "media-src 'self' data: https://*;"
+            )
         
         return response
