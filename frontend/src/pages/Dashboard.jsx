@@ -7205,11 +7205,19 @@ export const Dashboard = ({ view }) => {
                 valueDomain = [0.08, 1.0];
             }
 
+            let tracePhase1X = null;
+            let tracePhase2X = null;
+            let traceDirect = null;
+            let traceAmp1X = null;
+            let traceAmp2X = null;
+            let traceGap = null;
+            let traceTemp = null;
+
             // Subplot 1 (Top): Phase Angle
             if (show1X && cols.phase_1x && filteredDf[0][cols.phase_1x] !== undefined) {
                 const raw_phases = filteredDf.map(r => r[cols.phase_1x]);
                 const unwrapped_phases = unwrapPhase(raw_phases);
-                const tr = {
+                tracePhase1X = {
                     x: x_vals,
                     y: unwrapped_phases,
                     name: '1X Phase',
@@ -7217,13 +7225,12 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'phase_1x');
-                traces.push(tr);
+                applyCurveFormatting(tracePhase1X, 'phase_1x');
             }
             if (show2X && cols.phase_2x && filteredDf[0][cols.phase_2x] !== undefined) {
                 const raw_phases = filteredDf.map(r => r[cols.phase_2x]);
                 const unwrapped_phases = unwrapPhase(raw_phases);
-                const tr = {
+                tracePhase2X = {
                     x: x_vals,
                     y: unwrapped_phases,
                     name: '2X Phase',
@@ -7231,13 +7238,12 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'phase_2x');
-                traces.push(tr);
+                applyCurveFormatting(tracePhase2X, 'phase_2x');
             }
 
             // Subplot 2 (Bottom): Vibration Values
             if (showDirect && cols.direct && filteredDf[0][cols.direct] !== undefined) {
-                const tr = {
+                traceDirect = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.direct]),
                     name: 'Direct',
@@ -7245,11 +7251,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'direct');
-                traces.push(tr);
+                applyCurveFormatting(traceDirect, 'direct');
             }
             if (show1X && cols.amp_1x && filteredDf[0][cols.amp_1x] !== undefined) {
-                const tr = {
+                traceAmp1X = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.amp_1x]),
                     name: '1X Amp',
@@ -7257,11 +7262,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'amp_1x');
-                traces.push(tr);
+                applyCurveFormatting(traceAmp1X, 'amp_1x');
             }
             if (show2X && cols.amp_2x && filteredDf[0][cols.amp_2x] !== undefined) {
-                const tr = {
+                traceAmp2X = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.amp_2x]),
                     name: '2X Amp',
@@ -7269,11 +7273,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y2',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'amp_2x');
-                traces.push(tr);
+                applyCurveFormatting(traceAmp2X, 'amp_2x');
             }
             if (showGap && cols.gap && filteredDf[0][cols.gap] !== undefined) {
-                const tr = {
+                traceGap = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.gap]),
                     name: 'Avg Gap',
@@ -7281,11 +7284,10 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y3',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'gap');
-                traces.push(tr);
+                applyCurveFormatting(traceGap, 'gap');
             }
             if (showTemp && cols.temp && filteredDf[0][cols.temp] !== undefined) {
-                const tr = {
+                traceTemp = {
                     x: x_vals,
                     y: filteredDf.map(r => r[cols.temp]),
                     name: 'Temp',
@@ -7293,9 +7295,17 @@ export const Dashboard = ({ view }) => {
                     yaxis: 'y4',
                     hoverinfo: 'none'
                 };
-                applyCurveFormatting(tr, 'temp');
-                traces.push(tr);
+                applyCurveFormatting(traceTemp, 'temp');
             }
+
+            // Push traces in order: Direct, 1X Amp, 1X Phase, 2X Amp, 2X Phase, Avg Gap, Temp
+            if (traceDirect) traces.push(traceDirect);
+            if (traceAmp1X) traces.push(traceAmp1X);
+            if (tracePhase1X) traces.push(tracePhase1X);
+            if (traceAmp2X) traces.push(traceAmp2X);
+            if (tracePhase2X) traces.push(tracePhase2X);
+            if (traceGap) traces.push(traceGap);
+            if (traceTemp) traces.push(traceTemp);
 
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 50, l: 65, r: 55 };
