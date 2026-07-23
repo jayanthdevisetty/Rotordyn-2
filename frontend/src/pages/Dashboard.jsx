@@ -4427,13 +4427,20 @@ export const Dashboard = ({ view }) => {
                 saveBtn.style.opacity = '1';
             }
 
+            const allEnabled = plotSlots && plotSlots.every(slot => !slot || slot.slowRollEnabled !== false);
             const isSlotSlowRollEnabled = activeSlot ? (activeSlot.slowRollEnabled !== false) : true;
-            if (checkboxEl) {
-                checkboxEl.checked = (slowRollCompensationEnabled && isSlotSlowRollEnabled);
-            }
+            
             const globalCheckboxEl = document.getElementById('slow-roll-global-enabled');
             if (globalCheckboxEl) {
-                globalCheckboxEl.checked = slowRollCompensationEnabled;
+                globalCheckboxEl.checked = slowRollCompensationEnabled && allEnabled;
+            }
+            if (checkboxEl) {
+                checkboxEl.checked = slowRollCompensationEnabled && !allEnabled;
+            }
+            
+            const scopeSelectEl = document.getElementById('tl-slowroll-scope-select');
+            if (scopeSelectEl) {
+                scopeSelectEl.value = allEnabled ? 'global' : 'single';
             }
 
             if (!btn) return;
@@ -4599,10 +4606,21 @@ export const Dashboard = ({ view }) => {
                 savedSlowRollSamples.push(newSample);
                 activeSlowRollSampleId = targetTimeMs;
                 
-                // Enable compensation
+                // Enable compensation based on bottom scope selector
                 slowRollCompensationEnabled = true;
+                const scopeSelect = document.getElementById('tl-slowroll-scope-select');
+                const isGlobal = scopeSelect ? (scopeSelect.value === 'global') : true;
+                
+                plotSlots.forEach((slot, idx) => {
+                    if (slot) {
+                        slot.slowRollEnabled = isGlobal ? true : (idx === activeSlotIndex);
+                    }
+                });
+                
                 const compCheckbox = document.getElementById('slow-roll-enabled');
-                if (compCheckbox) compCheckbox.checked = true;
+                if (compCheckbox) compCheckbox.checked = !isGlobal;
+                const globalCheckbox = document.getElementById('slow-roll-global-enabled');
+                if (globalCheckbox) globalCheckbox.checked = isGlobal;
             }
             
             updateSlowRollButtonUI();
@@ -4614,6 +4632,7 @@ export const Dashboard = ({ view }) => {
             renderGrid();
         }
         window.applySlowRollAtCurrentIndex = applySlowRollAtCurrentIndex;
+        window.handleSlowRollScopeChange = handleSlowRollScopeChange;
 
         function updateSavedSlowRollList() {
             const listEl = document.getElementById('slow-roll-saved-list');
@@ -4697,18 +4716,29 @@ export const Dashboard = ({ view }) => {
         window.updateSavedSlowRollList = updateSavedSlowRollList;
 
         function toggleSlowRoll(checked) {
-            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
-            if (activeSlot) {
-                activeSlot.slowRollEnabled = checked;
-            }
+            const globalCheckbox = document.getElementById('slow-roll-global-enabled');
+            const singleCheckbox = document.getElementById('slow-roll-enabled');
+            
             if (checked) {
                 slowRollCompensationEnabled = true;
+                if (globalCheckbox) globalCheckbox.checked = false;
+                if (singleCheckbox) singleCheckbox.checked = true;
+                
+                plotSlots.forEach((slot, idx) => {
+                    if (slot) {
+                        slot.slowRollEnabled = (idx === activeSlotIndex);
+                    }
+                });
             } else {
-                const anyEnabled = plotSlots.some(slot => slot && slot.slowRollEnabled !== false);
-                if (!anyEnabled) {
-                    slowRollCompensationEnabled = false;
-                }
+                slowRollCompensationEnabled = false;
+                if (globalCheckbox) globalCheckbox.checked = false;
+                if (singleCheckbox) singleCheckbox.checked = false;
+                
+                plotSlots.forEach(slot => {
+                    if (slot) slot.slowRollEnabled = false;
+                });
             }
+            
             updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             renderGrid();
@@ -4719,12 +4749,27 @@ export const Dashboard = ({ view }) => {
         window.toggleSlowRoll = toggleSlowRoll;
 
         function toggleSlowRollGlobal(checked) {
-            slowRollCompensationEnabled = checked;
-            plotSlots.forEach(slot => {
-                if (slot) {
-                    slot.slowRollEnabled = checked;
-                }
-            });
+            const globalCheckbox = document.getElementById('slow-roll-global-enabled');
+            const singleCheckbox = document.getElementById('slow-roll-enabled');
+            
+            if (checked) {
+                slowRollCompensationEnabled = true;
+                if (globalCheckbox) globalCheckbox.checked = true;
+                if (singleCheckbox) singleCheckbox.checked = false;
+                
+                plotSlots.forEach(slot => {
+                    if (slot) slot.slowRollEnabled = true;
+                });
+            } else {
+                slowRollCompensationEnabled = false;
+                if (globalCheckbox) globalCheckbox.checked = false;
+                if (singleCheckbox) singleCheckbox.checked = false;
+                
+                plotSlots.forEach(slot => {
+                    if (slot) slot.slowRollEnabled = false;
+                });
+            }
+            
             updateSlowRollButtonUI();
             invalidateFilteredDataCache();
             renderGrid();
@@ -4733,6 +4778,28 @@ export const Dashboard = ({ view }) => {
             }
         }
         window.toggleSlowRollGlobal = toggleSlowRollGlobal;
+
+        function handleSlowRollScopeChange(scope) {
+            const isGlobal = scope === 'global';
+            const globalCheckbox = document.getElementById('slow-roll-global-enabled');
+            const singleCheckbox = document.getElementById('slow-roll-enabled');
+            
+            if (isGlobal) {
+                if (globalCheckbox) globalCheckbox.checked = true;
+                if (singleCheckbox) singleCheckbox.checked = false;
+                toggleSlowRollGlobal(true);
+            } else {
+                if (globalCheckbox) globalCheckbox.checked = false;
+                if (singleCheckbox) singleCheckbox.checked = true;
+                plotSlots.forEach((slot, idx) => {
+                    if (slot) {
+                        slot.slowRollEnabled = (idx === activeSlotIndex);
+                    }
+                });
+                toggleSlowRoll(true);
+            }
+        }
+        window.handleSlowRollScopeChange = handleSlowRollScopeChange;
 
         // Active filters cache
         function isSeismicChannel(ch) {
@@ -11898,9 +11965,15 @@ export const Dashboard = ({ view }) => {
                                 <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronRight size={16} /></button>
                             </div>
 
-                            <button className="timeline-ctrl-btn" id="tl-btn-apply-slowroll" onClick={() => window.applySlowRollAtCurrentIndex && window.applySlowRollAtCurrentIndex()} title="Apply current cursor point as Slow Roll Compensation Baseline" style={{display: "inline-flex", alignItems: "center", backgroundColor: "rgba(14, 165, 233, 0.12)", color: "var(--accent-color)", border: "1px solid rgba(14, 165, 233, 0.25)", padding: "4px 12px", borderRadius: "50px", fontSize: "0.72rem", fontWeight: 700, gap: "4px", cursor: "pointer"}}>
-                                🎯 Apply Slow Roll
-                            </button>
+                            <div style={{display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "rgba(14, 165, 233, 0.05)", padding: "2px 6px 2px 2px", borderRadius: "50px", border: "1px solid rgba(14, 165, 233, 0.15)"}}>
+                                <button className="timeline-ctrl-btn" id="tl-btn-apply-slowroll" onClick={() => window.applySlowRollAtCurrentIndex && window.applySlowRollAtCurrentIndex()} title="Apply current cursor point as Slow Roll Compensation Baseline" style={{display: "inline-flex", alignItems: "center", backgroundColor: "rgba(14, 165, 233, 0.12)", color: "var(--accent-color)", border: "1px solid rgba(14, 165, 233, 0.25)", padding: "4px 12px", borderRadius: "50px", fontSize: "0.72rem", fontWeight: 700, gap: "4px", cursor: "pointer", margin: 0, height: "24px"}}>
+                                    🎯 Apply Slow Roll
+                                </button>
+                                <select id="tl-slowroll-scope-select" onChange={(e) => window.handleSlowRollScopeChange && window.handleSlowRollScopeChange(e.target.value)} title="Choose whether to apply Slow Roll globally to all plots or only to the active/selected plot" style={{padding: "2px 8px 2px 4px", fontSize: "0.7rem", borderRadius: "50px", border: "none", backgroundColor: "transparent", color: "var(--text-color)", cursor: "pointer", fontWeight: 600, outline: "none", height: "24px"}}>
+                                    <option value="global" style={{backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>All Plots (Global)</option>
+                                    <option value="single" style={{backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>Single Plot Only</option>
+                                </select>
+                            </div>
                             
                             {/* Step & Speed settings */}
                             <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
