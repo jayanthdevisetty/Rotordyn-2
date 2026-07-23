@@ -57,14 +57,6 @@ if (import.meta.env.PROD) {
             blockAccess();
             return;
         }
-
-        // 2. Docked DevTools viewport dimension delta check (threshold 160px)
-        const threshold = 160;
-        const widthDev = window.outerWidth - window.innerWidth > threshold;
-        const heightDev = window.outerHeight - window.innerHeight > threshold;
-        if ((widthDev || heightDev) && !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            blockAccess();
-        }
     }, 1000);
 }
 
