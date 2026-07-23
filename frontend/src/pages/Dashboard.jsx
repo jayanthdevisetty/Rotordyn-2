@@ -628,13 +628,13 @@ export const Dashboard = ({ view }) => {
 
         const signalFormats = {
             direct: { color: '#1e40af', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_1x: { color: '#fe0606', width: 1.8, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            gap: { color: '#fb923c', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            gap: { color: '#fb923c', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             temp: { color: '#fbbf24', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             speed: { color: '#38bdf8', width: 2.0, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             load: { color: '#c084fc', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
@@ -7119,7 +7119,7 @@ export const Dashboard = ({ view }) => {
                     return;
                 }
                 
-                const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Active Vector');
+                const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Active Vector' || t.name === 'Cursor Line');
                 if (traceIdx === -1) return;
                 
                 let cursorY = null;
@@ -7410,7 +7410,13 @@ export const Dashboard = ({ view }) => {
                     // Update the layout shape directly
                     if (container.layout.shapes) {
                         const shapes = [...container.layout.shapes];
-                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead' || (s.type === 'path' && s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))));
+                        const shapeIdx = shapes.findIndex(s => 
+                            s.name === 'Cursor Arrowhead' || 
+                            (s.type === 'path' && (
+                                (s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))) ||
+                                (s.fillcolor && (String(s.fillcolor).toLowerCase().includes('ef4444') || String(s.fillcolor).includes('239')))
+                            ))
+                        );
                         if (shapeIdx !== -1) {
                             shapes[shapeIdx].path = arrowheadPath;
                             shapes[shapeIdx].fillcolor = arrowFillColor;
@@ -12134,6 +12140,39 @@ export const Dashboard = ({ view }) => {
                                     <option value="global" style={{backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>All Plots (Global)</option>
                                     <option value="single" style={{backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>Single Plot Only</option>
                                 </select>
+                            </div>
+                            
+                            <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
+                                <button 
+                                    className={`timeline-ctrl-btn ${colorCodeByStateEnabled ? 'active' : ''}`}
+                                    id="btn-auto-color-change-timeline"
+                                    onClick={() => window.handleAutoColorChange && window.handleAutoColorChange()}
+                                    title="Auto Color-code by State on All Plots"
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        backgroundColor: colorCodeByStateEnabled ? "var(--accent-color)" : "transparent",
+                                        color: colorCodeByStateEnabled ? "#ffffff" : "var(--text-color)",
+                                        border: "1px solid var(--border-color)",
+                                        borderRadius: "4px",
+                                        padding: "4px 10px",
+                                        fontSize: "0.72rem",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        height: "24px",
+                                        margin: 0
+                                    }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", marginRight: "2px" }}>
+                                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5 3 15 5 15H7C8.5 15 9.5 16 9.5 17.5C9.5 19 8.5 20 8.5 21C8.5 21.5 9 22 12 22Z"></path>
+                                        <circle cx="7.5" cy="10.5" r="1.2" fill="currentColor"></circle>
+                                        <circle cx="11.5" cy="7.5" r="1.2" fill="currentColor"></circle>
+                                        <circle cx="16.5" cy="9.5" r="1.2" fill="currentColor"></circle>
+                                        <circle cx="15.5" cy="14.5" r="1.2" fill="currentColor"></circle>
+                                    </svg>
+                                    <span>Auto-Color States</span>
+                                </button>
                             </div>
                             
                             {/* Step & Speed settings */}
