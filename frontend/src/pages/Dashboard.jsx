@@ -4431,6 +4431,10 @@ export const Dashboard = ({ view }) => {
             if (checkboxEl) {
                 checkboxEl.checked = (slowRollCompensationEnabled && isSlotSlowRollEnabled);
             }
+            const globalCheckboxEl = document.getElementById('slow-roll-global-enabled');
+            if (globalCheckboxEl) {
+                globalCheckboxEl.checked = slowRollCompensationEnabled;
+            }
 
             if (!btn) return;
             
@@ -4699,6 +4703,11 @@ export const Dashboard = ({ view }) => {
             }
             if (checked) {
                 slowRollCompensationEnabled = true;
+            } else {
+                const anyEnabled = plotSlots.some(slot => slot && slot.slowRollEnabled !== false);
+                if (!anyEnabled) {
+                    slowRollCompensationEnabled = false;
+                }
             }
             updateSlowRollButtonUI();
             invalidateFilteredDataCache();
@@ -4708,6 +4717,22 @@ export const Dashboard = ({ view }) => {
             }
         }
         window.toggleSlowRoll = toggleSlowRoll;
+
+        function toggleSlowRollGlobal(checked) {
+            slowRollCompensationEnabled = checked;
+            plotSlots.forEach(slot => {
+                if (slot) {
+                    slot.slowRollEnabled = checked;
+                }
+            });
+            updateSlowRollButtonUI();
+            invalidateFilteredDataCache();
+            renderGrid();
+            if (checked) {
+                window.dispatchEvent(new CustomEvent('rody_slowroll_subtracted'));
+            }
+        }
+        window.toggleSlowRollGlobal = toggleSlowRollGlobal;
 
         // Active filters cache
         function isSeismicChannel(ch) {
@@ -10924,6 +10949,7 @@ export const Dashboard = ({ view }) => {
         }
         delete window.startScadaSimulation;
         delete window.toggleSlowRoll;
+        delete window.toggleSlowRollGlobal;
         delete window.saveSlowRollSample;
         delete window.updateSavedSlowRollList;
         delete window.populateSlowRollDropdown;
@@ -11520,9 +11546,12 @@ export const Dashboard = ({ view }) => {
                         {/* Slow Roll Compensation Configuration */}
                         <div className="controls-block" style={{background: "none", padding: 0, marginTop: "12px"}}>
                             <h4 style={{fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px"}}>Slow Roll Compensation</h4>
-                            <div className="control-group" style={{marginBottom: "8px"}}>
-                                <label style={{fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
-                                    <input type="checkbox" id="slow-roll-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply Compensation
+                            <div className="control-group" style={{marginBottom: "8px", display: "flex", flexDirection: "column", gap: "6px"}}>
+                                <label style={{fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="slow-roll-global-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRollGlobal && window.toggleSlowRollGlobal(e.target.checked)} style={{margin: 0}} /> Apply Globally to All Plots
+                                </label>
+                                <label style={{fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontWeight: 600, color: "var(--text-color)"}}>
+                                    <input type="checkbox" id="slow-roll-enabled" defaultChecked={slowRollCompensationEnabled} onChange={(e) => window.toggleSlowRoll && window.toggleSlowRoll(e.target.checked)} style={{margin: 0}} /> Apply to Selected Plot Only
                                 </label>
                             </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>
