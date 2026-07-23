@@ -10,4 +10,10 @@ if (!supabaseAnonKey) {
     throw new Error("Missing required environment variable: VITE_SUPABASE_ANON_KEY. Application startup aborted to prevent accidental production connection fallback.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        storage: window.sessionStorage,
+        autoRefreshToken: true,
+        persistSession: true
+    }
+});

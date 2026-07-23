@@ -46,7 +46,7 @@ export const ProtectedRoute = ({ children, requireAdmin = false }) => {
     React.useEffect(() => {
         if (!loading && (!token || !user)) {
             if (!requireAdmin && location.pathname !== '/auth' && location.pathname !== '/') {
-                localStorage.setItem('auth_redirect_target', location.pathname);
+                sessionStorage.setItem('auth_redirect_target', location.pathname);
             }
         }
     }, [loading, token, user, requireAdmin, location.pathname]);

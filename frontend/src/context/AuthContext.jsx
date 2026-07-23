@@ -12,18 +12,18 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || (
 );
 
 export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(() => localStorage.getItem('token'));
+    const [token, setToken] = useState(() => sessionStorage.getItem('token'));
     const [user, setUser] = useState(() => {
         try {
-            const cached = localStorage.getItem('user_profile');
+            const cached = sessionStorage.getItem('user_profile');
             return cached ? JSON.parse(cached) : null;
         } catch (e) {
             return null;
         }
     });
     const [loading, setLoading] = useState(() => {
-        const hasToken = !!localStorage.getItem('token');
-        const hasProfile = !!localStorage.getItem('user_profile');
+        const hasToken = !!sessionStorage.getItem('token');
+        const hasProfile = !!sessionStorage.getItem('user_profile');
         return hasToken && !hasProfile;
     });
     const verifyingTokenRef = useRef(null);
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
         if (!currentToken) {
             verifyingTokenRef.current = null;
             setUser(null);
-            localStorage.removeItem('user_profile');
+            sessionStorage.removeItem('user_profile');
             setLoading(false);
             return;
         }
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
                 subscription_status: authUser.user_metadata?.subscription_status || profile.subscription_status || 'free-tier',
                 report_generation_count: parseInt(authUser.user_metadata?.report_generation_count || profile.report_generation_count || 0, 10)
             };
-            localStorage.setItem('user_profile', JSON.stringify(mergedProfile));
+            sessionStorage.setItem('user_profile', JSON.stringify(mergedProfile));
             setUser(mergedProfile);
         } catch (err) {
             console.error('verifySession: Error checking session:', err);
@@ -95,13 +95,13 @@ export const AuthProvider = ({ children }) => {
             console.log("onAuthStateChange: Auth event fired:", event);
             if (session) {
                 const currentToken = session.access_token;
-                localStorage.setItem('token', currentToken);
+                sessionStorage.setItem('token', currentToken);
                 setToken(currentToken);
                 await verifySession(currentToken);
             } else {
                 verifyingTokenRef.current = null;
-                localStorage.removeItem('token');
-                localStorage.removeItem('user_profile');
+                sessionStorage.removeItem('token');
+                sessionStorage.removeItem('user_profile');
                 setToken(null);
                 setUser(null);
                 setLoading(false);
@@ -164,17 +164,17 @@ export const AuthProvider = ({ children }) => {
         try {
             await supabase.auth.signOut();
         } catch (e) {}
-        localStorage.removeItem('token');
-        localStorage.removeItem('user_profile');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user_profile');
         setToken(null);
         setUser(null);
     };
 
     const saveToken = (newToken, newUser = null) => {
-        localStorage.setItem('token', newToken);
+        sessionStorage.setItem('token', newToken);
         setToken(newToken);
         if (newUser) {
-            localStorage.setItem('user_profile', JSON.stringify(newUser));
+            sessionStorage.setItem('user_profile', JSON.stringify(newUser));
             setUser(newUser);
         }
     };

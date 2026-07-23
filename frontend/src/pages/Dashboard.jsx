@@ -97,9 +97,9 @@ let colorCodeByStateEnabled = true;
 let activeBodeSubplot = 'phase';
 const stateFormats = {
     startup: { color: '#10b981', width: 2.0, dash: 'solid' },
-    shutdown: { color: '#ef4444', width: 2.0, dash: 'dash' },
-    steady_state: { color: '#3b82f6', width: 1.5, dash: 'dot' },
-    other: { color: '#64748b', width: 1.5, dash: 'dashdot' }
+    shutdown: { color: '#ef4444', width: 2.0, dash: 'solid' },
+    steady_state: { color: '#3b82f6', width: 1.5, dash: 'solid' },
+    other: { color: '#64748b', width: 1.5, dash: 'solid' }
 };
 let x_gap_rest_global = {};
 let y_gap_rest_global = {};
@@ -629,14 +629,14 @@ export const Dashboard = ({ view }) => {
             direct: { color: '#1e40af', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             amp_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
             phase_1x: { color: '#fe0606', width: 1.8, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_2x: { color: '#10b981', width: 1.5, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            amp_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            phase_nx: { color: '#a855f7', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            gap: { color: '#fb923c', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            temp: { color: '#fbbf24', width: 1.5, dash: 'dashdot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            speed: { color: '#38bdf8', width: 2.0, dash: 'dot', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
-            load: { color: '#c084fc', width: 1.5, dash: 'dash', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
+            amp_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_2x: { color: '#10b981', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            amp_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            phase_nx: { color: '#a855f7', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            gap: { color: '#fb923c', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            temp: { color: '#fbbf24', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            speed: { color: '#38bdf8', width: 2.0, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' },
+            load: { color: '#c084fc', width: 1.5, dash: 'solid', mode: 'lines', marker_size: 4, marker_symbol: 'circle' }
         };
 
         const isNumber = (val) => typeof val === 'number' && !isNaN(val);
@@ -973,6 +973,35 @@ export const Dashboard = ({ view }) => {
         }
         window.resetColorCustomizations = resetColorCustomizations;
 
+        function handleAutoColorChange() {
+            colorCodeByStateEnabled = !colorCodeByStateEnabled;
+            
+            const stateCheckbox = document.getElementById('toggle-state-coloring');
+            if (stateCheckbox) stateCheckbox.checked = colorCodeByStateEnabled;
+            
+            const tbBtn = document.getElementById('btn-auto-color-change-toolbar');
+            if (tbBtn) {
+                if (colorCodeByStateEnabled) {
+                    tbBtn.classList.add('active');
+                } else {
+                    tbBtn.classList.remove('active');
+                }
+            }
+            
+            stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
+            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'solid' };
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'solid' };
+
+            const stateSelect = document.getElementById('state-style-select');
+            if (stateSelect) {
+                loadStateStyle(stateSelect.value);
+            }
+
+            renderGrid();
+        }
+        window.handleAutoColorChange = handleAutoColorChange;
+
         function loadStateStyle(stateKey) {
             const fmt = stateFormats[stateKey];
             if (fmt) {
@@ -1027,6 +1056,14 @@ export const Dashboard = ({ view }) => {
 
         function handleStateColoringToggle(checked) {
             colorCodeByStateEnabled = checked;
+            const tbBtn = document.getElementById('btn-auto-color-change-toolbar');
+            if (tbBtn) {
+                if (colorCodeByStateEnabled) {
+                    tbBtn.classList.add('active');
+                } else {
+                    tbBtn.classList.remove('active');
+                }
+            }
             renderGrid();
         }
 
@@ -4949,7 +4986,7 @@ export const Dashboard = ({ view }) => {
                 
                 const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                 const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
-                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
                 const showTemp = false;
 
                 let htmlParts = [
@@ -4984,7 +5021,7 @@ export const Dashboard = ({ view }) => {
                 let xGap = cols.x.gap && row[cols.x.gap] !== undefined && row[cols.x.gap] !== null ? `${row[cols.x.gap].toFixed(2)} ${ampUnitX}` : 'N/A';
                 let yGap = cols.y.gap && row[cols.y.gap] !== undefined && row[cols.y.gap] !== null ? `${row[cols.y.gap].toFixed(2)} ${ampUnitY}` : 'N/A';
                 
-                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
 
                 let htmlParts = [
                     `<span><b>RPM:</b> ${speedText}</span>`
@@ -5510,6 +5547,17 @@ export const Dashboard = ({ view }) => {
                                         Cyc: <input type="number" min="1" max="999" value="${config.cycles}" onchange="changeOrbitCycles(${i}, this.value)" style="width: 40px; height: 16px; font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px;">
                                     </label>
                                 ` : ''}
+                                ${config.category === 'bode2d' ? `
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBodeDirect', this.checked)" ${config.showBodeDirect !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> Direct
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBode1XAmp', this.checked)" ${config.showBode1XAmp !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> 1X Amp
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 3px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        <input type="checkbox" onchange="toggleBodeTrace(${i}, 'showBode1XPhase', this.checked)" ${config.showBode1XPhase !== false ? 'checked' : ''} style="margin: 0; cursor: pointer;"> 1X Phase
+                                    </label>
+                                ` : ''}
                                 ${isPolar ? `
                                     <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
                                         Labels:
@@ -5517,6 +5565,22 @@ export const Dashboard = ({ view }) => {
                                             <option value="speed" ${config.polarLabelType === 'speed' ? 'selected' : ''}>Speed</option>
                                             <option value="time" ${config.polarLabelType === 'time' ? 'selected' : ''}>Time</option>
                                             <option value="none" ${config.polarLabelType === 'none' ? 'selected' : ''}>None</option>
+                                        </select>
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        Arrow:
+                                        <select onchange="changePolarArrowStyle(${i}, this.value)" style="font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px; height: 18px; cursor: pointer; font-weight: 500;">
+                                            <option value="triangle" ${config.polarArrowStyle === 'triangle' || !config.polarArrowStyle ? 'selected' : ''}>Triangle</option>
+                                            <option value="open" ${config.polarArrowStyle === 'open' ? 'selected' : ''}>Open</option>
+                                            <option value="barb" ${config.polarArrowStyle === 'barb' ? 'selected' : ''}>Barb</option>
+                                        </select>
+                                    </label>
+                                    <label style="font-size: 0.7rem; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 8px; font-weight: 500;">
+                                        Size:
+                                        <select onchange="changePolarArrowSize(${i}, this.value)" style="font-size: 0.7rem; padding: 0 2px; border: 1px solid var(--border-color); background: var(--card-color); color: var(--text-color); border-radius: 3px; height: 18px; cursor: pointer; font-weight: 500;">
+                                            <option value="small" ${config.polarArrowSize === 'small' ? 'selected' : ''}>Small</option>
+                                            <option value="medium" ${config.polarArrowSize === 'medium' || !config.polarArrowSize ? 'selected' : ''}>Medium</option>
+                                            <option value="large" ${config.polarArrowSize === 'large' ? 'selected' : ''}>Large</option>
                                         </select>
                                     </label>
                                 ` : ''}
@@ -5763,7 +5827,7 @@ export const Dashboard = ({ view }) => {
                 const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                 const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
                 const show2X = false;
-                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+                const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
                 const showTemp = false;
                 
                 let resolvedY = null;
@@ -5852,13 +5916,9 @@ export const Dashboard = ({ view }) => {
                 cursorX = cursorRow[speedCol] !== undefined ? cursorRow[speedCol] * ratio : 0;
                 
                 const activeSubplot = activeBodeSubplot;
-                let cursorY = 0;
-                let xaxis = 'x2';
-                let yaxis = 'y2';
                 
                 if (activeSubplot === 'phase') {
-                    xaxis = 'x';
-                    yaxis = 'y';
+                    let cursorY = 0;
                     if (container && container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined) {
                         cursorY = container.unwrappedPhases[localIdx];
                     } else if (cols.phase_1x && cursorRow[cols.phase_1x] !== undefined) {
@@ -5866,27 +5926,64 @@ export const Dashboard = ({ view }) => {
                         const unwrapped_phases = unwrapPhase(raw_phases);
                         cursorY = unwrapped_phases[localIdx];
                     }
+                    traces.push({
+                        type: 'scatter',
+                        x: [cursorX],
+                        y: [cursorY],
+                        xaxis: 'x',
+                        yaxis: 'y',
+                        mode: 'markers',
+                        name: 'Cursor Marker',
+                        marker: {
+                            symbol: 'cross',
+                            size: 9,
+                            color: '#ef4444',
+                            line: { width: 1.5, color: '#ef4444' }
+                        },
+                        showlegend: false,
+                        hoverinfo: 'skip'
+                    });
                 } else {
-                    cursorY = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                    const y1X = cursorRow[cols.amp_1x] !== undefined ? cursorRow[cols.amp_1x] : 0;
+                    traces.push({
+                        type: 'scatter',
+                        x: [cursorX],
+                        y: [y1X],
+                        xaxis: 'x2',
+                        yaxis: 'y2',
+                        mode: 'markers',
+                        name: 'Cursor Marker',
+                        marker: {
+                            symbol: 'cross',
+                            size: 9,
+                            color: '#ef4444',
+                            line: { width: 1.5, color: '#ef4444' }
+                        },
+                        showlegend: false,
+                        hoverinfo: 'skip'
+                    });
+
+                    if (cols.direct && localDf.some(r => isNumber(r[cols.direct]))) {
+                        const yDirect = cursorRow[cols.direct] !== undefined ? cursorRow[cols.direct] : 0;
+                        traces.push({
+                            type: 'scatter',
+                            x: [cursorX],
+                            y: [yDirect],
+                            xaxis: 'x2',
+                            yaxis: 'y2',
+                            mode: 'markers',
+                            name: 'Direct Cursor Marker',
+                            marker: {
+                                symbol: 'cross',
+                                size: 9,
+                                color: '#fb923c',
+                                line: { width: 1.5, color: '#fb923c' }
+                            },
+                            showlegend: false,
+                            hoverinfo: 'skip'
+                        });
+                    }
                 }
-                
-                traces.push({
-                    type: 'scatter',
-                    x: [cursorX],
-                    y: [cursorY],
-                    xaxis: xaxis,
-                    yaxis: yaxis,
-                    mode: 'markers',
-                    name: 'Cursor Marker',
-                    marker: {
-                        symbol: 'cross',
-                        size: 9,
-                        color: '#ef4444',
-                        line: { width: 1.5, color: '#ef4444' }
-                    },
-                    showlegend: false,
-                    hoverinfo: 'skip'
-                });
                 
                 return; // Early return for bode2d
             } else if (config.category === 'centerline' || config.category === 'centerline_orbit') {
@@ -6032,6 +6129,7 @@ export const Dashboard = ({ view }) => {
                     showlegend: idx === 0,
                     line: {
                         ...(trace.line || {}),
+                        color: stateFmt.color,
                         dash: stateFmt.dash
                     }
                 };
@@ -6173,17 +6271,26 @@ export const Dashboard = ({ view }) => {
                 const cursorMs = filteredDf[activeCursorIndex]._time_ms;
                 const cursorPct = Math.max(0, Math.min(100, ((cursorMs - firstMs) / totalMs) * 100));
                 
-                if (cursorIndicator) {
-                    cursorIndicator.style.display = 'block';
-                    cursorIndicator.style.left = `${cursorPct}%`;
-                }
-
                 // Sync the range slider values
                 const slider = document.getElementById('global-timeline-slider');
+                let leftPos = `${cursorPct}%`;
                 if (slider) {
                     slider.min = 0;
                     slider.max = filteredDf.length - 1;
                     slider.value = activeCursorIndex;
+                    
+                    const sliderWidth = slider.getBoundingClientRect().width;
+                    if (sliderWidth > 0) {
+                        const thumbRadius = 8; // 8px inset
+                        const usableWidth = sliderWidth - 2 * thumbRadius;
+                        const pixelPos = thumbRadius + (cursorPct / 100) * usableWidth;
+                        leftPos = `${pixelPos}px`;
+                    }
+                }
+
+                if (cursorIndicator) {
+                    cursorIndicator.style.display = 'block';
+                    cursorIndicator.style.left = leftPos;
                 }
             } else {
                 if (cursorIndicator) cursorIndicator.style.display = 'none';
@@ -6427,20 +6534,33 @@ export const Dashboard = ({ view }) => {
                 if (!container || !container.data) return;
                 
                 if (config.category === 'bode3d') {
-                    const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
-                    if (traceIdx !== -1 && container.plotData) {
+                    if (container.plotData) {
                         const localIdx = findClosestRowIndex(container.plotData, targetTimeMs);
                         if (localIdx !== -1) {
                             const localRow = container.plotData[localIdx];
                             const cols = getChannelColumns(config.bearingOrChannel);
                             const cursorX_3d = localRow[speedCol];
-                            const cursorY_3d = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
                             const cursorZ_3d = container.unwrappedPhases && container.unwrappedPhases[localIdx] !== undefined ? container.unwrappedPhases[localIdx] : (localRow[cols.phase_1x] || 0);
-                            Plotly.restyle(container, {
-                                x: [[cursorX_3d]],
-                                y: [[cursorY_3d]],
-                                z: [[cursorZ_3d]]
-                            }, [traceIdx]);
+                            
+                            const traceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                            if (traceIdx !== -1) {
+                                const cursorY_3d = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                                Plotly.restyle(container, {
+                                    x: [[cursorX_3d]],
+                                    y: [[cursorY_3d]],
+                                    z: [[cursorZ_3d]]
+                                }, [traceIdx]);
+                            }
+
+                            const directTraceIdx = container.data.findIndex(t => t.name === 'Direct Cursor');
+                            if (directTraceIdx !== -1) {
+                                const cursorY_3d_direct = localRow[cols.direct] !== undefined ? localRow[cols.direct] : 0;
+                                Plotly.restyle(container, {
+                                    x: [[cursorX_3d]],
+                                    y: [[cursorY_3d_direct]],
+                                    z: [[cursorZ_3d]]
+                                }, [directTraceIdx]);
+                            }
                         }
                     }
                     updateSlotTelemetryBox(idx, activeCursorIndex);
@@ -6588,7 +6708,7 @@ export const Dashboard = ({ view }) => {
                     const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
                     const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
                     const show2X = false;
-                    const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+                    const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
                     const showTemp = false;
                     
                     let resolvedY = null;
@@ -6692,18 +6812,38 @@ export const Dashboard = ({ view }) => {
                                     const unwrapped_phases = unwrapPhase(raw_phases);
                                     cursorY = unwrapped_phases[localIdx];
                                 }
+                                
+                                const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                                if (ampTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[cursorY]],
+                                        xaxis: [xaxis],
+                                        yaxis: [yaxis]
+                                    }, [ampTraceIdx]);
+                                }
                             } else {
-                                cursorY = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
-                            }
-                            
-                            const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Cursor Marker Amp');
-                            if (ampTraceIdx !== -1) {
-                                Plotly.restyle(container, {
-                                    x: [[cursorX]],
-                                    y: [[cursorY]],
-                                    xaxis: [xaxis],
-                                    yaxis: [yaxis]
-                                }, [ampTraceIdx]);
+                                const y1X = localRow[cols.amp_1x] !== undefined ? localRow[cols.amp_1x] : 0;
+                                const ampTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker');
+                                if (ampTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[y1X]],
+                                        xaxis: ['x2'],
+                                        yaxis: ['y2']
+                                    }, [ampTraceIdx]);
+                                }
+                                
+                                const yDirect = localRow[cols.direct] !== undefined ? localRow[cols.direct] : 0;
+                                const directTraceIdx = container.data.findIndex(t => t.name === 'Direct Cursor Marker');
+                                if (directTraceIdx !== -1) {
+                                    Plotly.restyle(container, {
+                                        x: [[cursorX]],
+                                        y: [[yDirect]],
+                                        xaxis: ['x2'],
+                                        yaxis: ['y2']
+                                    }, [directTraceIdx]);
+                                }
                             }
                             
                             if (container.layout.shapes) {
@@ -6968,7 +7108,7 @@ export const Dashboard = ({ view }) => {
             const showDirect = document.getElementById('show-trend-direct') ? document.getElementById('show-trend-direct').checked : true;
             const show1X = document.getElementById('show-trend-1x') ? document.getElementById('show-trend-1x').checked : true;
             const show2X = false;
-            const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : true;
+            const showGap = document.getElementById('show-trend-gap') ? document.getElementById('show-trend-gap').checked : false;
             const showTemp = false;
 
             const hasPhaseTraces = (show1X && cols.phase_1x && filteredDf[0][cols.phase_1x] !== undefined) ||
@@ -7582,6 +7722,17 @@ export const Dashboard = ({ view }) => {
                 currentRMax = limits.max;
             }
 
+            const rotDirInput = document.getElementById('shaft-rotation-direction');
+            const rotation = rotDirInput ? rotDirInput.value : 'CW';
+            const isCCW = rotation === 'CCW';
+
+            const phaseMeasInput = document.getElementById('phase-measurement-direction');
+            const phaseMeas = phaseMeasInput ? phaseMeasInput.value : 'against';
+            const against = phaseMeas === 'against';
+
+            const increaseCW = (against && isCCW) || (!against && !isCCW);
+            const angularDirection = increaseCW ? 'clockwise' : 'counterclockwise';
+
             const layout = { ...baseLayout };
             layout.margin = { t: 45, b: 65, l: 45, r: 75 };
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
@@ -7594,7 +7745,7 @@ export const Dashboard = ({ view }) => {
                 bgcolor: plotBg,
                 domain: { x: [0.12, 0.88], y: [0.12, 0.88] }, // symmetric domain centered at 0.50
                 angularaxis: {
-                    direction: 'clockwise',
+                    direction: angularDirection,
                     period: 360,
                     rotation: probeAngle,
                     gridcolor: baseLayout.xaxis.gridcolor,
@@ -7632,8 +7783,10 @@ export const Dashboard = ({ view }) => {
             // Generate path using short line segments (L) to ensure 100% compatibility with Plotly shape parser
             let arcPath = '';
             const steps = 12;
+            const startAngDeg = isCCW ? 105 : 165;
+            const sweepDeg = isCCW ? 60 : -60;
             for (let i = 0; i <= steps; i++) {
-                const angle = (165 - (i / steps) * 60) * Math.PI / 180; // Sweeping clockwise from 165 to 105 degrees
+                const angle = (startAngDeg + (i / steps) * sweepDeg) * Math.PI / 180;
                 const x = paperCenterX + paperRx * Math.cos(angle);
                 const y = paperCenterY + paperRy * Math.sin(angle);
                 if (i === 0) {
@@ -7643,13 +7796,14 @@ export const Dashboard = ({ view }) => {
                 }
             }
 
-            const angleEnd = 105 * Math.PI / 180;
+            const angleEnd = (startAngDeg + sweepDeg) * Math.PI / 180;
             const xEnd = paperCenterX + paperRx * Math.cos(angleEnd);
             const yEnd = paperCenterY + paperRy * Math.sin(angleEnd);
 
-            // Tangent direction at the end point (pointing clockwise)
-            const tangentAngle = angleEnd - Math.PI / 2; // 15 degrees
-            const arrowLength = 9; // pixels
+            // Tangent direction at the end point
+            const tangentAngle = isCCW ? angleEnd + Math.PI / 2 : angleEnd - Math.PI / 2;
+            const arrowSizeStr = slotConfig.polarArrowSize || 'medium';
+            const arrowLength = arrowSizeStr === 'small' ? 6 : arrowSizeStr === 'large' ? 12 : 9;
             const arrowLenX = arrowLength / width;
             const arrowLenY = arrowLength / height;
 
@@ -7658,7 +7812,28 @@ export const Dashboard = ({ view }) => {
             const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
             const yWing2 = yEnd - arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
 
-            const arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+            const arrowStyle = slotConfig.polarArrowStyle || 'triangle';
+            let arrowheadPath = '';
+            let arrowFillColor = borderCol;
+            let arrowLineWidth = 0.8;
+
+            if (arrowStyle === 'open') {
+                arrowheadPath = `M ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)}`;
+                arrowFillColor = 'rgba(0,0,0,0)';
+                arrowLineWidth = 1.8;
+            } else if (arrowStyle === 'barb') {
+                const xMid = (xWing1 + xWing2) / 2;
+                const yMid = (yWing1 + yWing2) / 2;
+                const xIndent = xMid + 0.35 * (xEnd - xMid);
+                const yIndent = yMid + 0.35 * (yEnd - yMid);
+                arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                arrowFillColor = borderCol;
+                arrowLineWidth = 0.8;
+            } else {
+                arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                arrowFillColor = borderCol;
+                arrowLineWidth = 0.8;
+            }
 
             const scaleX = 0.94; // X position for the vertical scale bar in paper coordinates
             const scaleYStart = 0.50; // Y center (0 scale)
@@ -7681,8 +7856,8 @@ export const Dashboard = ({ view }) => {
                     xref: 'paper',
                     yref: 'paper',
                     path: arrowheadPath,
-                    fillcolor: borderCol, // Blend with the grid border color
-                    line: { color: borderCol, width: 0.8 }
+                    fillcolor: arrowFillColor,
+                    line: { color: borderCol, width: arrowLineWidth }
                 },
                 // Vertical scale line
                 {
@@ -7756,7 +7931,7 @@ export const Dashboard = ({ view }) => {
                 ...(baseLayout.annotations || []),
                 // Bottom-right: Rotation Direction label
                 {
-                    text: 'CW ROTATION',
+                    text: `${rotation} ROTATION`,
                     showarrow: false,
                     xref: 'paper',
                     yref: 'paper',
@@ -7912,6 +8087,17 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'none'
             };
             applyCurveFormatting(trace_phase1x, 'phase_1x');
+
+            const trace_direct = cols.direct && clean_df.some(r => isNumber(r[cols.direct])) ? {
+                x: speeds,
+                y: clean_df.map(r => r[cols.direct]),
+                name: 'Direct Amp',
+                xaxis: 'x2', yaxis: 'y2',
+                hoverinfo: 'none'
+            } : null;
+            if (trace_direct) {
+                applyCurveFormatting(trace_direct, 'direct');
+            }
             
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             const speedUnit = getChannelUnit(ch, 'speed', 'RPM');
@@ -8004,7 +8190,16 @@ export const Dashboard = ({ view }) => {
                 layout.yaxis2.range = [yMin, yMax];
             }
             
-            const traces = [trace_amp1x, trace_phase1x];
+            const traces = [];
+            if (config.showBodeDirect !== false && trace_direct) {
+                traces.push(trace_direct);
+            }
+            if (config.showBode1XAmp !== false) {
+                traces.push(trace_amp1x);
+            }
+            if (config.showBode1XPhase !== false) {
+                traces.push(trace_phase1x);
+            }
             addCursorToSlot(slotIdx, traces, layout, clean_df);
             
             container.plotData = clean_df;
@@ -8058,6 +8253,26 @@ export const Dashboard = ({ view }) => {
                 }
             };
             
+            let trace_direct = null;
+            if (cols.direct && clean_df.some(r => isNumber(r[cols.direct]))) {
+                const direct_amps = clean_df.map(r => r[cols.direct]);
+                trace_direct = {
+                    type: 'scatter3d',
+                    mode: 'lines+markers',
+                    x: speeds,
+                    y: direct_amps,
+                    z: phases,
+                    name: 'Direct Amp',
+                    hoverinfo: 'none',
+                    line: { color: signalFormats.direct.color || '#3b82f6', width: 3 },
+                    marker: {
+                        size: 2,
+                        color: speeds,
+                        colorscale: 'Viridis'
+                    }
+                };
+            }
+            
             const speedUnit = getChannelUnit(ch, 'speed', 'RPM');
             const ampUnit = getChannelUnit(ch, 'amp', 'mils');
             const phaseUnit = getChannelUnit(ch, 'phase', 'deg');
@@ -8094,7 +8309,30 @@ export const Dashboard = ({ view }) => {
                 hoverinfo: 'skip'
             };
 
-            const traces = [trace, cursorTrace];
+            const cursorTraceDirect = trace_direct ? {
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [speeds[0] || 0],
+                y: [(clean_df[0] ? clean_df[0][cols.direct] : 0) || 0],
+                z: [phases[0] || 0],
+                marker: {
+                    symbol: 'diamond',
+                    size: 8,
+                    color: '#fb923c'
+                },
+                name: 'Direct Cursor',
+                showlegend: false,
+                hoverinfo: 'skip'
+            } : null;
+
+            const traces = [trace];
+            if (trace_direct) {
+                traces.push(trace_direct);
+            }
+            traces.push(cursorTrace);
+            if (cursorTraceDirect) {
+                traces.push(cursorTraceDirect);
+            }
             
             container.plotData = clean_df;
             container.unwrappedPhases = phases;
@@ -9685,6 +9923,15 @@ export const Dashboard = ({ view }) => {
         }
         window.toggleOrbitTimebase = toggleOrbitTimebase;
 
+        function toggleBodeTrace(idx, key, checked) {
+            if (plotSlots[idx]) {
+                plotSlots[idx][key] = checked;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.toggleBodeTrace = toggleBodeTrace;
+
         function toggleOrbitTrace2(idx, checked) {
             if (plotSlots[idx]) {
                 plotSlots[idx].showTrace2 = checked;
@@ -9713,6 +9960,24 @@ export const Dashboard = ({ view }) => {
         }
         window.changePolarLabelType = changePolarLabelType;
 
+        function changePolarArrowStyle(idx, style) {
+            if (plotSlots[idx]) {
+                plotSlots[idx].polarArrowStyle = style;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.changePolarArrowStyle = changePolarArrowStyle;
+
+        function changePolarArrowSize(idx, size) {
+            if (plotSlots[idx]) {
+                plotSlots[idx].polarArrowSize = size;
+                renderGrid();
+                saveWorkspaceConfig();
+            }
+        }
+        window.changePolarArrowSize = changePolarArrowSize;
+
         window.scadaWebSocket = null;
         window.startScadaSimulation = () => {
             const simBtn = document.getElementById('btn-scada-sim');
@@ -9736,7 +10001,7 @@ export const Dashboard = ({ view }) => {
             
             const apiBase = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : (window.API_BASE_URL || '');
             let wsUrl;
-            const tokenVal = (typeof token !== 'undefined' ? token : '') || localStorage.getItem('token') || '';
+            const tokenVal = (typeof token !== 'undefined' ? token : '') || sessionStorage.getItem('token') || '';
             const queryParam = tokenVal ? `?token=${encodeURIComponent(tokenVal)}` : '';
             if (apiBase) {
                 wsUrl = apiBase.replace('http://', 'ws://').replace('https://', 'wss://').replace(/\/api$/, '') + '/scada/stream' + queryParam;
@@ -10406,6 +10671,9 @@ export const Dashboard = ({ view }) => {
         delete window.toggleOrbitTrace2;
         delete window.changeOrbitCycles;
         delete window.changePolarLabelType;
+        delete window.changePolarArrowStyle;
+        delete window.changePolarArrowSize;
+        delete window.toggleBodeTrace;
         delete window.populatePlotFromToolbar;
         
         if (window.scadaInterval) {
@@ -10949,6 +11217,22 @@ export const Dashboard = ({ view }) => {
                                     <input type="number" id="probe-angle-y-input" min="-360" max="360" step="5" defaultValue="45" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
                                 </div>
                             </div>
+                            <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px"}}>
+                                <div>
+                                    <label htmlFor="shaft-rotation-direction" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Shaft Rotation</label>
+                                    <select id="shaft-rotation-direction" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="CW">CW</option>
+                                        <option value="CCW">CCW</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="phase-measurement-direction" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>Phase Measurement</label>
+                                    <select id="phase-measurement-direction" onChange={() => window.renderGrid && window.renderGrid()} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
+                                        <option value="against">Against Rotation</option>
+                                        <option value="with">With Rotation</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <label htmlFor="probe-scale-factor-input" style={{fontSize: "0.65rem", display: "block", marginBottom: "3px"}}>
                                     Probe Scale Factor (mils/V)
@@ -11128,6 +11412,35 @@ export const Dashboard = ({ view }) => {
                                     Color-code by Machine State
                                 </label>
                             </div>
+                            <div style={{marginBottom: "8px"}}>
+                                <button
+                                    id="btn-auto-color-change-sidebar"
+                                    type="button"
+                                    onClick={() => window.handleAutoColorChange && window.handleAutoColorChange()}
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        padding: "4px 8px",
+                                        fontSize: "0.7rem",
+                                        borderRadius: "4px",
+                                        backgroundColor: "var(--accent-color, #3b82f6)",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontFamily: "'Outfit', sans-serif"
+                                    }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: "2px"}}>
+                                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5 3 15 5 15H7C8.5 15 9.5 16 9.5 17.5C9.5 19 8.5 20 8.5 21C8.5 21.5 9 22 12 22Z"></path>
+                                        <circle cx="7.5" cy="10.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="11.5" cy="7.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="16.5" cy="9.5" r="1" fill="currentColor"></circle>
+                                        <circle cx="15.5" cy="14.5" r="1" fill="currentColor"></circle>
+                                    </svg>
+                                    Auto Color Change
+                                </button>
+                            </div>
                             <div className="control-group" style={{marginBottom: "8px"}}>
                                 <select id="state-style-select" onChange={(e) => window.loadStateStyle && window.loadStateStyle(e.target.value)} style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
                                     <option value="startup">Startup</option>
@@ -11137,7 +11450,7 @@ export const Dashboard = ({ view }) => {
                                 </select>
                             </div>
                             <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: "8px", lineHeight: "1.3", borderLeft: "2px solid var(--border-color)", paddingLeft: "6px"}}>
-                                Note: Curve colors are preserved; machine states are differentiated using the dash styles selected below.
+                                Note: Machine states are differentiated using the colors and dash styles selected below.
                             </div>
                             <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
                                 <div style={{flex: 1}}>
@@ -11426,6 +11739,18 @@ export const Dashboard = ({ view }) => {
                         <circle cx="18" cy="10" r="1.5" fill="currentColor"></circle>
                     </svg>
                     <span className="tooltip">1X Polar Plot</span>
+                </button>
+                <button className="toolbar-btn" type="button" 
+                        onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('orbit')}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Concentric circle with orthogonal X/Y probe axes and a dynamic rotor orbit trajectory */}
+                        <circle cx="12" cy="12" r="8" strokeDasharray="3,3" opacity="0.5"></circle>
+                        <line x1="12" y1="2" x2="12" y2="22" strokeDasharray="2,2" opacity="0.4"></line>
+                        <line x1="2" y1="12" x2="22" y2="12" strokeDasharray="2,2" opacity="0.4"></line>
+                        <path d="M12 12 C 16 16, 17 8, 12 12" strokeWidth="2" stroke="currentColor"></path>
+                        <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+                    </svg>
+                    <span className="tooltip">1X Orbit Plot</span>
                 </button>
                 <button className="toolbar-btn" type="button" 
                         onClick={() => window.populatePlotFromToolbar && window.populatePlotFromToolbar('bode2d')}>

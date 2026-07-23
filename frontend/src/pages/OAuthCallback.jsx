@@ -12,10 +12,10 @@ export const OAuthCallback = ({ provider }) => {
         // 1. If already logged in, redirect immediately based on status
         if (token && user) {
             console.log("OAuthCallback: Session active, redirecting to appropriate workspace.");
-            const redirectUrl = localStorage.getItem('auth_redirect_target');
+            const redirectUrl = sessionStorage.getItem('auth_redirect_target');
             if (user.status === 'approved') {
                 if (redirectUrl) {
-                    localStorage.removeItem('auth_redirect_target');
+                    sessionStorage.removeItem('auth_redirect_target');
                     navigate(redirectUrl);
                 } else {
                     navigate('/dashboard');
@@ -70,10 +70,10 @@ export const OAuthCallback = ({ provider }) => {
                 saveToken(data.access_token, profile);
 
                 // Redirect based on user approval status
-                const redirectUrl = localStorage.getItem('auth_redirect_target');
+                const redirectUrl = sessionStorage.getItem('auth_redirect_target');
                 if (profile.status === 'approved') {
                     if (redirectUrl) {
-                        localStorage.removeItem('auth_redirect_target');
+                        sessionStorage.removeItem('auth_redirect_target');
                         navigate(redirectUrl);
                     } else {
                         navigate('/dashboard');
@@ -83,7 +83,7 @@ export const OAuthCallback = ({ provider }) => {
                 }
             } catch (err) {
                 console.error(err);
-                if (localStorage.getItem('token')) {
+                if (sessionStorage.getItem('token')) {
                     console.log("OAuthCallback: Session token is already active, ignoring callback error.");
                     return;
                 }
@@ -93,7 +93,7 @@ export const OAuthCallback = ({ provider }) => {
 
         // Delay manual exchange to allow client SDK automatic exchange to finish first
         const timer = setTimeout(() => {
-            if (localStorage.getItem('token')) {
+            if (sessionStorage.getItem('token')) {
                 console.log("OAuthCallback: Session token is already active, skipping manual exchange.");
                 return;
             }
