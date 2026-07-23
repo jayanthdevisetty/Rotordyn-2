@@ -6329,6 +6329,7 @@ export const Dashboard = ({ view }) => {
 
                 layout.shapes.push({
                     type: 'path',
+                    name: 'Cursor Arrowhead',
                     xref: 'paper',
                     yref: 'paper',
                     path: arrowheadPath,
@@ -7299,6 +7300,7 @@ export const Dashboard = ({ view }) => {
                 
                 const isPolar = config.category === 'polar';
                 let updateData;
+                const layoutUpdate = {};
                 if (isPolar) {
                     updateData = {
                         r: [[0, cursorY]],
@@ -7318,12 +7320,89 @@ export const Dashboard = ({ view }) => {
                         probeAngle = probeYAngle;
                     }
 
-                    const markerAngle = probeAngle - cursorX - 90;
+                    // Retrieve arrow style/size config
+                    const arrowStyle = config.polarArrowStyle || 'triangle';
+                    const arrowSizeStr = config.polarArrowSize || 'medium';
+                    const arrowLength = arrowSizeStr === 'small' ? 6 : arrowSizeStr === 'large' ? 12 : 9;
 
-                    // Restyle the marker angle along with coordinates
-                    Plotly.restyle(container, {
-                        'marker.angle': [[0, markerAngle]]
-                    }, [traceIdx]);
+                    // Compute directions for CW vs CCW mapping
+                    const rotDirInput = document.getElementById('shaft-rotation-direction');
+                    const rotation = rotDirInput ? rotDirInput.value : 'CW';
+                    const isCCW = rotation === 'CCW';
+
+                    const phaseMeasInput = document.getElementById('phase-measurement-direction');
+                    const phaseMeas = phaseMeasInput ? phaseMeasInput.value : 'against';
+                    const against = phaseMeas === 'against';
+
+                    const increaseCW = (against && isCCW) || (!against && !isCCW);
+                    const screenAngle = probeAngle + (increaseCW ? -cursorX : cursorX);
+                    const screenAngleRad = screenAngle * Math.PI / 180;
+
+                    // Project polar (r, theta) coordinates to paper coordinates
+                    const rect = container.getBoundingClientRect();
+                    const width = rect.width || 400;
+                    const height = rect.height || 300;
+
+                    const domainSize = 0.76;
+                    const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
+
+                    const paperCenterX = 0.50;
+                    const paperCenterY = 0.50;
+
+                    // Determine maxAmp to calculate scale ratio
+                    const cols = getChannelColumns(config.bearingOrChannel);
+                    const amps = container.plotData ? container.plotData.map(r => r[cols.amp_1x]) : [];
+                    const maxAmp = amps.length > 0 ? Math.max(...amps) : 1.0;
+                    let currentRMax = maxAmp * 1.1;
+                    if (config.layoutLimits && !config.layoutLimits.autoScale && config.layoutLimits.max !== null) {
+                        currentRMax = config.layoutLimits.max;
+                    }
+
+                    const rRatio = Math.max(0, Math.min(1, cursorY / (currentRMax || 1.0)));
+                    const xEnd_cursor = paperCenterX + (rRatio * circleRadiusPx * Math.cos(screenAngleRad)) / width;
+                    const yEnd_cursor = paperCenterY + (rRatio * circleRadiusPx * Math.sin(screenAngleRad)) / height;
+
+                    const tangentAngle = screenAngleRad;
+                    const arrowLenX = arrowLength / width;
+                    const arrowLenY = arrowLength / height;
+
+                    const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
+                    const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
+                    const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
+                    const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
+
+                    let arrowheadPath = '';
+                    let arrowFillColor = '#ef4444'; // Red for cursor
+                    let arrowLineWidth = 1.0;
+                    let arrowStrokeColor = '#ef4444';
+
+                    if (arrowStyle === 'open') {
+                        arrowheadPath = `M ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)}`;
+                        arrowFillColor = 'rgba(0,0,0,0)';
+                        arrowLineWidth = 2.0;
+                    } else if (arrowStyle === 'barb') {
+                        const xMid = (xWing1 + xWing2) / 2;
+                        const yMid = (yWing1 + yWing2) / 2;
+                        const xIndent = xMid + 0.35 * (xEnd_cursor - xMid);
+                        const yIndent = yMid + 0.35 * (yEnd_cursor - yMid);
+                        arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                        arrowLineWidth = 1.0;
+                    } else {
+                        arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
+                        arrowLineWidth = 1.0;
+                    }
+
+                    // Update the layout shape directly
+                    if (container.layout.shapes) {
+                        const shapes = [...container.layout.shapes];
+                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead');
+                        if (shapeIdx !== -1) {
+                            shapes[shapeIdx].path = arrowheadPath;
+                            shapes[shapeIdx].fillcolor = arrowFillColor;
+                            shapes[shapeIdx].line = { color: arrowStrokeColor, width: arrowLineWidth };
+                            layoutUpdate.shapes = shapes;
+                        }
+                    }
                 } else {
                     updateData = {
                         x: [[cursorX]],
@@ -7333,9 +7412,8 @@ export const Dashboard = ({ view }) => {
                     };
                 }
                 
-                const layoutUpdate = {};
                 if (container.layout.shapes) {
-                    const shapes = [...container.layout.shapes];
+                    const shapes = layoutUpdate.shapes || [...container.layout.shapes];
                     const lineIdx = shapes.findIndex(s => s.name === 'Cursor Line' || (s.type === 'line' && s.line && s.line.color === '#ef4444'));
                     if (lineIdx !== -1) {
                         let targetX = targetTime;
