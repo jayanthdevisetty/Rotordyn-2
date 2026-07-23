@@ -989,6 +989,15 @@ export const Dashboard = ({ view }) => {
                 }
             }
             
+            const timelineBtn = document.getElementById('btn-auto-color-change-timeline');
+            if (timelineBtn) {
+                if (colorCodeByStateEnabled) {
+                    timelineBtn.classList.add('active');
+                } else {
+                    timelineBtn.classList.remove('active');
+                }
+            }
+            
             stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
             stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'solid' };
             stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
@@ -12019,11 +12028,11 @@ export const Dashboard = ({ view }) => {
                     </div>
                     
                     {/* Row 2: Playback controls, Step/Speed settings, and Telemetry readouts */}
-                    <div style={{width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px"}}>
+                    <div style={{width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap"}}>
                         {/* Left Controls Group */}
-                        <div style={{display: "flex", alignItems: "center", gap: "16px"}}>
+                        <div style={{display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap"}}>
                             {/* Playback Controls */}
-                            <div className="timeline-group">
+                            <div className="timeline-group" style={{flexShrink: 0}}>
                                 <button className="timeline-ctrl-btn" id="tl-btn-play" onClick={() => window.timelineTogglePlay && window.timelineTogglePlay()} title="Start/Stop Automatic Data Playback">
                                     <span id="tl-play-icon" style={{display: "inline-flex", alignItems: "center"}}><FiPlay style={{marginRight: "4px"}} /></span> <span id="tl-play-text">Playback</span>
                                 </button>
@@ -12031,7 +12040,7 @@ export const Dashboard = ({ view }) => {
                                 <button className="timeline-ctrl-btn" id="tl-btn-next" onClick={() => window.timelineNext && window.timelineNext()} title="Step Forward (Ctrl+Right)" style={{display: "inline-flex", alignItems: "center", justifyContent: "center"}}><FiChevronRight size={16} /></button>
                             </div>
 
-                            <div style={{display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "rgba(14, 165, 233, 0.05)", padding: "2px 6px 2px 2px", borderRadius: "50px", border: "1px solid rgba(14, 165, 233, 0.15)"}}>
+                            <div style={{display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "rgba(14, 165, 233, 0.05)", padding: "2px 6px 2px 2px", borderRadius: "50px", border: "1px solid rgba(14, 165, 233, 0.15)", flexShrink: 0}}>
                                 <button className="timeline-ctrl-btn" id="tl-btn-apply-slowroll" onClick={() => window.applySlowRollAtCurrentIndex && window.applySlowRollAtCurrentIndex()} title="Apply current cursor point as Slow Roll Compensation Baseline" style={{display: "inline-flex", alignItems: "center", backgroundColor: "rgba(14, 165, 233, 0.12)", color: "var(--accent-color)", border: "1px solid rgba(14, 165, 233, 0.25)", padding: "4px 12px", borderRadius: "50px", fontSize: "0.72rem", fontWeight: 700, gap: "4px", cursor: "pointer", margin: 0, height: "24px"}}>
                                     🎯 Apply Slow Roll
                                 </button>
@@ -12041,7 +12050,7 @@ export const Dashboard = ({ view }) => {
                                 </select>
                             </div>
                             
-                            <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
+                            <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px", flexShrink: 0}}>
                                 <button 
                                     className={`timeline-ctrl-btn ${colorCodeByStateEnabled ? 'active' : ''}`}
                                     id="btn-auto-color-change-timeline"
@@ -12075,7 +12084,7 @@ export const Dashboard = ({ view }) => {
                             </div>
                             
                             {/* Step & Speed settings */}
-                            <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px"}}>
+                            <div className="timeline-group" style={{borderLeft: "1px solid var(--border-color)", paddingLeft: "16px", gap: "12px", flexShrink: 0}}>
                                 <div className="timeline-select-wrapper">
                                     <label htmlFor="tl-select-step">Step:</label>
                                     <select id="tl-select-step" onChange={(e) => window.updateStepSize && window.updateStepSize(e.target.value)}>
@@ -12099,7 +12108,7 @@ export const Dashboard = ({ view }) => {
                         </div>
                         
                         {/* Telemetry Display badges */}
-                        <div className="timeline-readouts-container">
+                        <div className="timeline-readouts-container" style={{flexShrink: 0}}>
                             <div className="telemetry-badge">
                                 <span className="lbl">TIME</span>
                                 <span className="val" id="tl-val-time">-</span>

@@ -432,6 +432,8 @@
             gap: 6px;
             font-size: 0.75rem;
             color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .timeline-select-wrapper select {
@@ -465,6 +467,7 @@
             gap: 6px;
             font-weight: 500;
             transition: all 0.2s ease;
+            white-space: nowrap;
         }
         
         .timeline-ctrl-btn:hover {
@@ -1597,20 +1600,23 @@ input:focus, textarea:focus {
 }
 
 .timeline-player-bar {
-    color: var(--text-color) !important;
+    color: var(--text-color);
 }
 
 .timeline-player-bar label, 
 .timeline-player-bar span,
 .timeline-player-bar div,
-.timeline-player-bar select,
+.timeline-player-bar select {
+    color: var(--text-color);
+}
+
 .timeline-player-bar button {
-    color: var(--text-color) !important;
+    color: var(--text-color);
 }
 
 /* Fix active and hover button text inside player bar */
 .timeline-player-bar .timeline-ctrl-btn {
-    color: var(--text-color) !important;
+    color: var(--text-color);
 }
 
 .timeline-player-bar .timeline-ctrl-btn:hover {
@@ -1618,7 +1624,19 @@ input:focus, textarea:focus {
 }
 
 .timeline-player-bar .timeline-ctrl-btn.playing {
-    color: var(--accent-color) !important;
+    color: #ef4444 !important;
+}
+
+.timeline-ctrl-btn.active {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-color: var(--accent-color) !important;
+}
+.timeline-ctrl-btn.active svg {
+    color: #ffffff !important;
+}
+.timeline-ctrl-btn.active span {
+    color: #ffffff !important;
 }
 
 /* Locked Select boxes inside timeline player */
