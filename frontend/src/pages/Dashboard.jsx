@@ -1009,14 +1009,12 @@ export const Dashboard = ({ view }) => {
                 const colorPicker = document.getElementById('state-color-picker');
                 const widthInput = document.getElementById('state-width-input');
                 const widthVal = document.getElementById('state-width-val');
-                const dashSelect = document.getElementById('state-dash-select');
                 
                 if (colorPicker) colorPicker.value = fmt.color;
                 if (widthInput) {
                     widthInput.value = fmt.width;
                     if (widthVal) widthVal.innerText = fmt.width;
                 }
-                if (dashSelect) dashSelect.value = fmt.dash;
             }
         }
 
@@ -1044,17 +1042,6 @@ export const Dashboard = ({ view }) => {
             }
         }
 
-        function handleStateDashChange(dash) {
-            const select = document.getElementById('state-style-select');
-            if (select) {
-                const stateKey = select.value;
-                if (stateFormats[stateKey]) {
-                    stateFormats[stateKey].dash = dash;
-                    renderGrid();
-                }
-            }
-        }
-
         function handleStateColoringToggle(checked) {
             colorCodeByStateEnabled = checked;
             const tbBtn = document.getElementById('btn-auto-color-change-toolbar');
@@ -1071,7 +1058,6 @@ export const Dashboard = ({ view }) => {
         window.loadStateStyle = loadStateStyle;
         window.handleStateColorChange = handleStateColorChange;
         window.handleStateWidthChange = handleStateWidthChange;
-        window.handleStateDashChange = handleStateDashChange;
         window.handleStateColoringToggle = handleStateColoringToggle;
 
 
@@ -5850,19 +5836,19 @@ export const Dashboard = ({ view }) => {
                                         <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 4px; font-size: 0.6rem; letter-spacing: 0.05em;">States:</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
-                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.startup.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.startup.dash === 'dash' ? '4,2' : stateFormats.startup.dash === 'dot' ? '1,2' : stateFormats.startup.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.startup.color}" stroke-width="2.5" /></svg>
                                         <span>Startup</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
-                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.shutdown.color}" stroke-width="2.5" stroke-dasharray="${stateFormats.shutdown.dash === 'dash' ? '4,2' : stateFormats.shutdown.dash === 'dot' ? '1,2' : stateFormats.shutdown.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.shutdown.color}" stroke-width="2.5" /></svg>
                                         <span>Shutdown</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
-                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.steady_state.color}" stroke-width="2" stroke-dasharray="${stateFormats.steady_state.dash === 'dash' ? '4,2' : stateFormats.steady_state.dash === 'dot' ? '1,2' : stateFormats.steady_state.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.steady_state.color}" stroke-width="2" /></svg>
                                         <span>Steady State</span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 5px; font-weight: 600;">
-                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.other.color}" stroke-width="2" stroke-dasharray="${stateFormats.other.dash === 'dash' ? '4,2' : stateFormats.other.dash === 'dot' ? '1,2' : stateFormats.other.dash === 'dashdot' ? '5,2,1,2' : ''}" /></svg>
+                                        <svg width="18" height="4" style="display: block;"><line x1="0" y1="2" x2="18" y2="2" stroke="${stateFormats.other.color}" stroke-width="2" /></svg>
                                         <span>Other/Default</span>
                                     </div>
                                 </div>
@@ -11121,7 +11107,6 @@ export const Dashboard = ({ view }) => {
         delete window.loadStateStyle;
         delete window.handleStateColorChange;
         delete window.handleStateWidthChange;
-        delete window.handleStateDashChange;
         delete window.handleStateColoringToggle;
         delete window.applyCurveFormatting;
         delete window.handleBgOutsideChange;
@@ -11969,17 +11954,7 @@ export const Dashboard = ({ view }) => {
                                 </select>
                             </div>
                             <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: "8px", lineHeight: "1.3", borderLeft: "2px solid var(--border-color)", paddingLeft: "6px"}}>
-                                Note: Machine states are differentiated using the colors and dash styles selected below.
-                            </div>
-                            <div style={{display: "flex", gap: "8px", marginBottom: "8px"}}>
-                                <div style={{flex: 1}}>
-                                    <select id="state-dash-select" onChange={(e) => window.handleStateDashChange && window.handleStateDashChange(e.target.value)} style={{padding: "3px", fontSize: "0.7rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}}>
-                                        <option value="solid">Solid</option>
-                                        <option value="dash">Dashed</option>
-                                        <option value="dot">Dotted</option>
-                                        <option value="dashdot">Dash-Dot</option>
-                                    </select>
-                                </div>
+                                Note: Machine states are differentiated using the colors selected below.
                             </div>
                             <div className="control-group" style={{marginBottom: 0}}>
                                 <label htmlFor="state-width-input" style={{fontSize: "0.65rem", display: "flex", justifyContent: "space-between", marginBottom: "3px"}}>
@@ -12239,6 +12214,16 @@ export const Dashboard = ({ view }) => {
                 <button className="toolbar-btn active" id="btn-toggle-timeline" type="button" onClick={() => window.toggleTimelineBar && window.toggleTimelineBar()} style={{ marginTop: "6px" }}>
                     <FiSliders style={{ verticalAlign: "middle" }} />
                     <span className="tooltip">Toggle Speed Profile Player</span>
+                </button>
+                <button className={`toolbar-btn ${colorCodeByStateEnabled ? 'active' : ''}`} id="btn-auto-color-change-toolbar" type="button" onClick={() => window.handleAutoColorChange && window.handleAutoColorChange()} style={{ marginTop: "6px" }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle" }}>
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5 3 15 5 15H7C8.5 15 9.5 16 9.5 17.5C9.5 19 8.5 20 8.5 21C8.5 21.5 9 22 12 22Z"></path>
+                        <circle cx="7.5" cy="10.5" r="1.2" fill="currentColor"></circle>
+                        <circle cx="11.5" cy="7.5" r="1.2" fill="currentColor"></circle>
+                        <circle cx="16.5" cy="9.5" r="1.2" fill="currentColor"></circle>
+                        <circle cx="15.5" cy="14.5" r="1.2" fill="currentColor"></circle>
+                    </svg>
+                    <span className="tooltip">Auto Color-code by State</span>
                 </button>
                 
                 <div className="toolbar-divider"></div>
