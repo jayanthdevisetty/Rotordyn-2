@@ -950,9 +950,9 @@ export const Dashboard = ({ view }) => {
             });
 
             stateFormats.startup = { color: '#10b981', width: 2.0, dash: 'solid' };
-            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'dash' };
-            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'dot' };
-            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'dashdot' };
+            stateFormats.shutdown = { color: '#ef4444', width: 2.0, dash: 'solid' };
+            stateFormats.steady_state = { color: '#3b82f6', width: 1.5, dash: 'solid' };
+            stateFormats.other = { color: '#64748b', width: 1.5, dash: 'solid' };
             colorCodeByStateEnabled = true;
             
             const stateCheckbox = document.getElementById('toggle-state-coloring');
@@ -4363,6 +4363,69 @@ export const Dashboard = ({ view }) => {
 
         function updateSlowRollButtonUI() {
             const btn = document.getElementById('tl-btn-apply-slowroll');
+            const checkboxEl = document.getElementById('slow-roll-enabled');
+            const selectEl = document.getElementById('slow-roll-sample-select');
+            const nameInput = document.getElementById('slow-roll-name-input');
+            const saveBtn = document.getElementById('btn-save-slow-roll');
+            
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            const isSeismic = activeCh ? isSeismicChannel(activeCh) : false;
+
+            if (isSeismic) {
+                if (btn) {
+                    btn.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="12" width="12" style="vertical-align: middle; margin-right: 4px; color: #ef4444;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Not Applicable — Seismic Data';
+                    btn.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';
+                    btn.style.color = '#ef4444';
+                    btn.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                    btn.style.cursor = 'not-allowed';
+                    btn.disabled = true;
+                }
+                if (checkboxEl) {
+                    checkboxEl.checked = false;
+                    checkboxEl.disabled = true;
+                    if (checkboxEl.parentNode) {
+                        const lbl = checkboxEl.parentNode;
+                        for (let child of lbl.childNodes) {
+                            if (child.nodeType === Node.TEXT_NODE) {
+                                child.textContent = " Not Applicable — Seismic Data";
+                            }
+                        }
+                    }
+                }
+                if (selectEl) selectEl.disabled = true;
+                if (nameInput) nameInput.disabled = true;
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.style.cursor = 'not-allowed';
+                    saveBtn.style.opacity = '0.5';
+                }
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+            }
+            if (checkboxEl) {
+                checkboxEl.disabled = false;
+                if (checkboxEl.parentNode) {
+                    const lbl = checkboxEl.parentNode;
+                    for (let child of lbl.childNodes) {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            child.textContent = " Apply Compensation";
+                        }
+                    }
+                }
+            }
+            if (selectEl) selectEl.disabled = false;
+            if (nameInput) nameInput.disabled = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.style.cursor = 'pointer';
+                saveBtn.style.opacity = '1';
+            }
+
             if (!btn) return;
             
             // Check if there is an applied slow roll at the current index
@@ -4445,6 +4508,12 @@ export const Dashboard = ({ view }) => {
         window.populateSlowRollDropdown = populateSlowRollDropdown;
 
         function saveSlowRollSample() {
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            if (activeCh && isSeismicChannel(activeCh)) {
+                alert("Slow-roll compensation cannot be applied to seismic data.");
+                return;
+            }
             const selectEl = document.getElementById('slow-roll-sample-select');
             const nameInput = document.getElementById('slow-roll-name-input');
             if (!selectEl || selectEl.value === "") return;
@@ -4476,6 +4545,12 @@ export const Dashboard = ({ view }) => {
         window.saveSlowRollSample = saveSlowRollSample;
 
         function applySlowRollAtCurrentIndex() {
+            const activeSlot = (typeof activeSlotIndex !== 'undefined' && plotSlots && plotSlots[activeSlotIndex]) ? plotSlots[activeSlotIndex] : null;
+            const activeCh = activeSlot ? activeSlot.bearingOrChannel : null;
+            if (activeCh && isSeismicChannel(activeCh)) {
+                alert("Slow-roll compensation cannot be applied to seismic data.");
+                return;
+            }
             const filteredDf = getFilteredData();
             if (!filteredDf || filteredDf.length === 0 || activeCursorIndex < 0 || activeCursorIndex >= filteredDf.length) return;
             
@@ -4605,6 +4680,28 @@ export const Dashboard = ({ view }) => {
         window.toggleSlowRoll = toggleSlowRoll;
 
         // Active filters cache
+        function isSeismicChannel(ch) {
+            if (!ch) return false;
+            if (bearingPairsMapping && bearingPairsMapping[ch]) {
+                const mapping = bearingPairsMapping[ch];
+                return isSeismicChannel(mapping.x) || isSeismicChannel(mapping.y);
+            }
+            if (ch.includes('/')) {
+                const parts = ch.split('/');
+                return parts.some(p => isSeismicChannel(p.trim()));
+            }
+            const unit = getChannelUnit(ch, 'amp', '').toLowerCase();
+            const chUpper = ch.toUpperCase();
+            if (unit.includes('in/s') || unit.includes('mm/s') || unit.includes('ips') || unit.includes('g pk') || unit.includes('g pp') || unit.includes('m/s') || unit.includes('g\'s') || unit.includes('gs')) {
+                return true;
+            }
+            if (chUpper.includes('ES') || chUpper.includes('IS') || chUpper.includes('SEISMIC') || chUpper.includes('CASING')) {
+                return true;
+            }
+            return false;
+        }
+        window.isSeismicChannel = isSeismicChannel;
+
         cachedFilteredDf = null;
         function invalidateFilteredDataCache() {
             cachedFilteredDf = null;
@@ -4656,6 +4753,7 @@ export const Dashboard = ({ view }) => {
                     filtered = filtered.map(row => {
                         const compRow = { ...row };
                         singlePrefixes.forEach(ch => {
+                            if (isSeismicChannel(ch)) return;
                             const cols = channelColumnsCache[ch];
                             if (cols.amp_1x && cols.phase_1x) {
                                 const Ad = row[cols.amp_1x];
@@ -5289,6 +5387,7 @@ export const Dashboard = ({ view }) => {
                 }
             });
             syncSidebarTreeHighlights();
+            updateSlowRollButtonUI();
         }
 
         function clearSlot(idx) {
@@ -11385,7 +11484,7 @@ export const Dashboard = ({ view }) => {
                                 </label>
                                 <input type="text" id="slow-roll-name-input" placeholder="e.g. Slow Roll 300RPM" style={{padding: "4px", fontSize: "0.75rem", width: "100%", border: "1px solid var(--border-color)", borderRadius: "4px", backgroundColor: "var(--card-color)", color: "var(--text-color)"}} />
                             </div>
-                            <button className="sidebar-file-btn" type="button" onClick={() => window.saveSlowRollSample && window.saveSlowRollSample()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
+                            <button id="btn-save-slow-roll" className="sidebar-file-btn" type="button" onClick={() => window.saveSlowRollSample && window.saveSlowRollSample()} style={{fontSize: "0.7rem", padding: "4px 8px", width: "100%"}}>
                                 Save Slow Roll Vector
                             </button>
                             <div id="slow-roll-saved-list" style={{marginTop: "8px", fontSize: "0.70rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "4px"}}>
