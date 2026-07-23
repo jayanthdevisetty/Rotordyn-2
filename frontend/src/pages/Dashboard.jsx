@@ -6435,7 +6435,10 @@ export const Dashboard = ({ view }) => {
             }
 
             let processedTraces = traces;
-            if (colorCodeByStateEnabled && container && container.plotData && container.dataset.plotCategory !== 'trend') {
+            const category = container ? container.dataset.plotCategory : '';
+            const bypassStateColoring = ['trend', 'bode2d', 'bode3d', 'spectrum', 'cascade'].includes(category);
+            
+            if (colorCodeByStateEnabled && container && container.plotData && !bypassStateColoring) {
                 processedTraces = splitTracesByState(traces, container.plotData);
             }
 
@@ -8599,8 +8602,9 @@ export const Dashboard = ({ view }) => {
                 x: speeds,
                 y: amps,
                 z: phases,
+                name: '1X Amp',
                 hoverinfo: 'none',
-                line: { color: signalFormats.amp_1x.color, width: 3 },
+                line: { color: signalFormats.amp_1x.color, width: signalFormats.amp_1x.width || 3 },
                 marker: {
                     size: 2,
                     color: speeds,
@@ -8619,7 +8623,7 @@ export const Dashboard = ({ view }) => {
                     z: phases,
                     name: 'Direct Amp',
                     hoverinfo: 'none',
-                    line: { color: signalFormats.direct.color || '#3b82f6', width: 3 },
+                    line: { color: signalFormats.direct.color || '#1e40af', width: signalFormats.direct.width || 3 },
                     marker: {
                         size: 2,
                         color: speeds,
