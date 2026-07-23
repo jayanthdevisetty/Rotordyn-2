@@ -7397,7 +7397,7 @@ export const Dashboard = ({ view }) => {
                     // Update the layout shape directly
                     if (container.layout.shapes) {
                         const shapes = [...container.layout.shapes];
-                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead');
+                        const shapeIdx = shapes.findIndex(s => s.name === 'Cursor Arrowhead' || (s.type === 'path' && s.line && s.line.color === '#ef4444'));
                         if (shapeIdx !== -1) {
                             shapes[shapeIdx].path = arrowheadPath;
                             shapes[shapeIdx].fillcolor = arrowFillColor;
