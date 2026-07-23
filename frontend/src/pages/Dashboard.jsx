@@ -6256,32 +6256,6 @@ export const Dashboard = ({ view }) => {
                 const screenAngle = probeAngle + (increaseCW ? -cursorX : cursorX);
                 const screenAngleRad = screenAngle * Math.PI / 180;
 
-                // Project polar (r, theta) coordinates to paper coordinates
-                const rect = container ? container.getBoundingClientRect() : null;
-                const width = (rect && rect.width) || 400;
-                const height = (rect && rect.height) || 300;
-
-                const domainSize = 0.76;
-                const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
-
-                let paperCenterX = 0.50;
-                let paperCenterY = 0.50;
-                let paperRx = circleRadiusPx / width;
-                let paperRy = circleRadiusPx / height;
-
-                if (container) {
-                    const bgCircle = container.querySelector('.polar .bg') || container.querySelector('.polar path.bg');
-                    if (bgCircle) {
-                        const bgRect = bgCircle.getBoundingClientRect();
-                        const xCenter = bgRect.left + bgRect.width / 2;
-                        const yCenter = bgRect.top + bgRect.height / 2;
-                        paperCenterX = (xCenter - rect.left) / width;
-                        paperCenterY = (rect.bottom - yCenter) / height;
-                        paperRx = (bgRect.width / 2) / width;
-                        paperRy = (bgRect.height / 2) / height;
-                    }
-                }
-
                 const cols = getChannelColumns(ch);
                 const amps = localDf.map(r => r[cols.amp_1x]);
                 const maxAmp = amps.length > 0 ? Math.max(...amps) : 1.0;
@@ -6290,68 +6264,57 @@ export const Dashboard = ({ view }) => {
                     currentRMax = config.layoutLimits.max;
                 }
 
-                const rRatio = Math.max(0, Math.min(1, cursorY / (currentRMax || 1.0)));
-                const xEnd_cursor = paperCenterX + rRatio * paperRx * Math.cos(screenAngleRad);
-                const yEnd_cursor = paperCenterY + rRatio * paperRy * Math.sin(screenAngleRad);
-
-                const tangentAngle = screenAngleRad;
-
                 const arrowStyle = config.polarArrowStyle || 'triangle';
                 const arrowSizeStr = config.polarArrowSize || 'medium';
-                const arrowLength = arrowSizeStr === 'small' ? 6 : arrowSizeStr === 'large' ? 12 : 9;
-                const arrowLenX = arrowLength / width;
-                const arrowLenY = arrowLength / height;
+                const sizeFactor = arrowSizeStr === 'small' ? 0.04 : arrowSizeStr === 'large' ? 0.08 : 0.06;
+                const arrow_dr = sizeFactor * (currentRMax || 1.0);
+                const delta_theta = arrowSizeStr === 'small' ? 4 : arrowSizeStr === 'large' ? 8 : 6;
+                const rBase = Math.max(0, cursorY - arrow_dr);
 
-                const wingAngleDeg = arrowStyle === 'barb' ? 162 : 150;
-                const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + wingAngleDeg * Math.PI / 180);
-                const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + wingAngleDeg * Math.PI / 180);
-                const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - wingAngleDeg * Math.PI / 180);
-                const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - wingAngleDeg * Math.PI / 180);
-
-                let arrowheadPath = '';
-                let arrowFillColor = '#ef4444'; // Red for cursor
-                let arrowLineWidth = 1.0;
-                let arrowStrokeColor = '#ef4444';
+                let arrowR = [];
+                let arrowTheta = [];
+                let arrowFill = 'toself';
 
                 if (arrowStyle === 'open') {
-                    arrowheadPath = `M ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)}`;
-                    arrowFillColor = 'rgba(0,0,0,0)';
-                    arrowLineWidth = 2.0;
+                    arrowR = [rBase, cursorY, rBase];
+                    arrowTheta = [cursorX - delta_theta, cursorX, cursorX + delta_theta];
+                    arrowFill = 'none';
                 } else if (arrowStyle === 'barb') {
-                    const xMid = (xWing1 + xWing2) / 2;
-                    const yMid = (yWing1 + yWing2) / 2;
-                    const xIndent = xMid + 0.55 * (xEnd_cursor - xMid);
-                    const yIndent = yMid + 0.55 * (yEnd_cursor - yMid);
-                    arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
-                    arrowLineWidth = 1.0;
-                } else {
-                    arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
-                    arrowLineWidth = 1.0;
+                    const rIndent = Math.max(0, cursorY - arrow_dr * 0.45);
+                    arrowR = [cursorY, rBase, rIndent, rBase, cursorY];
+                    arrowTheta = [cursorX, cursorX - delta_theta, cursorX, cursorX + delta_theta, cursorX];
+                } else { // triangle
+                    arrowR = [cursorY, rBase, rBase, cursorY];
+                    arrowTheta = [cursorX, cursorX - delta_theta, cursorX + delta_theta, cursorX];
                 }
 
-                layout.shapes.push({
-                    type: 'path',
-                    name: 'Cursor Arrowhead',
-                    xref: 'paper',
-                    yref: 'paper',
-                    path: arrowheadPath,
-                    fillcolor: arrowFillColor,
-                    line: { color: arrowStrokeColor, width: arrowLineWidth }
-                });
-
+                // Push Cursor Line trace
                 traces.push({
                     type: 'scatterpolar',
                     r: [0, cursorY],
                     theta: [cursorX, cursorX],
-                    mode: 'lines+markers',
+                    mode: 'lines',
                     name: 'Cursor Marker',
                     line: {
-                        color: '#ef4444', // Red color
+                        color: '#ef4444',
                         width: 1.8
                     },
-                    marker: {
-                        size: [0, 0], // Hide both markers since shape handles the arrowhead
-                        color: '#ef4444'
+                    showlegend: false,
+                    hoverinfo: 'skip'
+                });
+
+                // Push Cursor Arrowhead trace
+                traces.push({
+                    type: 'scatterpolar',
+                    r: arrowR,
+                    theta: arrowTheta,
+                    fill: arrowFill,
+                    fillcolor: arrowFill === 'toself' ? '#ef4444' : undefined,
+                    mode: 'lines',
+                    name: 'Cursor Arrowhead',
+                    line: {
+                        color: '#ef4444',
+                        width: arrowFill === 'none' ? 2.0 : 1.0
                     },
                     showlegend: false,
                     hoverinfo: 'skip'
@@ -7303,67 +7266,9 @@ export const Dashboard = ({ view }) => {
                 let updateData;
                 const layoutUpdate = {};
                 if (isPolar) {
-                    updateData = {
-                        r: [[0, cursorY]],
-                        theta: [[cursorX, cursorX]]
-                    };
-
-                    // Retrieve probe angle
-                    const angleXInput = document.getElementById('probe-angle-x-input');
-                    const angleYInput = document.getElementById('probe-angle-y-input');
-                    const probeXAngle = angleXInput ? parseFloat(angleXInput.value) || 135 : 135;
-                    const probeYAngle = angleYInput ? parseFloat(angleYInput.value) || 45 : 45;
-                    let probeAngle = 90;
-                    const ch = config.bearingOrChannel || '';
-                    if (ch.toUpperCase().endsWith('X') || ch.toUpperCase().includes('X')) {
-                        probeAngle = probeXAngle;
-                    } else if (ch.toUpperCase().endsWith('Y') || ch.toUpperCase().includes('Y')) {
-                        probeAngle = probeYAngle;
-                    }
-
-                    // Retrieve arrow style/size config
-                    const arrowStyle = config.polarArrowStyle || 'triangle';
-                    const arrowSizeStr = config.polarArrowSize || 'medium';
-                    const arrowLength = arrowSizeStr === 'small' ? 6 : arrowSizeStr === 'large' ? 12 : 9;
-
-                    // Compute directions for CW vs CCW mapping
-                    const rotDirInput = document.getElementById('shaft-rotation-direction');
-                    const rotation = rotDirInput ? rotDirInput.value : 'CW';
-                    const isCCW = rotation === 'CCW';
-
-                    const phaseMeasInput = document.getElementById('phase-measurement-direction');
-                    const phaseMeas = phaseMeasInput ? phaseMeasInput.value : 'against';
-                    const against = phaseMeas === 'against';
-
-                    const increaseCW = (against && isCCW) || (!against && !isCCW);
-                    const screenAngle = probeAngle + (increaseCW ? -cursorX : cursorX);
-                    const screenAngleRad = screenAngle * Math.PI / 180;
-
-                    // Project polar (r, theta) coordinates to paper coordinates
-                    const rect = container.getBoundingClientRect();
-                    const width = rect.width || 400;
-                    const height = rect.height || 300;
-
-                    const domainSize = 0.76;
-                    const circleRadiusPx = Math.min(width * domainSize, height * domainSize) / 2;
-
-                    let paperCenterX = 0.50;
-                    let paperCenterY = 0.50;
-                    let paperRx = circleRadiusPx / width;
-                    let paperRy = circleRadiusPx / height;
-
-                    const bgCircle = container.querySelector('.polar .bg') || container.querySelector('.polar path.bg');
-                    if (bgCircle) {
-                        const bgRect = bgCircle.getBoundingClientRect();
-                        const xCenter = bgRect.left + bgRect.width / 2;
-                        const yCenter = bgRect.top + bgRect.height / 2;
-                        paperCenterX = (xCenter - rect.left) / width;
-                        paperCenterY = (rect.bottom - yCenter) / height;
-                        paperRx = (bgRect.width / 2) / width;
-                        paperRy = (bgRect.height / 2) / height;
-                    }
-
-                    // Determine maxAmp to calculate scale ratio
+                    const lineTraceIdx = container.data.findIndex(t => t.name === 'Cursor Marker' || t.name === 'Cursor Line');
+                    const arrowTraceIdx = container.data.findIndex(t => t.name === 'Cursor Arrowhead');
+                    
                     const cols = getChannelColumns(config.bearingOrChannel);
                     const amps = container.plotData ? container.plotData.map(r => r[cols.amp_1x]) : [];
                     const maxAmp = amps.length > 0 ? Math.max(...amps) : 1.0;
@@ -7371,59 +7276,53 @@ export const Dashboard = ({ view }) => {
                     if (config.layoutLimits && !config.layoutLimits.autoScale && config.layoutLimits.max !== null) {
                         currentRMax = config.layoutLimits.max;
                     }
+                    
+                    const arrowStyle = config.polarArrowStyle || 'triangle';
+                    const arrowSizeStr = config.polarArrowSize || 'medium';
+                    const sizeFactor = arrowSizeStr === 'small' ? 0.04 : arrowSizeStr === 'large' ? 0.08 : 0.06;
+                    const arrow_dr = sizeFactor * (currentRMax || 1.0);
+                    const delta_theta = arrowSizeStr === 'small' ? 4 : arrowSizeStr === 'large' ? 8 : 6;
+                    const rBase = Math.max(0, cursorY - arrow_dr);
 
-                    const rRatio = Math.max(0, Math.min(1, cursorY / (currentRMax || 1.0)));
-                    const xEnd_cursor = paperCenterX + rRatio * paperRx * Math.cos(screenAngleRad);
-                    const yEnd_cursor = paperCenterY + rRatio * paperRy * Math.sin(screenAngleRad);
-
-                    const tangentAngle = screenAngleRad;
-                    const arrowLenX = arrowLength / width;
-                    const arrowLenY = arrowLength / height;
-
-                    const wingAngleDeg = arrowStyle === 'barb' ? 162 : 150;
-                    const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + wingAngleDeg * Math.PI / 180);
-                    const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + wingAngleDeg * Math.PI / 180);
-                    const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - wingAngleDeg * Math.PI / 180);
-                    const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - wingAngleDeg * Math.PI / 180);
-
-                    let arrowheadPath = '';
-                    let arrowFillColor = '#ef4444'; // Red for cursor
-                    let arrowLineWidth = 1.0;
-                    let arrowStrokeColor = '#ef4444';
+                    let arrowR = [];
+                    let arrowTheta = [];
+                    let arrowFill = 'toself';
 
                     if (arrowStyle === 'open') {
-                        arrowheadPath = `M ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)}`;
-                        arrowFillColor = 'rgba(0,0,0,0)';
-                        arrowLineWidth = 2.0;
+                        arrowR = [rBase, cursorY, rBase];
+                        arrowTheta = [cursorX - delta_theta, cursorX, cursorX + delta_theta];
+                        arrowFill = 'none';
                     } else if (arrowStyle === 'barb') {
-                        const xMid = (xWing1 + xWing2) / 2;
-                        const yMid = (yWing1 + yWing2) / 2;
-                        const xIndent = xMid + 0.55 * (xEnd_cursor - xMid);
-                        const yIndent = yMid + 0.55 * (yEnd_cursor - yMid);
-                        arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
-                        arrowLineWidth = 1.0;
-                    } else {
-                        arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
-                        arrowLineWidth = 1.0;
+                        const rIndent = Math.max(0, cursorY - arrow_dr * 0.45);
+                        arrowR = [cursorY, rBase, rIndent, rBase, cursorY];
+                        arrowTheta = [cursorX, cursorX - delta_theta, cursorX, cursorX + delta_theta, cursorX];
+                    } else { // triangle
+                        arrowR = [cursorY, rBase, rBase, cursorY];
+                        arrowTheta = [cursorX, cursorX - delta_theta, cursorX + delta_theta, cursorX];
                     }
 
-                    // Update the layout shape directly
-                    if (container.layout.shapes) {
-                        const shapes = [...container.layout.shapes];
-                        const shapeIdx = shapes.findIndex(s => 
-                            s.name === 'Cursor Arrowhead' || 
-                            (s.type === 'path' && (
-                                (s.line && s.line.color && (String(s.line.color).toLowerCase().includes('ef4444') || String(s.line.color).includes('239'))) ||
-                                (s.fillcolor && (String(s.fillcolor).toLowerCase().includes('ef4444') || String(s.fillcolor).includes('239')))
-                            ))
-                        );
-                        if (shapeIdx !== -1) {
-                            shapes[shapeIdx].path = arrowheadPath;
-                            shapes[shapeIdx].fillcolor = arrowFillColor;
-                            shapes[shapeIdx].line = { color: arrowStrokeColor, width: arrowLineWidth };
-                            layoutUpdate.shapes = shapes;
-                        }
+                    if (lineTraceIdx !== -1) {
+                        Plotly.restyle(container, {
+                            r: [[0, cursorY]],
+                            theta: [[cursorX, cursorX]]
+                        }, [lineTraceIdx]);
                     }
+                    
+                    if (arrowTraceIdx !== -1) {
+                        Plotly.restyle(container, {
+                            r: [arrowR],
+                            theta: [arrowTheta],
+                            fill: [arrowFill],
+                            fillcolor: [arrowFill === 'toself' ? '#ef4444' : 'rgba(0,0,0,0)'],
+                            line: [{
+                                color: '#ef4444',
+                                width: arrowFill === 'none' ? 2.0 : 1.0
+                            }]
+                        }, [arrowTraceIdx]);
+                    }
+                    
+                    updateSlotTelemetryBox(idx, activeCursorIndex);
+                    return;
                 } else {
                     updateData = {
                         x: [[cursorX]],
