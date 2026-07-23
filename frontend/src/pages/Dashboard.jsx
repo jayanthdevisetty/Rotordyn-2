@@ -6301,10 +6301,11 @@ export const Dashboard = ({ view }) => {
                 const arrowLenX = arrowLength / width;
                 const arrowLenY = arrowLength / height;
 
-                const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
-                const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
-                const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
-                const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
+                const wingAngleDeg = arrowStyle === 'barb' ? 162 : 150;
+                const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + wingAngleDeg * Math.PI / 180);
+                const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + wingAngleDeg * Math.PI / 180);
+                const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - wingAngleDeg * Math.PI / 180);
+                const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - wingAngleDeg * Math.PI / 180);
 
                 let arrowheadPath = '';
                 let arrowFillColor = '#ef4444'; // Red for cursor
@@ -6318,8 +6319,8 @@ export const Dashboard = ({ view }) => {
                 } else if (arrowStyle === 'barb') {
                     const xMid = (xWing1 + xWing2) / 2;
                     const yMid = (yWing1 + yWing2) / 2;
-                    const xIndent = xMid + 0.35 * (xEnd_cursor - xMid);
-                    const yIndent = yMid + 0.35 * (yEnd_cursor - yMid);
+                    const xIndent = xMid + 0.55 * (xEnd_cursor - xMid);
+                    const yIndent = yMid + 0.55 * (yEnd_cursor - yMid);
                     arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
                     arrowLineWidth = 1.0;
                 } else {
@@ -7366,10 +7367,11 @@ export const Dashboard = ({ view }) => {
                     const arrowLenX = arrowLength / width;
                     const arrowLenY = arrowLength / height;
 
-                    const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
-                    const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
-                    const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
-                    const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
+                    const wingAngleDeg = arrowStyle === 'barb' ? 162 : 150;
+                    const xWing1 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle + wingAngleDeg * Math.PI / 180);
+                    const yWing1 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle + wingAngleDeg * Math.PI / 180);
+                    const xWing2 = xEnd_cursor + arrowLenX * Math.cos(tangentAngle - wingAngleDeg * Math.PI / 180);
+                    const yWing2 = yEnd_cursor + arrowLenY * Math.sin(tangentAngle - wingAngleDeg * Math.PI / 180);
 
                     let arrowheadPath = '';
                     let arrowFillColor = '#ef4444'; // Red for cursor
@@ -7383,8 +7385,8 @@ export const Dashboard = ({ view }) => {
                     } else if (arrowStyle === 'barb') {
                         const xMid = (xWing1 + xWing2) / 2;
                         const yMid = (yWing1 + yWing2) / 2;
-                        const xIndent = xMid + 0.35 * (xEnd_cursor - xMid);
-                        const yIndent = yMid + 0.35 * (yEnd_cursor - yMid);
+                        const xIndent = xMid + 0.55 * (xEnd_cursor - xMid);
+                        const yIndent = yMid + 0.55 * (yEnd_cursor - yMid);
                         arrowheadPath = `M ${xEnd_cursor.toFixed(4)} ${yEnd_cursor.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
                         arrowLineWidth = 1.0;
                     } else {
@@ -8316,12 +8318,13 @@ export const Dashboard = ({ view }) => {
             const arrowLenX = arrowLength / width;
             const arrowLenY = arrowLength / height;
 
-            const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
-            const yWing1 = yEnd + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
-            const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
-            const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
-
             const arrowStyle = slotConfig.polarArrowStyle || 'triangle';
+            const wingAngleDeg = arrowStyle === 'barb' ? 162 : 150;
+            const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + wingAngleDeg * Math.PI / 180);
+            const yWing1 = yEnd + arrowLenY * Math.sin(tangentAngle + wingAngleDeg * Math.PI / 180);
+            const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - wingAngleDeg * Math.PI / 180);
+            const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - wingAngleDeg * Math.PI / 180);
+
             let arrowheadPath = '';
             let arrowFillColor = borderCol;
             let arrowLineWidth = 0.8;
@@ -8333,8 +8336,8 @@ export const Dashboard = ({ view }) => {
             } else if (arrowStyle === 'barb') {
                 const xMid = (xWing1 + xWing2) / 2;
                 const yMid = (yWing1 + yWing2) / 2;
-                const xIndent = xMid + 0.35 * (xEnd - xMid);
-                const yIndent = yMid + 0.35 * (yEnd - yMid);
+                const xIndent = xMid + 0.55 * (xEnd - xMid);
+                const yIndent = yMid + 0.55 * (yEnd - yMid);
                 arrowheadPath = `M ${xEnd.toFixed(4)} ${yEnd.toFixed(4)} L ${xWing1.toFixed(4)} ${yWing1.toFixed(4)} L ${xIndent.toFixed(4)} ${yIndent.toFixed(4)} L ${xWing2.toFixed(4)} ${yWing2.toFixed(4)} Z`;
                 arrowFillColor = borderCol;
                 arrowLineWidth = 0.8;
