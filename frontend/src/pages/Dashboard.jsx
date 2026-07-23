@@ -8165,9 +8165,9 @@ export const Dashboard = ({ view }) => {
             const arrowLenY = arrowLength / height;
 
             const xWing1 = xEnd + arrowLenX * Math.cos(tangentAngle + 150 * Math.PI / 180);
-            const yWing1 = yEnd - arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
+            const yWing1 = yEnd + arrowLenY * Math.sin(tangentAngle + 150 * Math.PI / 180);
             const xWing2 = xEnd + arrowLenX * Math.cos(tangentAngle - 150 * Math.PI / 180);
-            const yWing2 = yEnd - arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180); // Invert y-offset to compensate for Plotly's vertical rendering flip
+            const yWing2 = yEnd + arrowLenY * Math.sin(tangentAngle - 150 * Math.PI / 180);
 
             const arrowStyle = slotConfig.polarArrowStyle || 'triangle';
             let arrowheadPath = '';
